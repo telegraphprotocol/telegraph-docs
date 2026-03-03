@@ -1,5 +1,5 @@
 ---
-description: Minimal example: send a subnet request via the Diamond and handle the response in a callback contract.
+description: "Minimal example: send a subnet request via the Diamond and handle the response in a callback contract."
 ---
 
 # Subnet Inference Example

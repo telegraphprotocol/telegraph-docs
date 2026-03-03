@@ -1,5 +1,5 @@
 ---
-description: Minimal example: send a cross-chain message via the Diamond and receive it in a destination contract.
+description: "Minimal example: send a cross-chain message via the Diamond and receive it in a destination contract."
 ---
 
 # Cross-Chain Message Example
