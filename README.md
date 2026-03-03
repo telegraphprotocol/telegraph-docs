@@ -1,1 +1,2 @@
-# telegraph-gitbook
+# Telegraph Documentation
+Documentation for the Telegraph project
