@@ -47,3 +47,7 @@ Telegraph makes decentralized intelligence accessible to humans and AI Agents, n
 
 * The Function: The Launch Terminal is a natural language interface (similar to ChatGPT or Perplexity) that allows any human or automated agent to query connected Subnets directly as a plug-and-play tool.
 * The Utility: A user can ask, 'Did Haaland score in the last match?' or 'Is this video a deepfake?'. The Terminal routes the query through the Telegraph protocol to the specific Subnet, verifies the response, and delivers the answer instantly. This turns complex blockchain inference into a simple, search-like product that anyone can use on-demand.
+
+#### Contract architecture
+
+The on-chain “Port” that powers the Rail is implemented using the **Diamond Standard (EIP-2535)**. A single Diamond proxy address exposes all behaviour; logic is split across **facets** (e.g. CrossChain, Subnet, Gas, Signer, Reward, Fee) that share one storage layout. This keeps the system upgradeable and within contract size limits while you interact with one contract address per chain. For integration details and code examples, see **Dapp Examples** and **Examples & Tutorials → EVM Chains**.

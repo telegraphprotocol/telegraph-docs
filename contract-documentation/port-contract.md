@@ -1,6 +1,29 @@
 # Port Contract
 
-The `PortContract` is an advanced smart contract governing the intercommunication between any Telegraph-compatible blockchains. Let's examine its functions in greater detail:
+The Telegraph Port is implemented as a **Diamond (EIP-2535)** proxy: one contract address per chain, with logic split across **facets** that share a common storage layout. You always call the same Diamond address; the proxy routes to the right facet (e.g. CrossChain, Subnet, Gas, Signer, Reward). This keeps the system upgradeable and within size limits. The facets below cover the main behaviour; for addresses and deployment details see **Telegraph Port Addresses**.
+
+---
+
+## Diamond facets (overview)
+
+| Facet | Role |
+| ----- | ----- |
+| **CrossChainFacet** | Outbound/inbound cross-chain messages, TAO fees, gas reimbursement. |
+| **SubnetFacet** | Same-chain subnet requests and responses, TAO/subnet token fees, callbacks. |
+| **GasFacet** | User gas deposits, balance queries, withdrawal requests. |
+| **SignerFacet** | Validator/signer add/remove, entry fees, metadata. |
+| **FeeFacet** | TAO and subnet token fee configuration. |
+| **RewardFacet** | Reward pool, distribution to nodes, claimable rewards. |
+| **AdminFacet** | Initialization, chain config, auth (multi-sig). |
+| **ERC20Facet** | Telegraph/MSG token (transfer, approve, etc.). |
+| **ViewFacet** | Read-only queries (transactions, config, signers). |
+| **DiamondCutFacet / DiamondLoupeFacet** | Upgrades and introspection. |
+
+---
+
+## Main functions (by area)
+
+The following describes the main behaviour you interact with; under the hood these are implemented in the facets above.
 
 `constructor()`: As the initial set-up function, it is only executed once upon contract creation.&#x20;
 
@@ -34,4 +57,6 @@ Various `setX()`: Setters (like `setEntryFees()`, `setChainId()`, `setDistributi
 
 `signatureCheck()`: This function is critical in ensuring the integrity of cross-chain messages. It uses ecrecover to validate each signer’s signature and ensures that only recognized signers can sign messages, and that each message hash is never used again in subsequent transactions.
 
-Overall, the `PortContract` allows the creation of a complex yet secure relay network between Ethereum-compatible blockchains, governing transactions while performing a series of checks and guards. It also incorporates an incentive mechanism for signers to ensure the contract's appropriate operation.
+Overall, the Port (Diamond) allows the creation of a complex yet secure relay network between Ethereum-compatible blockchains, governing transactions while performing a series of checks and guards. It also incorporates an incentive mechanism for signers to ensure the contract's appropriate operation.
+
+**Key events (Diamond):** Cross-chain: `BridgeSwapOutData`, `BridgeSwapInData`; subnet: `SubnetRequestOut`, `SubnetResponseIn`; gas: `GasDeposited`, `GasReimbursed`; rewards: `TAORewardDistributed`, `TAORewardClaimed`; signers: `NewSigner`, `SignerRemoved`. Listen for these on the Diamond address when integrating.
