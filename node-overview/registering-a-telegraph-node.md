@@ -14,77 +14,58 @@ Before you begin, make sure you have:
 * **FAQs:** At the end of this page, you will find FAQs, make sure to give it a read for more context.
 * **Server**: A server running Ubuntu 22.04.1 LTS. Other versions may fail.
 * **Hardware**: A minimum of 8 GB RAM and 16 GB Disk.
-* **RPC Provider Account** (**CRITICAL**): The public RPC are unreliable. You must sign up for a free or paid account with an RPC provider and use it to configure the script.
+* **RPC Provider Account** (**CRITICAL**): Public RPCs are unreliable. Sign up for a free or paid RPC provider and use your URLs (with API key) when the setup script prompts for RPCs, or when editing a script that requires pre-configured RPCs. The standalone script can use built-in default testnet RPCs if you accept defaults.
 * Funds (On Standby): You will need native gas tokens (ETH, MATIC, AVAX, etc.) ready to send _after_ the script creates your node's new wallet. You don't need to create the wallet, the script will automatically create the wallet for your node and node will wait for you to send funds to it. This  &#x20;
 
 **Note:**\
-You should update the default configurations for Clef and your Bridge to make things more secure, as these are placeholder paths and public and prone to attacks. **You are responsible for keeping your node safe.**
+You should update the default configurations for Clef and your Bridge to make things more secure, as these are placeholder paths and public and prone to attacks. **You are responsible for keeping your node safe.** For full details on the standalone setup script (interactive prompts, paths, Clef options), see [Testnet & Production Setup](../setup/testnet-production-setup.md).
 
 ### Operational Costs
 
 * Gas Fees: For the current setup, you (the node operator) must pay for the gas for the transactions. The roadmap includes a mechanism to pass future transaction fees to the end-users.
 * Subnet API Keys: The node's purpose is to query subnets. For now, you can run the node without these keys. In the future, it is expected that node operators will _not_ have to pay for these API keys, as the fees will be passed to the user.
 
-### Step 1: Prepare Environment Variables
+### Step 1: Prepare for Setup
 
-### Part 1: Configure the Installation Script
+What you need before running the setup script:
 
-Do not run the script yet. You must edit it first.
+1. **Server prep** (if fresh): Run `sudo apt update && sudo apt upgrade -y` and `sudo apt install -y build-essential linux-headers-$(uname -r)` if needed.
+2. **Have ready:**
+   * **MONIKER**: Your node's public display name.
+   * **IP**: Your node's public-facing IP or domain (e.g. `http://YOUR_IP:7044`). For security, prefer a domain with a reverse proxy and firewall.
+   * **GENESIS_IP**: If **you are the Genesis node**, this is the same as your node's URL. If **not**, get the Genesis URL from Telegraph Devs. The setup script will prompt for this.
+   * **RPC endpoints**: Public RPCs are unreliable. With the **standalone setup script** you can accept the default testnet (Sepolia + Fuji with built-in RPCs) or, when prompted, supply your own RPC URLs (with your provider API key). With other scripts, configure RPCs in the script or config as required.
+   * **Subnet API keys**: Not required to get the node running; you can leave them blank.
+3. **Clef password**: Use a secure password (10+ characters). The standalone script prompts for it; other scripts may require you to set it in the script before running.
 
-1. If this is a fresh server, you should run\
-   `sudo apt update && sudo apt upgrade -y`\
-   `sudo apt install -y build-essential linux-headers-$(uname -r)`
-2. Download the `telegraph.sh` script to your server.
-3. Open the script in a text editor (e.g., `vim telegraph-setup.sh`).
-4. Find and edit the following variables inside the script file:
-   * `SERVICE_USER`: Change  `"root"` to match your server's username (e.g., `export SERVICE_USER="root"`), preferably keep `"root"` to avoid permission errors.
-   * `BRIDGE_DIR`: Ensure this path is correct for your user (e.g., `export BRIDGE_DIR="/root/bridge"`).
-   * `CLEF_PASSWORD`: Change the default password to a secure password of 10 characters or more.
-   * `MONIKER`: Set your node's public display name (in the `.env` section near the end).
-   * `IP`: Set your node's public-facing IP address (e.g., `IP='http://24.156.99.202:7044'`) or domain name (e.g., `IP='https://node.telegraph.com'`). You can use your servers .
-   * `GENESIS_IP`: Set your node's GENESIS\_IP address (e.g., `GENESIS_IP='http://24.156.99.202:7044'`) or domain name (e.g., `GENESIS_IP='https://node.telegraph.com'`). It should be the **same as `IP`: address**
-5. Configure RPC Endpoints (CRITICAL):
-   * Find the section defining the RPC URLs (e.g., `AMOY_HTTP_URL=...`).
-   * Replace the default `SEPOLIA_HTTP_URL, SEPOLIA_WSS_URL, BSC_HTTP_URL` etc, with your  provider URL that includes your API key.
-   * Example:
-     * Default (might fail): `AMOY_HTTP_URL=https://rpc.ankr.com/polygon_amoy`
-     * Correct (with key): `AMOY_HTTP_URL=https://rpc.ankr.com/polygon_amoy/YOUR_UNIQUE_API_KEY_HERE`
-6. Subnet API Keys (**leave for now**):
-   * You can leave these blank for now. They are not required to get the node running.
-
-Before running anything, ensure you have set all required environment variables. These include:
-
-* **MONIKER**: Your node's display name.
-* **GENESIS\_IP**: The Genesis IP address, **same as IP address**.
-* **IP**: Your node's public IP address.\
-  &#xNAN;_&#x54;ip: For better security, use a domain name and implement best practices such as a reverse proxy, firewall rules, and other security measures to protect your node._
-* No API keys for subnets are need for now.
+**If you use the standalone script** (`telegraph-standalone.sh`): you do **not** edit the script first—it asks for these values interactively. **If you use a different setup script** that requires editing (e.g. `SERVICE_USER`, `BRIDGE_DIR`, `CLEF_PASSWORD`, `MONIKER`, `IP`, `GENESIS_IP`, RPC URLs), edit those in the script before running as that script's documentation instructs.
 
 ### Step 2: Run the Telegraph Installation Script
 
-You will receive or download a **setup script** (example below). This script will automate the installation and setup process for:
+You will receive or download a **setup script**. It automates:
 
-* Dependencies (Go, GCC, Cassandra, Java, Curl, etc.)
+* Dependencies (e.g. Cassandra, Java, Curl, expect)
 * Cassandra database schema
-* Clef signing service
+* Clef signing service (new wallet or existing)
 * Downloading and configuring the `telegraph` binary
-* Setting up systemd services for Clef and Telegraph
+* Systemd services for Clef and Telegraph
 
-**Do not edit the script unless you know what you are doing!**
+**If you use the standalone script** (`telegraph-standalone.sh`): run it without editing; it prompts for all config. **If you use a script that requires pre-configured variables**, edit those before running as instructed in Step 1.
 
-#### ⚠️ Script Warnings
+#### ⚠️ Before and after running
 
-* **Configure all required environment variables** in the script before proceeding.
-* **Configure custom RPCs** for all networks.
-* **Back up your wallet keystore file after it has been created by the script.**
-* **Send enough funds to your Bridge Wallet, created by script, on all supported networks, the minimum amount should be**[ _**0.01**_](#user-content-fn-1)[^1] **ETH in native currency.**
+* **Back up your wallet keystore** after the script creates it (path is shown at the end of setup; e.g. `/root/telegraph/clef/keystore` for the standalone script, or `$BRIDGE_DIR/clef/keystore`).
+* **Send enough funds** to your Bridge Wallet on **all supported networks**—minimum **[0.01](#user-content-fn-1)[^1] ETH** in native currency per network. Registration will not proceed without sufficient gas.
 
-**Example: How to run**
+**Example: standalone script**
 
 ```sh
-chmod +x telegraph-setup.sh
-./telegraph-setup.sh
+curl -sO <url-to-telegraph.sh>
+chmod +x telegraph.sh
+./telegraph.sh
 ```
+
+For other scripts, run as provided (e.g. `chmod +x telegraph-setup.sh && ./telegraph-setup.sh`).
 
 ### Step 3: Fund the Bridge Wallet
 
@@ -93,7 +74,7 @@ After running the script, it will output your **Bridge Wallet address** (look fo
 * **Send enough native gas tokens** (e.g., ETH, BNB, MATIC, AVAX) to this wallet on **all supported networks**. **The minimum amount should be**[ _**0.01**_](#user-content-fn-1)[^1] **ETH in native currency.**
 * The node will not register unless it holds enough funds.
 
-> **Tip:** Back up your keystore file (`$HOME/bridge/clef/keystore`) to a safe location, depending upon your path.
+> **Tip:** Back up your keystore to a safe location. The path depends on your setup (e.g. `$BRIDGE_DIR/clef/keystore`; for the standalone script, often `/root/telegraph/clef/keystore`).
 
 * **Check Balances**:
   * The script checks if your wallet has enough native gas tokens (for transaction fees) on **all supported networks**.
@@ -162,7 +143,8 @@ sudo journalctl -u telegraph.service -f
 
 #### Can I use my own existing wallet or hardware wallet?
 
-> Not at this time. The script is designed to create a new wallet managed by Clef. You can work with Clef to manage or add your own wallet, but do so before moving forward with the registration and adding fund. Telegraph always uses the 1st wallet, so you make sure that your wallet is first.
+> **With the standalone setup script:** Yes. When prompted, choose to use an existing Clef wallet and provide the path to the directory that contains the `keystore` (with `UTC--*` key files). You can optionally specify a single address to use. Use the same password as when that wallet was created. Telegraph uses the first available wallet in the keystore unless you specified one address.  
+> **With other scripts:** They may only create a new wallet; check that script's documentation. If you add your own wallet via Clef, ensure it is the first (or only) wallet before registration and funding.
 
 #### Do I need to manually approve the contract?
 
