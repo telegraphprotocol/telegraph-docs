@@ -1,4 +1,10 @@
-# Dapp Integration: Telegraph Diamond Contracts
+---
+description: >-
+  Integrate dApps and smart contracts with Telegraph's Diamond (Port) for
+  cross-chain messaging and subnet inference.
+---
+
+# Dapp Integration
 
 This guide is for **dApp and smart contract developers** who want to integrate with Telegraph’s Diamond (Port) contracts for **cross-chain messaging** and **subnet inference**.
 

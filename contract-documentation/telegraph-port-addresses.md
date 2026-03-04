@@ -10,7 +10,7 @@ Below are the **Diamond (Port)** contract addresses used by the Telegraph networ
 
 ---
 
-## Testnet
+## Testnet (Latest working)
 
 | Chain            | Name            | Chain ID | Diamond (Port) Address |
 | ---------------- | --------------- | -------- | ---------------------- |
@@ -30,7 +30,7 @@ Use the **exact chain names** (e.g. `"Sepolia-ETH"`, `"Avalanche-Fuji"`) when ca
 
 ---
 
-## Mainnet (reference)
+## Mainnet (Depreciated)
 
 | Chain   | Address |
 | ------- | ------- |
@@ -42,12 +42,3 @@ Use the **exact chain names** (e.g. `"Sepolia-ETH"`, `"Avalanche-Fuji"`) when ca
 Mainnet addresses may change with new deployments; confirm with the team or your deployment config before use.
 
 ---
-
-## Other testnets (reference)
-
-| Chain            | Address |
-| ---------------- | ------- |
-| BSC Testnet      | `0x383a329ba2f16ec9ca667740194886c06e498b08` |
-| Polygon Amoy Testnet | `0xC53E47898620119d23e8E71c17d19343D5Ff1794` |
-
-For the latest list and RPC URLs, use the `networks.config.json` or config provided by the Telegraph team.

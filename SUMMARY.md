@@ -27,6 +27,7 @@
 
 * [Local Setup](setup/local-setup.md)
 * [Testnet & Production Setup](setup/testnet-production-setup.md)
+* [Dapp Integration](setup/dapp-integration.md)
 
 ## Examples & Tutorials
 
@@ -34,6 +35,8 @@
   * [Gas Deposit](examples-and-tutorials/evm-chains/gas-deposit.md)
   * [Cross-Chain Message Example](examples-and-tutorials/evm-chains/cross-chain-message-example.md)
   * [Subnet Inference Example](examples-and-tutorials/evm-chains/subnet-inference-example.md)
+  * [Bridge TX Test – Quick Guide](examples-and-tutorials/evm-chains/bridge-tx-test-quick-guide.md)
+  * [Subnet Inference Test – Quick Guide](examples-and-tutorials/evm-chains/subnet-inference-test-quick-guide.md)
   * [Hello World!](examples-and-tutorials/evm-chains/hello-world.md)
   * [ERC20 Transfers](examples-and-tutorials/evm-chains/erc20-transfers.md)
   * [Securing Your Smart Contract](examples-and-tutorials/evm-chains/securing-your-smart-contract.md)

@@ -8,6 +8,11 @@ description: >-
 
 This section explains **how to connect your dApp or smart contracts** to Telegraph’s Diamond (Port): the interfaces you implement, the flows (cross-chain vs subnet), and where the **literal code examples** live.
 
+**Quick guides (deployed testnet contracts):**
+
+* [Bridge TX Test – Quick Guide](bridge-tx-test-quick-guide.md) — Run a Fuji → Sepolia bridge test using BridgeSender, BridgeReceiver, and the Telegraph Diamonds.
+* [Subnet Inference Test – Quick Guide](subnet-inference-test-quick-guide.md) — Run Bitmind and Zeus subnet tests using SubnetSender, SubnetCallback, and the Diamond on Fuji.
+
 **For chunk-sized, copy-paste examples** (gas deposit, sending/receiving cross-chain, subnet request/callback), see **Examples & Tutorials → EVM Chains**: [Gas Deposit](../examples-and-tutorials/evm-chains/gas-deposit.md), [Cross-Chain Message Example](../examples-and-tutorials/evm-chains/cross-chain-message-example.md), [Subnet Inference Example](../examples-and-tutorials/evm-chains/subnet-inference-example.md).
 
 ---
