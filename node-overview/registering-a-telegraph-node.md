@@ -38,7 +38,7 @@ What you need before running the setup script:
    * **Subnet API keys**: Not required to get the node running; you can leave them blank.
 3. **Clef password**: Use a secure password (10+ characters). The standalone script prompts for it; other scripts may require you to set it in the script before running.
 
-**If you use the standalone script** (`telegraph-standalone.sh`): you do **not** edit the script first—it asks for these values interactively. **If you use a different setup script** that requires editing (e.g. `SERVICE_USER`, `BRIDGE_DIR`, `CLEF_PASSWORD`, `MONIKER`, `IP`, `GENESIS_IP`, RPC URLs), edit those in the script before running as that script's documentation instructs.
+**If you use the standalone script** (`telegraph.sh`): you do **not** edit the script first—it asks for these values interactively. **If you use a different setup script** that requires editing (e.g. `SERVICE_USER`, `BRIDGE_DIR`, `CLEF_PASSWORD`, `MONIKER`, `IP`, `GENESIS_IP`, RPC URLs), edit those in the script before running as that script's documentation instructs.
 
 ### Step 2: Run the Telegraph Installation Script
 
@@ -50,7 +50,7 @@ You will receive or download a **setup script**. It automates:
 * Downloading and configuring the `telegraph` binary
 * Systemd services for Clef and Telegraph
 
-**If you use the standalone script** (`telegraph-standalone.sh`): run it without editing; it prompts for all config. **If you use a script that requires pre-configured variables**, edit those before running as instructed in Step 1.
+**If you use the standalone script** (`telegraph.sh`): run it without editing; it prompts for all config. **If you use a script that requires pre-configured variables**, edit those before running as instructed in Step 1.
 
 #### ⚠️ Before and after running
 
