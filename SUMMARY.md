@@ -29,6 +29,10 @@
 * [Testnet & Production Setup](setup/testnet-production-setup.md)
 * [Dapp Integration](setup/dapp-integration.md)
 
+## Bittensor Subnets
+
+* [Building dApps with Integrated Subnets](bittensor-subnets/integrated-subnets.md)
+
 ## Examples & Tutorials
 
 * [EVM Chains](examples-and-tutorials/evm-chains/README.md)
