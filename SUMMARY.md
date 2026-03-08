@@ -31,7 +31,8 @@
 
 ## Bittensor Subnets
 
-* [Building dApps with Integrated Subnets](bittensor-subnets/integrated-subnets.md)
+* [Integrated Subnets (Overview)](bittensor-subnets/integrated-subnets.md)
+* [Subnet Integration for Developers](bittensor-subnets/subnet-integration-for-devs.md)
 
 ## Examples & Tutorials
 

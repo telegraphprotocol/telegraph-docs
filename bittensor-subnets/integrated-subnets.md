@@ -1,10 +1,10 @@
 ---
-description: "Use Bittensor subnets from your dApp: HTTP API or smart contracts, with full request/response specs for inference."
+description: "Quick overview: use Bittensor subnets from your dApp via HTTP or smart contracts, with request/response summaries."
 ---
 
-# Integrated Subnets
+# Integrated Subnets (Overview)
 
-Telegraph integrates **Bittensor subnets** so you can call AI and inference APIs (chat, image/video detection, weather, search, and more) from your dApps. You can use subnets in two ways: **over HTTP** via the Subnet-Dispatcher, or **from smart contracts** via the Diamond (Port). This guide explains both and gives exact request/response specifications for building and decoding inference calls.
+Telegraph integrates **Bittensor subnets** so you can call AI and inference APIs (chat, image/video detection, weather, search, and more) from your dApps. You can use subnets in two ways: **over HTTP** via the Subnet-Dispatcher, or **from smart contracts** via the Diamond (Port). This page is a **quick overview**; for detailed OnChainData encoding, per-endpoint index specs, and implementation details, see [Subnet Integration for Developers](subnet-integration-for-devs.md).
 
 ---
 
@@ -439,6 +439,7 @@ Expected: `{"status":"ok"}`.
 
 ## Related docs
 
+- [Subnet Integration for Developers](subnet-integration-for-devs.md) — Technical guide: OnChainData encoding, endpoint indices, request/response mapping.
 - [Dapp Integration](../setup/dapp-integration.md) — Gas, cross-chain, and subnet flows.
 - [Subnet Inference Example](../examples-and-tutorials/evm-chains/subnet-inference-example.md) — Minimal contract example.
 - [Subnet Inference Test – Quick Guide](../dapp-examples/subnet-inference-test-quick-guide.md) — BitMind and Zeus on Fuji.
