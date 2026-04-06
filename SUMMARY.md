@@ -58,3 +58,4 @@
 ## LLM Integration
 
 * [ChatGPT Plugin](llm-integration/chatgpt-plugin.md)
+* [Agentic Framework Integration](llm-integration/agentic-framework-integration.md)
