@@ -26,7 +26,6 @@ The node connects to a running Clef daemon via an IPC socket or named pipe.
 |---|---|
 | Signing key storage | Clef keystore (encrypted JSON, on disk) |
 | Signing process | Node asks Clef to sign; Clef responds via IPC |
-| Chain ID tracking | `chain_id.json` file, written before each signing request |
 | Required env vars | `EXTERNAL_SIGNER_URL` — path to Clef IPC |
 | Requires Clef service | Yes (`clef.service` systemd unit) |
 
@@ -35,15 +34,14 @@ The node connects to a running Clef daemon via an IPC socket or named pipe.
 EXTERNAL_SIGNER_URL=/root/bridge/clef/clef.ipc
 ```
 
-### Mode 2 — Raw Private Key (new)
+### Mode 2 — Raw Private Key
 
-The node reads the private key directly from memory at startup. No external process.
+The node reads the private key directly at startup. No external process.
 
 | What it does | Detail |
 |---|---|
 | Signing key storage | Environment variable or file (Docker secret) |
-| Signing process | In-process using `go-ethereum/crypto` (EIP-155 compliant) |
-| Chain ID tracking | Not needed — chain ID passed directly into `types.NewEIP155Signer` |
+| Signing process | In-process, EIP-155 compliant |
 | Required env vars | `PRIVATE_KEY` (hex) **or** `PRIVATE_KEY_FILE` (path to file containing hex) |
 | Requires Clef service | No |
 
@@ -52,60 +50,39 @@ The node reads the private key directly from memory at startup. No external proc
 PRIVATE_KEY=0xabc123...
 ```
 
-**Set in Docker Compose (secret file):**
+**Set via file (Docker / K8s):**
 ```
 PRIVATE_KEY_FILE=/run/secrets/validator_private_key
 ```
 
 ### Mutual exclusion
 
-Setting both `PRIVATE_KEY` and `EXTERNAL_SIGNER_URL` at the same time causes the node to `log.Fatal` immediately on startup. Choose one mode.
+Setting both `PRIVATE_KEY` and `EXTERNAL_SIGNER_URL` at the same time causes the node to exit immediately on startup. Choose one mode.
 
 ---
 
-## Where Signing Happens (affected code paths)
+## What Gets Signed
 
-Every location that previously hard-exited when `EXTERNAL_SIGNER_URL` was empty now resolves the node's address and key through a dual-mode helper. The affected flows are:
+Both modes cover all signing operations in the node. In raw private key mode, the same operations are performed in-process rather than delegated to Clef:
 
-| Flow | Trigger | What changes in raw key mode |
-|---|---|---|
-| `EnsureNodeIsSignerOnAllNetworks` | Startup (10 s delay) | Derives address from key; calls `GetAuth` with raw key transactor |
-| `RegisterSigner` | Other node POSTs `/returnSigned` with collected signatures | Previously returned immediately if no Clef; now proceeds to call `AddSigner` on-chain |
-| `RegisterSignerDirectly` | Listener sees ≤1 signer on-chain | Derives address from key; calls `AddSigner` with empty signature arrays |
-| `signWithKeyServerUnlocked` | Node asked to co-sign a new node's registration | Signs with EIP-155 + raw key instead of Clef `SignTx` |
-| `testEmitEvent` listener | `TestEmit` contract event received | Resolves own address from key for `isMine` validator sync |
-| `newSignerEvent` listener | `NewSigner` contract event received | Resolves own address from key for `isMine` validator sync and signing decision |
-| `GetAuth` (auth.go) | Any on-chain transaction (AddSigner, etc.) | Returns a `bind.NewKeyedTransactorWithChainID` transactor instead of Clef transactor |
-| `signWithKeyServer` (signer.go) | General transaction signing | Dispatches to `signWithRawKey` which uses `types.SignTx` + EIP-155 |
-| HTTP Authorization header | Any outgoing API call to another node | Signs `keccak256("Authorization")` with raw key instead of Clef |
+- **Signer registration** — transactions submitted to the Port contract on each configured chain at startup and when new chains are detected
+- **Bridge relay** — transactions submitted when co-signing cross-chain messages collected from other validators
+- **Validator co-signing** — signing a new node's registration when asked by another validator
+- **Inter-node HTTP requests** — Authorization headers on all outgoing API calls to peer nodes
+
+The node's Ethereum address is derived from the key at startup and is the same address used for all of the above.
 
 ---
 
-## Key Resolution Helper
+## Key Resolution
 
-All call sites use a single canonical helper in `tools/tools.go`:
+In raw private key mode, the node resolves the key using the following priority order:
 
-```go
-func GetPrivateKey() string {
-    // 1. Direct env var (bare metal, .env file, compose environment:)
-    if pk := os.Getenv("PRIVATE_KEY"); pk != "" {
-        return strings.TrimSpace(pk)
-    }
-    // 2. File path env var (Docker secrets, K8s secrets)
-    path := os.Getenv("PRIVATE_KEY_FILE")
-    if path == "" {
-        path = "/run/secrets/private_key" // Docker secret default mount
-    }
-    if data, err := os.ReadFile(path); err == nil {
-        return strings.TrimSpace(string(data))
-    }
-    return ""
-}
-```
+1. `PRIVATE_KEY` environment variable (direct hex value)
+2. `PRIVATE_KEY_FILE` environment variable (path to a file containing the hex value)
+3. `/run/secrets/private_key` (Docker's default secret mount path, used as a fallback)
 
-**Priority order:** `PRIVATE_KEY` env → `PRIVATE_KEY_FILE` env → `/run/secrets/private_key` (Docker default).
-
-The private key value is **never logged**. Only the derived Ethereum address is logged at startup.
+The private key value is **never logged**. Only the derived Ethereum address appears in logs at startup.
 
 ---
 
@@ -115,7 +92,7 @@ The private key value is **never logged**. Only the derived Ethereum address is 
    ```
    PRIVATE_KEY=0x<your-hex-private-key>
    ```
-   Do **not** set `EXTERNAL_SIGNER_URL`. Do **not** create `chain_id.json` — it is not used in this mode.
+   Do **not** set `EXTERNAL_SIGNER_URL`.
 
 2. No Clef service needed. Remove or disable `clef.service` if previously configured:
    ```bash
@@ -146,8 +123,8 @@ For general Docker Compose node setup (image, env vars, start/stop/update comman
 ### 1. Create the secrets file on the host
 
 ```bash
-echo "0x<your-private-key>" > ./docker-prod/secrets/private_key.txt
-chmod 600 ./docker-prod/secrets/private_key.txt
+echo "0x<your-private-key>" > ./secrets/private_key.txt
+chmod 600 ./secrets/private_key.txt
 ```
 
 The file contains only the raw hex key (with or without `0x` prefix). No other content.
@@ -165,10 +142,10 @@ services:
 
 secrets:
   validator_private_key:
-    file: ${PRIVATE_KEY_FILE_PATH}   # set in .env.prod, e.g. ./secrets/private_key.txt
+    file: ${PRIVATE_KEY_FILE_PATH}   # set in .env, e.g. ./secrets/private_key.txt
 ```
 
-### 3. .env.prod values needed
+### 3. .env values needed
 
 ```bash
 # Path on the HOST to the private key file
@@ -193,17 +170,7 @@ LOG_LEVEL=5
 ### 4. Run
 
 ```bash
-cd docker-prod
-docker compose --env-file .env.prod up -d
-```
-
-### Important: `.env` file in container
-
-The Go app calls `godotenv.Load()` at startup and will fail if no `.env` file exists in the working directory. When running in Docker, all config comes from injected env vars — there is no `.env` file inside the container. Work around this by mounting an empty file:
-
-```yaml
-volumes:
-  - /dev/null:/app/.env:ro
+docker compose --env-file .env up -d
 ```
 
 ---
@@ -220,12 +187,11 @@ Enter 1 or 2 [1]:
 ```
 
 **If you choose option 2 (raw private key):**
-- Enter your private key when prompted (input is hidden — `read -s`)
-- The node address is derived automatically using `cast wallet address` (requires Foundry) or prompted manually
-- The key is written to `/root/.telegraph-secrets` with `chmod 600` — **not** to the main `.env`
-- The systemd `telegraph.service` unit includes `EnvironmentFile=-/root/.telegraph-secrets` so the key is injected at service start
+- Enter your private key when prompted (input is hidden — no terminal echo)
+- The node address is derived automatically (requires Foundry) or prompted manually
+- The key is stored separately from the main `.env` with restricted permissions
+- The Telegraph service is configured to load it at start
 - The Clef setup step is skipped entirely
-- No `chain_id.json` is created or needed
 
 **If you choose option 1 (Clef):**
 - Behaviour is identical to the original script. Clef is downloaded, configured, and started as a systemd service.
@@ -236,23 +202,21 @@ Enter 1 or 2 [1]:
 
 | Concern | Clef | Raw Private Key |
 |---|---|---|
-| Key at rest | Encrypted JSON keystore on disk (password protected) | Plaintext in env var or chmod-600 file |
+| Key at rest | Encrypted JSON keystore on disk (password protected) | Plaintext in a permissions-restricted file or injected env var |
 | Key in memory | Loaded by Clef process only | Loaded by node process |
 | Key logged | Never | Never (only derived address is logged) |
-| Key in config files | Never | Never — separate secrets file or Docker secret |
-| Key in `.env` | Never | Never — `PRIVATE_KEY` is excluded from `Config.Save()` via `json:"-"` |
+| Key in config files | Never | Never — stored in a separate secrets file or Docker secret |
+| Key in `.env` | Never | Never — excluded from config persistence |
 | Process isolation | Signing in separate Clef process | Signing in-process |
 | Suitable for | Bare metal, high-security production | Docker, K8s, automated deployments |
 | Requires sidecar | Yes | No |
 
-### Security invariants enforced in code
+### Security guarantees
 
-1. `PRIVATE_KEY` has `json:"-"` tag — never serialised to `config.json` or `.env` by `Config.Save()`
-2. `Config.Save()` does not include `PRIVATE_KEY` in its write map
-3. No log statement anywhere prints the key value — only the derived `common.Address`
-4. `PRIVATE_KEY` and `EXTERNAL_SIGNER_URL` are mutually exclusive — node fatals on startup if both are set
-5. Key is read fresh from `GetPrivateKey()` at each call site — not cached globally
-6. Scripts use `read -s` (silent) for key prompts — no terminal echo
+- The private key is never written to the node's config file or included in config exports
+- No log line anywhere in the node prints the key value — only the derived wallet address
+- Setting both `PRIVATE_KEY` and `EXTERNAL_SIGNER_URL` is rejected at startup (the node will not start)
+- Key prompts in setup scripts use silent input — the value is never echoed to the terminal
 
 ---
 
@@ -260,28 +224,21 @@ Enter 1 or 2 [1]:
 
 If you have a node currently running with Clef and want to switch:
 
-1. **Export** the private key from the Clef keystore:
-   ```bash
-   # Find the keystore file
-   ls /root/bridge/clef/keystore/
-   # Decrypt it using web3 tooling to decrypt the JSON keystore
-   # Or use cast: cast wallet import --keystore-dir /root/bridge/clef/keystore/
-   ```
+1. **Export** the private key from the Clef keystore using your preferred web3 tooling to decrypt the JSON keystore file (found in the Clef keystore directory).
 
-2. **Store** the key in `/root/.telegraph-secrets`:
+2. **Store** the key in a restricted file:
    ```bash
    echo "PRIVATE_KEY=0x<key>" | sudo tee /root/.telegraph-secrets > /dev/null
    sudo chmod 600 /root/.telegraph-secrets
    sudo chown root:root /root/.telegraph-secrets
    ```
 
-3. **Update** `/root/.env` — remove `EXTERNAL_SIGNER_URL` line.
+3. **Update** `/root/.env` — remove the `EXTERNAL_SIGNER_URL` line.
 
-4. **Update** `telegraph.service` systemd unit — add:
+4. **Update** the `telegraph.service` systemd unit to load the secrets file and remove any Clef dependency lines:
    ```ini
    EnvironmentFile=-/root/.telegraph-secrets
    ```
-   Remove the `ExecStartPre` or `Requires=clef.service` lines if present.
 
 5. **Disable Clef:**
    ```bash
@@ -295,23 +252,26 @@ If you have a node currently running with Clef and want to switch:
    sudo systemctl restart telegraph.service
    ```
 
-7. **Confirm** the same address is now being used (check logs for `Node address: 0x...`). The on-chain registration is tied to the address, not the signing mechanism — no re-registration needed as long as you use the same key.
+7. **Confirm** the same address is now being used (check logs for `Node address: 0x...`). The on-chain registration is tied to the address, not the signing mechanism — no re-registration is needed as long as you use the same key.
 
 ---
 
 ## Troubleshooting
 
 **`Cannot set both PRIVATE_KEY and EXTERNAL_SIGNER_URL`**
-Both are set. Remove one. In raw key mode, unset `EXTERNAL_SIGNER_URL` entirely.
+Both are set. Remove one. In raw key mode, remove `EXTERNAL_SIGNER_URL` from your `.env` entirely.
 
 **`Invalid PRIVATE_KEY`**
-The key value is malformed. It must be a 32-byte hex string with or without `0x` prefix (64 hex chars). Check for trailing newlines or spaces in the secrets file — `GetPrivateKey()` trims whitespace automatically, but verify with `cat -A`.
+The key value is malformed. It must be a 32-byte hex string, with or without the `0x` prefix (64 hex characters total). Check for accidental trailing newlines or spaces in your secrets file — the node trims whitespace automatically, but you can verify the file contents with `cat -A`.
 
 **Node shows old Clef address after switching**
-You switched the key but the on-chain registration was for the old address. The new address needs to be registered — either via `AUTO_REGISTER_ALL_NETWORKS=true` (automatic on restart) or manually via the contract admin (`superAdminAddSigner`). Also update the `telegraph.validator` Cassandra row.
+You switched the key but the on-chain registration was for the old address. The new address needs to be registered — either automatically via `AUTO_REGISTER_ALL_NETWORKS=true` on restart, or manually by a network admin. Also update the validator entry in the Cassandra database to reflect the new address.
 
-**`EXTERNAL_SIGNER_URL not set, proceeding without signature`** still appearing
-This warning comes from `MakeHTTPRequest` in `tools.go`. If you see it in raw key mode something is wrong — `GetPrivateKey()` should have matched first. Check that `PRIVATE_KEY` or `PRIVATE_KEY_FILE` is actually set in the environment the process sees (`sudo systemctl show telegraph.service --property=Environment`).
+**Warning about missing signer still appearing after switching to raw key mode**
+Check that `PRIVATE_KEY` or `PRIVATE_KEY_FILE` is actually visible to the running service. Verify with:
+```bash
+sudo systemctl show telegraph.service --property=Environment
+```
 
 **Node registers on one chain but not others**
-Registration hash is deterministic (`keccak256(address + IP + moniker)`). The contract records used hashes and rejects re-use. If a node was previously removed and is re-registering, change the moniker or IP slightly to produce a new hash, or wait for the hash expiry.
+Registration uses a deterministic hash based on the node's address, IP, and moniker. If the contract has already recorded that hash (e.g. from a previous registration attempt), it will reject duplicates. Try changing the moniker or IP slightly to produce a new hash, or wait for the hash to expire.
