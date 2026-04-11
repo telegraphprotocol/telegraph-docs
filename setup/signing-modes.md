@@ -141,7 +141,7 @@ The private key value is **never logged**. Only the derived Ethereum address is 
 
 ## Setup: Docker / Docker Compose (Raw Key Mode)
 
-The recommended approach uses Docker secrets so the key is never in the compose file or a plain `.env`.
+For general Docker Compose node setup (image, env vars, start/stop/update commands), see the [Docker Setup](docker-setup.md) guide. This section covers the **key security pattern** — using Docker secrets so the private key is never in the compose file or a plain `.env`.
 
 ### 1. Create the secrets file on the host
 
