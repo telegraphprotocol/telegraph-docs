@@ -6,18 +6,20 @@ description: >-
 
 # Testnet & Production Setup
 
-This guide explains how to set up a Telegraph validator node using the **standalone setup script**. You need only this single script—no repository clone and no separate config files. The script installs dependencies, creates schema and config from your answers, sets up Clef (new or existing wallet), and configures the Telegraph service.
+This guide explains how to set up a Telegraph validator node using the **standalone setup script**. You need only this single script—no repository clone and no separate config files. The script installs dependencies, creates schema and config from your answers, sets up your chosen signing mode, and configures the Telegraph service.
 
 ## Overview
 
 1. **Get the script** – Download `telegraph-standalone.sh` (e.g. via `curl`). No repo or local config files are required.
-2. **Run the script** – It runs in **7 steps** and asks for everything interactively: dependencies, this node’s IP, Genesis node IP, moniker, chain/Diamond/RPCs (or use defaults), and Clef (new wallet or existing keystore).
-3. **Interactive config** – You can accept defaults for testnet (Sepolia + Fuji with Alchemy RPCs and known Diamond addresses) or customize chains, Diamond addresses, and RPCs when prompted.
-4. **Clef** – Choose to create a new wallet or use an **existing Clef wallet** (path to keystore, optional single address). Useful for existing validator runners.
-5. **Fund validator** – Fund the Clef wallet on each chain; the script can optionally fund using a deployer key.
-6. **Verify** – Use `systemctl` and `cqlsh` as in the verification section; run any test scripts you have (e.g. from another repo) against the node.
+2. **Choose a signing mode** – Telegraph supports two modes. Pick one before running the setup script:
+   - **Clef** (default) — external signing daemon; recommended for bare-metal production. The script sets it up automatically.
+   - **Raw private key** — inject key via env var or Docker secret; no sidecar process required. Recommended for Docker/K8s. See [Signing Modes](signing-modes.md).
+3. **Run the script** – It runs in **7 steps** and asks for everything interactively: dependencies, this node’s IP, Genesis node IP, moniker, chain/Diamond/RPCs (or use defaults), and signing mode (Clef or raw private key).
+4. **Interactive config** – You can accept defaults for testnet (Sepolia + Fuji with Alchemy RPCs and known Diamond addresses) or customize chains, Diamond addresses, and RPCs when prompted.
+5. **Fund validator** – Fund the signing wallet (Clef address or raw key address) on each chain; the script can optionally fund using a deployer key.
+6. **Verify** – Use `./tests/check-registration.sh`, `./tests/bridge-test.sh`, and `./tests/subnet-inference-test.sh` (choose Testnet and the right networks).
 
-The script **stops the Telegraph service** (if running) before replacing the binary, uses **Alchemy RPCs by default** to avoid public-node timeouts, and defaults Genesis to `54.252.48.30`. All config (Genesis IP, this node IP, moniker, Clef password, chains, Diamond addresses) comes from **prompts or defaults**.
+The script **stops the Telegraph service** (if running) before replacing the binary, uses **Alchemy RPCs by default** to avoid public-node timeouts, and defaults Genesis to `54.252.48.30`. All config (Genesis IP, this node IP, moniker, signing mode, chains, Diamond addresses) comes from **prompts or defaults**.
 
 ---
 
@@ -87,16 +89,33 @@ Default Diamond addresses (testnet) and Alchemy-based RPCs are built in so most 
 
 The script creates the Cassandra schema (from an embedded `schema.cql`), clears the old `telegraph` keyspace if present, reapplies it, inserts the networks you configured, and inserts default subnet config rows. No interaction required here.
 
-### Step 5 — Clef setup (new wallet or existing)
+### Step 5 — Signing mode setup
 
-- **Use an existing Clef wallet?** (default: no)  
-  - **No** – Creates a **new** Clef wallet: installs Clef binary, creates keystore, expect script, and systemd service. You’ll set a **password** for the new wallet (or use the default suggested).  
+The script first prompts you to choose a signing mode:
+
+```
+Choose signing mode for this node:
+  1) Clef  — external signing daemon (more secure, requires separate service)
+  2) Raw private key — inject key directly (simpler, suitable for automated deployments)
+Enter 1 or 2 [1]:
+```
+
+**Option 1 — Clef (default):**
+- **Use an existing Clef wallet?** (default: no)
+  - **No** – Creates a **new** Clef wallet: installs Clef binary, creates keystore, expect script, and systemd service. You’ll set a **password** for the new wallet (or use the default suggested).
   - **Yes** – For **existing validator runners** who already have a Clef keystore:
     - **Path to existing Clef config directory** – Folder that contains `keystore` with `UTC--*` key files (e.g. `/home/ubuntu/bridge/clef`). You can press Enter to try common paths.
     - **Use only one specific address?** – Optionally enter one address (e.g. `0x1B5bdc...`) to copy only that key; otherwise all keys in that keystore are copied into the node’s keystore.
     - **Password** – You must use the **same password** that was used when that wallet was created.
 
-After Clef is ready, the script creates/updates the **validator** entry in Cassandra (moniker, domain, `ismine`). It may then ask:
+**Option 2 — Raw private key:**
+- Enter your private key when prompted (input is hidden — `read -s`).
+- The node address is derived automatically using `cast wallet address` (requires Foundry) or prompted manually.
+- The key is written to `/root/.telegraph-secrets` with `chmod 600` — **not** to the main `.env`.
+- The Clef setup step is skipped entirely. No `clef.service` or `chain_id.json` is created.
+- See [Signing Modes](signing-modes.md) for full details, Docker Compose setup, and security comparison.
+
+After signing mode is configured, the script creates/updates the **validator** entry in Cassandra (moniker, domain, `ismine`). It may then ask:
 
 - **Fund validator wallet on chains using deployer private key?** (default: no) – If yes, you provide a deployer private key (hex) and the script attempts to send a small amount to the validator address on each configured chain (e.g. via `cast send` if available). You can skip and fund manually.
 
@@ -135,8 +154,8 @@ The script uses **root** as the service user and does not switch to another user
 
 ## 4. After setup: what you need to do
 
-- **Fund the validator wallet** on each chain if the script did not fund it (or you skipped that step). Use the wallet address shown in the script output or in `$BRIDGE_DIR/clef_script.log`.
-- **Backup the Clef keystore** (e.g. `$BRIDGE_DIR/clef/keystore/`) and store it securely.
+- **Fund the validator wallet** on each chain if the script did not fund it (or you skipped that step). Use the wallet address shown in the script output. For Clef mode, the address is also in `$BRIDGE_DIR/clef_script.log`.
+- **Backup your signing credential** — for Clef mode, back up the keystore at `$BRIDGE_DIR/clef/keystore/`; for raw private key mode, ensure `/root/.telegraph-secrets` is backed up securely and offline.
 - **Verify** services and DB as in the Verification section below.
 
 ---
@@ -146,9 +165,12 @@ The script uses **root** as the service user and does not switch to another user
 ### Check services
 
 ```bash
-sudo systemctl status clef.service
+# Always check Telegraph
 sudo systemctl status telegraph.service
 sudo journalctl -u telegraph.service -f
+
+# Clef mode only
+sudo systemctl status clef.service
 sudo journalctl -u clef.service -f
 ```
 
@@ -197,8 +219,10 @@ Successfully registered as signer on Sepolia-ETH (ChainID: 11155111)
 
 ### Telegraph service not starting
 
-- Confirm `.env` exists at `~/.env` and `EXTERNAL_SIGNER_URL` points to the Clef IPC path (e.g. `$BRIDGE_DIR/clef/clef.ipc`).
-- Ensure Clef is running and the validator wallet is funded on each chain for registration.
+- Confirm `.env` exists at `~/.env`.
+- **Clef mode:** ensure `EXTERNAL_SIGNER_URL` points to the Clef IPC path (e.g. `$BRIDGE_DIR/clef/clef.ipc`) and that Clef is running.
+- **Raw private key mode:** ensure `PRIVATE_KEY` is set (in `~/.env` or `/root/.telegraph-secrets`) and that `EXTERNAL_SIGNER_URL` is **not** set — setting both causes an immediate fatal on startup. See [Signing Modes](signing-modes.md#troubleshooting) for more.
+- Ensure the validator wallet is funded on each chain for registration.
 
 ### RPC / context deadline exceeded
 
@@ -210,8 +234,9 @@ Successfully registered as signer on Sepolia-ETH (ChainID: 11155111)
 
 - **Firewall:** Open port **7044** for Telegraph; restrict **9042** (Cassandra) to localhost or VPN if possible.
 - **Clef password:** Use a strong password; store it in `~/.env` or a secret manager, never in repo or logs.
-- **Keystore:** Backup `$BRIDGE_DIR/clef/keystore` immediately; keep backups encrypted and offline.
+- **Clef keystore:** Backup `$BRIDGE_DIR/clef/keystore` immediately; keep backups encrypted and offline.
 - **Existing Clef:** When reusing an existing wallet, the script copies keys into the node’s keystore; keep the original keystore secure and backed up.
+- **Raw private key:** The key is stored in `/root/.telegraph-secrets` with `chmod 600`. It is never written to `config.json` or logged. Back it up securely and offline. See [Signing Modes](signing-modes.md#security-model-comparison) for a full security comparison.
 
 ---
 
@@ -221,7 +246,8 @@ Successfully registered as signer on Sepolia-ETH (ChainID: 11155111)
 |-------------------|------------------|
 | Get `networks.config.json` and `subnets.yaml` from devs | No separate config files; script creates everything from prompts |
 | Clone repo, run `telegraph.sh` | Single script; no repo required |
-| Manual Clef or repo-specific Clef path | Script asks: new wallet or **existing Clef** (path + optional single address) |
+| Manual Clef or repo-specific Clef path | Script asks: signing mode (Clef or raw private key); for Clef, new wallet or **existing Clef** |
 | Multiple scripts (deploy-testnet, telegraph.sh) | One script; optional custom binary via `TELEGRAPH_BINARY_URL` |
+| Clef required on all deployments | Clef optional — use raw private key mode for Docker/K8s |
 
-You only need the **standalone script**. Run it, follow the **7-step interactive config** (accept defaults for testnet or customize chains/Diamond/RPCs and Clef), then fund the validator and verify with the commands above.
+You only need the **standalone script**. Run it, follow the **7-step interactive config** (accept defaults for testnet or customize chains/Diamond/RPCs and signing mode), then fund the validator and verify with the commands above.

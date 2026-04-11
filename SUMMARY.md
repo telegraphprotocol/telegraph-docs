@@ -27,6 +27,7 @@
 
 * [Local Setup](setup/local-setup.md)
 * [Testnet & Production Setup](setup/testnet-production-setup.md)
+  * [Node Signing Modes](setup/signing-modes.md)
 * [Dapp Integration](setup/dapp-integration.md)
 
 ## Bittensor Subnets
