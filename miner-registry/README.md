@@ -7,12 +7,12 @@ an on-chain transaction. Telegraph nodes listen for these registrations,
 validate the YAML, and hot-load miners into the dispatcher at each epoch
 boundary — no restarts needed.
 
-## What it solves
+## What it does
 
-Before the registry, each subnet was hardcoded in the node's source code.
-Adding a new miner meant a code change, a PR, and a redeploy. With the
-registry, miners register permissionlessly on-chain with a YAML file. Nodes
-discover them automatically.
+Miners register permissionlessly on-chain with a YAML file. Nodes
+discover them automatically — no code changes, no PRs, no redeploys.
+The full YAML schema handles routing, authentication, signal types,
+and on-chain data transformation declaratively.
 
 ## Architecture
 
@@ -55,7 +55,7 @@ See the [YAML Standard](yaml-standard.md) for the full schema specification.
 ## x402 payment
 
 All miner API calls are gated behind x402 HTTP 402 Payment Required
-semantics. The price per call is determined by the miner's `min_price_usdc`
-declared in their YAML.
+semantics. The price per call is determined by the miner's on-chain committed
+`minPriceUsdc`, enforced at registration time with a protocol minimum of 0.01 USDC.
 
 See [x402 Payment](x402-payment.md) for the payment flow and configuration.

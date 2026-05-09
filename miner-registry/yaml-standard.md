@@ -2,20 +2,15 @@
 
 ## Overview
 
-The YAML Miner Standard is Telegraph's declarative way to add a new subnet or validator integration without writing any Go code. An integration author writes a YAML file describing their API — endpoints, authentication, parameter mappings, signal types, and on-chain data transforms — and the node loads it at runtime.
+The YAML Miner Standard is Telegraph's declarative way to add a new subnet or validator integration without writing any Go code. A miner author writes a YAML file describing their API — endpoints, authentication, parameter mappings, signal types, and on-chain data transforms — and the node loads it at runtime.
 
-There are two supported schema versions:
-
-- **v1** — Flat layout with `signal_mapping` at root level. Legacy but fully supported.
-- **v2** — Current version. Adds the `semantics` block (`signal_mapping` + `supported_intents`), the `on_chain` block (data transforms and pricing), and per-endpoint `endpoint_base_url` overrides.
-
-Both versions produce the same internal `SubnetCfg` struct. The loader detects the `version` field and routes to the correct parser and schema.
+The schema is versioned as `"2"` in the `version` field, which is the current and only production format.
 
 ---
 
 ## For Miner Authors
 
-### Minimal Example (v2)
+### Minimal Example 
 
 ```yaml
 version: "2"
@@ -51,10 +46,10 @@ semantics:
     - weather_risk_assessment
 ```
 
-### Complete v2 Reference
+### Complete Reference
 
 ```yaml
-version: "2"                     # Required. Must be "2" for v2.
+version: "2"                     # Required. Must be "2" .
 kind: subnet                     # "subnet" (on-demand) or "validator" (polled)
 id: 34                           # Required. Numeric subnet ID used in URL paths (/v1/34/...)
 slug: bittensor-sn34-bitmind     # Required. kebab-case identifier
@@ -83,9 +78,9 @@ endpoints:
     external_path: /detect-image      # Upstream path to forward to
     method: POST                      # HTTP method
     description: Detect AI-generated images
-    endpoint_base_url: https://api.bitmind.ai/v2  # Per-endpoint override (v2 only)
+    endpoint_base_url: https://api.bitmind.ai/v2  # Per-endpoint override 
     content_type: multipart/form-data # Override Content-Type
-    multipart_fields: [image]         # Fields to encode as multipart (v2: string list)
+    multipart_fields: [image]         # Fields to encode as multipart  
     param_map:                        # Query parameter renaming
       lat: latitude
       lon: longitude
@@ -116,20 +111,20 @@ output_schema:                   # Optional. JSON Schema describing response sha
     confidence: { type: number, minimum: 0, maximum: 1 }
     isAI: { type: boolean }
 
-# ── Semantics (v2) ─────────────────────────────────────────────────────────
+# ── Semantics  ─────────────────────────────────────────────────────────
 semantics:
   signal_mapping:
     type: media_authenticity         # Required. Canonical signal type (see enum below)
     confidence_field: confidence      # Response field holding 0-1 score
     label_field: isAI               # Response field holding the primary decision
     reason_field: explanation        # Response field holding reasoning text
-  supported_intents:                 # Required for v2. Canonical intent strings.
+  supported_intents:                 # Required . Canonical intent strings.
     - deepfake_detection              # Used by autonomous engine for routing
     - media_authenticity_check
     - image_verification
     - video_verification
 
-# ── On-chain Data Transform (v2) ───────────────────────────────────────────
+# ── On-chain Data Transform  ───────────────────────────────────────────
 on_chain:
   description: Current weather snapshot for on-chain signal data.
   transform: llm                    # "llm" (uses GPT-4o) or "direct" (deterministic extraction)
@@ -169,11 +164,11 @@ on_chain:
 
 ### Field Reference
 
-#### Top-Level Fields (v1 and v2)
+#### Top-Level Fields (both formats)
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | yes | `"1"` or `"2"` |
+| `version` | string | yes | `"2"` |
 | `kind` | string | yes | `"subnet"` or `"validator"` |
 | `id` | integer | yes | Subnet ID used in URL paths (`/v1/{id}/...`) |
 | `slug` | string | yes | kebab-case identifier (e.g., `bittensor-sn18-zeus`) |
@@ -203,14 +198,14 @@ on_chain:
 | `external_path` | string | yes | Upstream path to forward to (e.g., `/forecast`) |
 | `method` | string | yes | HTTP method: GET, POST, PUT, PATCH, DELETE |
 | `description` | string | no | Human-readable description |
-| `endpoint_base_url` | string | no | Per-endpoint base URL override (v2 only). Replaces top-level `base_url` for this endpoint. |
+| `endpoint_base_url` | string | no | Per-endpoint base URL override . Replaces top-level `base_url` for this endpoint. |
 | `content_type` | string | no | Override Content-Type for this endpoint |
 | `multipart_fields` | string[] | no | Fields to encode as `multipart/form-data`. Enables file uploads. |
 | `param_map` | map<string,string> | no | Query parameter renaming: `{incoming: upstream}`. E.g., Zeus: `lat → latitude`. |
 
 If `endpoints` is empty or omitted, the generic adapter passes all paths through unchanged (passthrough mode).
 
-#### Semantics (v2 only)
+#### Semantics 
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -224,7 +219,7 @@ If `endpoints` is empty or omitted, the generic adapter passes all paths through
 
 **Canonical intents (27 total, also available on-chain):** `language_generation`, `chat_completion`, `text_generation`, `high_performance_inference`, `embeddings`, `content_moderation`, `weather_check`, `storm_alert`, `weather_forecast`, `weather_risk_assessment`, `multimodal_inference`, `image_generation`, `text_to_image`, `task_completion`, `agent_task`, `web_search`, `twitter_search`, `news_search`, `research_synthesis`, `fact_check`, `text_authenticity_check`, `ai_text_detection`, `content_verification`, `deepfake_detection`, `media_authenticity_check`, `image_verification`, `video_verification`
 
-#### On-Chain Data Transform (v2 only)
+#### On-Chain Data Transform 
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -316,14 +311,14 @@ The node loads integration YAMLs from two paths:
 
 ```
 Startup:
-  LoadFromFS(embedded, "integrations/")  →  validates v1/v2 YAMLs
+  LoadFromFS(embedded, "integrations/")  →  validates miner YAML files
   hydrateDispatcher()                     →  loads active DB records into dispatcher
 
 At epoch boundary:
   activatePending()
     → For each "pending" record:
         HotRegister(rawYAML)
-          → LoadBytes(rawYAML) validates against v2 schema
+          → LoadBytes(rawYAML) validates against the schema
           → generic.New(cfg) creates adapter
           → reg.Upsert(adapter) replaces by slug
 ```
@@ -338,17 +333,17 @@ Register via the smart contract. The node will fetch the YAML from the URL, vali
 
 ### Schema Validation
 
-The loader validates every YAML against the canonical JSON Schema (`integration.v2.schema.json` or `integration.v1.schema.json`). If validation fails, the integration is stored as "rejected" and logged:
+The loader validates every YAML against the canonical JSON Schema (`integration.schema.json` or `integration.schema.json`). If validation fails, the integration is stored as "rejected" and logged:
 
 ```
 processMinerRecord: schema validation failed registrationId=27 errors=[(root): base_url is required]
 ```
 
 Common validation failures:
-- Missing `base_url` (required in v2)
+- Missing `base_url` (required)
 - Missing `slug` pattern compliance (must be `kebab-case`)
 - Invalid `auth.type` (must be `bearer`, `header`, or `none`)
-- Missing `supported_intents` in `semantics` block (required in v2)
+- Missing `supported_intents` in `semantics` block (required)
 - Invalid `semantics.signal_mapping.type` (must be one of the enum values)
 
 ### Intent-Based Routing
@@ -376,30 +371,17 @@ The autonomous engine uses this map for deterministic routing — given an inten
 
 4. **On-chain data bridge:** The `on_chain` block defines how raw API responses are transformed into deterministic on-chain data — enabling the blockchain to consume real-world signals.
 
-5. **x402 pricing integration:** `on_chain.min_price_usdc` sets the floor price for per-request payments, connecting the integration standard to the payment layer.
-
-### v1 vs v2 Differences
-
-| Feature | v1 | v2 |
-|---|---|---|
-| Signal mapping | Root-level `signal_mapping` | Nested under `semantics` |
-| Supported intents | Not in YAML | `semantics.supported_intents` array |
-| On-chain config | Not available | `on_chain` block with transform + fields |
-| Endpoint base URL override | Not available | `endpoint_base_url` per endpoint |
-| Signal type enum | Free string | Strict enum validation |
-| Canonical intent validation | Not available | Warning for unknown intents |
+5. **x402 pricing integration:** `on_chain.min_price_usdc` sets the floor price for per-request payments, connecting the miner standard to the payment layer.
 
 ### Design Decisions
 
-1. **YAML over JSON:** YAML is more human-readable for integration authors. The loader converts to JSON internally for schema validation.
+1. **YAML over JSON:** YAML is more human-readable for miner authors. The loader converts to JSON internally for schema validation.
 
 2. **Env vars for secrets, not raw keys:** The `auth.env_var` field stores the **name** of an environment variable, never the key value itself. This prevents secrets from being committed to git or stored on-chain.
 
 3. **Slug as deduplication key:** The dispatcher indexes adapters by slug. When a new registration with the same slug arrives (e.g., after deregister + re-register), it replaces the old one.
 
-4. **Two schema versions, one internal struct:** Both v1 and v2 convert to the same `SubnetCfg` Go struct. The dispatch layer doesn't know which version the file was.
-
-5. **Multipart and param_map in YAML:** These are the most common per-adapter customizations. Rather than requiring Go code for every new API quirk, we express them declaratively in the YAML.
+4. **Multipart and param_map in YAML:** These are the most common per-adapter customizations. Rather than requiring Go code for every new API quirk, we express them declaratively in the YAML.
 
 ---
 

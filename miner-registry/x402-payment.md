@@ -4,7 +4,7 @@
 
 Telegraph uses the **x402 protocol** to gate subnet API calls behind per-request micropayments. When x402 is enabled, every request to `/v1/:subnet/*` requires payment — unauthorized requests receive HTTP 402 with payment instructions, and authorized requests are proxied to the upstream subnet API.
 
-The pricing is **per-subnet and dynamic**: each integration YAML can declare `on_chain.min_price_usdc`, which the x402 middleware reads at request time. Integrations without a price default to `$0.01`.
+The pricing is **per-subnet and dynamic**: each miner YAML can declare `on_chain.min_price_usdc`, which the x402 middleware reads at request time. Integrations without a price default to `$0.01`.
 
 ---
 
@@ -130,30 +130,11 @@ curl http://localhost:7044/subnet-dispatcher/v1/18/predict?lat=40.7&lon=-74.0 \
 
 ### Dynamic Pricing
 
-Pricing is determined per-request by `dynamicPriceFunc` in `subnet-dispatcher.go`:
-
-```go
-func (d *Dispatcher) dynamicPriceFunc(defaultPrice string) x402http.DynamicPriceFunc {
-    return func(_ context.Context, reqCtx x402http.HTTPRequestContext) (x402.Price, error) {
-        trimmed := strings.TrimPrefix(reqCtx.Path, "/v1/")
-        subnetID := strings.SplitN(trimmed, "/", 2)[0]
-        d.cfgMu.RLock()
-        defer d.cfgMu.RUnlock()
-        for _, cfg := range d.integrationCfgs {
-            if cfg.Name == subnetID && cfg.OnChain != nil && cfg.OnChain.MinPriceUSDC > 0 {
-                return fmt.Sprintf("$%g", cfg.OnChain.MinPriceUSDC), nil
-            }
-        }
-        return defaultPrice, nil
-    }
-}
-```
-
-The lookup happens at request time under a read lock, so newly hot-registered integrations are priced correctly without restart.
+Pricing is determined per-request from the miner's on-chain committed `minPriceUsdc`. The node reads the floor price from the contract registration record — the YAML's `on_chain.min_price_usdc` is informational only; the contract is the source of truth for pricing.
 
 **Pricing chain:**
 ```
-Integration YAML → on_chain.min_price_usdc (e.g., 0.01)
+Miner YAML → on_chain.min_price_usdc (e.g., 0.01)
   → config.OnChain.MinPriceUSDC (float64)
   → dynamicPriceFunc extracts subnetID from URL path
   → returns "$0.01" or "$0.05" etc.
@@ -283,7 +264,7 @@ x402 makes every subnet API call a paid transaction. This creates a direct reven
 Each integration declares a floor price in USDC. The x402 middleware dynamically selects this price at request time:
 
 ```
-Integration YAML:     on_chain.min_price_usdc: 0.05
+Miner YAML:     on_chain.min_price_usdc: 0.05
                          ↓
 Node x402 middleware: "$0.05" per request for this subnet
                          ↓

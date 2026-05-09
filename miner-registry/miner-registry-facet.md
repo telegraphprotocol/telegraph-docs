@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Miner Registry is Telegraph's on-chain system for permissionless miner integration. Any miner can register their YAML configuration on-chain; every Telegraph node automatically discovers, validates, and activates it without restarts.
+The Miner Registry is Telegraph's on-chain system for permissionless miner miner. Any miner can register their YAML configuration on-chain; every Telegraph node automatically discovers, validates, and activates it without restarts.
 
 The system has three layers:
 
@@ -29,7 +29,7 @@ Miner                           Smart Contract               Telegraph Node
   │                                 │                            │ Live path:
   │                                 │                            │  Fetch YAML from URL
   │                                 │                            │  Verify sha256 == yamlHash
-  │                                 │                            │  Validate against v2 schema
+  │                                 │                            │  Validate against JSON schema
   │                                 │                            │  Upsert DB as "pending"
   │                                 │                            │
   │                                 │    At epoch boundary ──▶  │ Epoch catch-up path:
@@ -51,13 +51,13 @@ Miner                           Smart Contract               Telegraph Node
 
 ### Key Design Decisions
 
-1. **Epoch-based activation (not immediate):** New integrations are stored as "pending" and promoted to "active" only at an epoch boundary. This ensures all nodes converge on the same block.
+1. **Epoch-based activation (not immediate):** New miners are stored as "pending" and promoted to "active" only at an epoch boundary. This ensures all nodes converge on the same block.
 
 2. **Dual-index catch-up (O(delta)):** The contract maintains `minerCount()` and `deregisteredIds[]`. At each epoch boundary, nodes compare their local sync state (`max_registration_id`, `deregistered_count`) against on-chain values and process only the delta. No event replay needed.
 
 3. **Block-height epochs, not wall-clock:** The epoch interval is `EPOCH_BLOCK_INTERVAL` blocks (default 300 on mainnet, 5 for local Anvil testing). A `SubscribeNewHead` subscription detects epoch boundaries even when `anvil_mine N` delivers only the final header.
 
-4. **Startup rehydration:** On connect/reconnect, `hydrateDispatcher()` loads all "active" integrations from Cassandra into the in-memory dispatcher. No data is lost on restart.
+4. **Startup rehydration:** On connect/reconnect, `hydrateDispatcher()` loads all "active" miners from Cassandra into the in-memory dispatcher. No data is lost on restart.
 
 5. **Rejected YAMLs are stored, not dropped:** If YAML fetch, hash verification, or schema validation fails, the record is stored as "rejected". The miner must deregister and re-register with a new ID to replace it.
 
@@ -90,7 +90,7 @@ uint256[] deregisteredIds;                          // Append-only deregistratio
 
 | Function | Purpose |
 |---|---|
-| `registerMiner(yamlUrl, yamlHash, feeAddress, minPriceUsdc, supportedIntents)` | Register a new YAML integration. Returns `registrationId`. |
+| `registerMiner(yamlUrl, yamlHash, feeAddress, minPriceUsdc, supportedIntents)` | Register a new YAML miner. Returns `registrationId`. |
 | `deregisterMiner(registrationId)` | Deactivate and push to `deregisteredIds`. Only original miner. |
 | `getMiner(registrationId)` | Returns all fields. Used by epoch catch-up. |
 | `minerCount()` | Total registrations ever (including deregistered). |
@@ -105,11 +105,11 @@ uint256[] deregisteredIds;                          // Append-only deregistratio
 - `minPriceUsdc` must be >= 10,000 (0.01 USDC in 6 decimals)
 - `supportedIntents` must be non-empty
 
-### Off-Chain Processing (`pkg/listener/listener.integration.go`)
+### Off-Chain Processing (`pkg/listener/listener.miner.go`)
 
 **Live event path:**
 1. `MinerRegistered` event → `minerRegisteredEvent()` → contract call `getMiner(id)` → `processMinerRecord()`
-2. `MinerDeregistered` event → `integrationDeregisteredEvent()` → immediate `MarkDeregistered` in DB + `HotUnregister` from dispatcher
+2. `MinerDeregistered` event → `minerDeregisteredEvent()` → immediate `MarkDeregistered` in DB + `HotUnregister` from dispatcher
 
 **Epoch catch-up path (`epochCatchUp`):**
 1. Compare `minerCount()` vs local `max_registration_id` — fetch new registrations by calling `getMiner(id)` for each new ID
@@ -131,54 +131,32 @@ MinerRegistered event
 
 **Hash verification:** The node computes `sha256(rawYAML)` and compares it against the on-chain `yamlHash`. If they don't match, the record is stored as "rejected".
 
-**Schema validation:** Uses the same JSON Schema validation as the file-based loader (`integration.v2.schema.json`). Invalid YAMLs are stored as "rejected" with the validation errors logged.
+**Schema validation:** Uses the same JSON Schema validation as the file-based loader (`miner.schema.json`). Invalid YAMLs are stored as "rejected" with the validation errors logged.
 
 **URI resolution:** `ipfs://` URIs are resolved through an IPFS gateway (default: `https://ipfs.io/ipfs`), configurable via `IPFS_GATEWAY_URL`.
 
 ### Hot-Reload Flow
 
-When an integration is activated at an epoch boundary:
+When an miner is activated at an epoch boundary:
 ```
 activatePending()
   → FindByStatus("pending") from Cassandra
   → For each pending record:
       → HotRegister(rawYAML) on the dispatcher
-      → LoadBytes() validates against v2 schema
+      →  against the schema
       → generic.New(cfg) creates a new Adapter
       → reg.Upsert(adapter) replaces any existing adapter with same slug
-      → MarkActive(integrationID) in Cassandra
+      → MarkActive(minerID) in Cassandra
 ```
 
 If `HotRegister` fails (schema validation error), the record stays "pending" and will be retried at the next epoch. If the YAML is structurally invalid (can't parse at all), it stays "rejected" permanently.
 
 ### Cassandra Schema
 
-```sql
--- Miner records (migration 003 + 004)
-CREATE TABLE telegraph.miner_registry (
-    integration_id    bigint PRIMARY KEY,
-    subnet_id          int,
-    miner_address      text,
-    yaml_url           text,
-    yaml_hash          text,
-    yaml_raw           text,
-    slug               text,
-    activation_status  text,          -- "pending" | "active" | "deregistered" | "rejected"
-    intent_id          text,
-    fee_address        text,
-    min_price_usdc     bigint,
-    supported_intents  text,          -- JSON-encoded string array
-    registered_at      timestamp,
-    updated_at         timestamp
-);
+The node persists miner state in Cassandra for fast local access and offline resilience:
 
--- Epoch sync state (migration 004)
-CREATE TABLE telegraph.miner_meta (
-    key       text PRIMARY KEY,
-    int_value bigint
-);
--- Keys: "max_registration_id", "deregistered_count"
-```
+- **`miner_registry`** — One row per miner registration. Stores the YAML content, activation status (pending/active/deregistered/rejected), hash, and on-chain committed fields.
+- **`miner_meta`** — Epoch sync bookkeeping. Tracks `max_registration_id` and `deregistered_count` so the node can catch up from where it left off without replaying all history.
 
 ### Environment Variables
 
@@ -203,30 +181,17 @@ For local Anvil testing, set `EPOCH_BLOCK_INTERVAL=5` for faster epochs.
 ### Monitoring
 
 Watch for these log messages:
-- `hydrateDispatcher: loaded N active integrations from cache` — startup rehydration
+- `hydrateDispatcher: loaded N active miners from cache` — startup rehydration
 - `Epoch tracker initialised at block N` — node connected and tracking epochs
 - `Epoch boundary crossed at block N` — epoch boundary detected
 - `epochCatchUp: done count=X deregCount=Y` — successful epoch sync
 - `epochCatchUp: skipping, previous run still in progress` — concurrent epoch prevented
 - `processMinerRecord: fetch failed` / `hash mismatch` / `schema validation failed` — YAML failures (stored as "rejected")
-- `activatePending: activated slug=X` — integration promoted to active
+- `activatePending: activated slug=X` — miner promoted to active
 - `hot-registered integration slug=X` — dispatcher hot-reload successful
 
 ### Database Health
 
-```sql
--- Count integrations by status
-SELECT activation_status, COUNT(*) FROM telegraph.miner_registry ALLOW FILTERING GROUP BY activation_status;
-
--- Check epoch sync state
-SELECT * FROM telegraph.miner_meta;
-
--- Find rejected integrations (need miner re-registration)
-SELECT integration_id, slug, miner_address FROM telegraph.miner_registry WHERE activation_status = 'rejected' ALLOW FILTERING;
-
--- Find active integrations
-SELECT integration_id, slug, yaml_url FROM telegraph.miner_registry WHERE activation_status = 'active' ALLOW FILTERING;
-```
 
 ### Troubleshooting
 
@@ -247,10 +212,10 @@ SELECT integration_id, slug, yaml_url FROM telegraph.miner_registry WHERE activa
 
 ```bash
 # 1. Compute sha256 of your YAML
-YAML_HASH="0x$(sha256sum my-integration.yaml | awk '{print $1}')"
+YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
 
 # 2. Host the YAML (e.g., IPFS, S3, or any HTTPS URL)
-YAML_URL="https://my-bucket.s3.amazonaws.com/my-integration.yaml"
+YAML_URL="https://my-bucket.s3.amazonaws.com/my-miner.yaml"
 # Or: YAML_URL="ipfs://Qm..."
 
 # 3. Call registerMiner on the Diamond contract
@@ -296,7 +261,7 @@ These 27 intents are hardcoded on-chain via `getCanonicalIntents()`:
 | | | `image_verification` |
 | | | `video_verification` |
 
-Declaring intents not in this list logs a warning. The integration still loads, but the autonomous engine won't route unknown intents.
+Declaring intents not in this list logs a warning. The miner still loads, but the autonomous engine won't route unknown intents.
 
 ### Updating a Miner
 
@@ -325,7 +290,7 @@ Only the original registering address can deregister. Deregistration is immediat
 
 ### What Was Built
 
-The Miner Registry is the on-chain component of Telegraph's open integration standard. It allows any Miner to permissionlessly register their YAML configuration on the Base L2 blockchain, and every Telegraph node automatically discovers, validates, and activates the integration without restarts.
+The Miner Registry is the on-chain component of Telegraph's open miner standard. It allows any Miner to permissionlessly register their YAML configuration on the Base L2 blockchain, and every Telegraph node automatically discovers, validates, and activates the miner without restarts.
 
 ### Whitepaper Alignment
 
@@ -344,7 +309,7 @@ The Miner Registry is the on-chain component of Telegraph's open integration sta
 
 | Feature | Reason |
 |---|---|
-| Miner bond (100 Machina deposit) | Requires token contract integration; not yet in the Port Contract |
+| Miner bond (100 Machina deposit) | Requires token contract miner; not yet in the Port Contract |
 | On-chain writable Intent registry | Hardcoded genesis list; governance (§10) will make it writable |
 | Peer-node YAML fallback | Needs new HTTP endpoint; low priority before mainnet |
 | On-chain callback for hash verification |
@@ -359,7 +324,7 @@ The Miner Registry is the on-chain component of Telegraph's open integration sta
 
 ### Known Limitations
 
-1. **Deregistered integration served between live-event and next epoch:** If a node is offline when `MinerDeregistered` fires, it keeps serving the old miner until the next epoch boundary. The miner bond (when implemented) is the economic deterrent.
+1. **Deregistered miner served between live-event and next epoch:** If a node is offline when `MinerDeregistered` fires, it keeps serving the old miner until the next epoch boundary. The miner bond (when implemented) is the economic deterrent.
 
 2. **Rejected YAMLs are never retried:** If a YAML fetch or schema validation fails, the record sits as "rejected" indefinitely. The miner must deregister and re-register with a new ID.
 
@@ -373,4 +338,4 @@ The Miner Registry is the on-chain component of Telegraph's open integration sta
 
 - [YAML Miner Standard](yaml-standard.md) — Full reference for writing miner YAML files
 - [x402 Payment Protocol](x402-payment.md) — How per-request payments work
-- [Miner Registry Discussion](../documentation/integration-registry-discussion.md) — Original team discussion and decisions
+- [Miner Registry Discussion](../documentation/miner-registry-discussion.md) — Original team discussion and decisions
