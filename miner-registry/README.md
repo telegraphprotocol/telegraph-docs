@@ -9,7 +9,7 @@ boundary — no restarts needed.
 
 ## What it does
 
-Miners register permissionlessly on-chain with a YAML file. Nodes
+Miners register on-chain with a YAML file, permissionlessly. Nodes
 discover them automatically — no code changes, no PRs, no redeploys.
 The full YAML schema handles routing, authentication, signal types,
 and on-chain data transformation declaratively.
