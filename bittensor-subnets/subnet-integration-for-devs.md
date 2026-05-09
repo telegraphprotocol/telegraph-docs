@@ -592,14 +592,12 @@ port.outboundSubnetMessage(18, "/subnet/18/predict", parameters, callbackContrac
 - [Subnet Inference Example](../examples-and-tutorials/evm-chains/subnet-inference-example.md) — Minimal contract example.
 - [Subnet Inference Test – Quick Guide](../dapp-examples/subnet-inference-test-quick-guide.md) — BitMind and Zeus on Fuji.
 
-**Telegraph repo (contracts / node):**
+**Contract interfaces (Telegraph repo):**
 
-- **Interfaces:** `contracts/evm/interfaces/OnChainData.sol`, `ISubnetReceiverContract.sol`, `IDestinationContract.sol`
-- **Diamond (Port):** `contracts/evm/Port.sol` — `outboundSubnetMessage`, array length checks (≤ 5)
-- **Example scripts:** `contracts/script/EmitBitmindRequest.s.sol`, `EmitZeusRequest.s.sol` — building OnChainData for Bitmind and Zeus
-- **Example callback:** `contracts/remix/SubnetCallback.sol` — stores last response and documents response layout for Zeus and Bitmind
-- **Mapping source (Go):** `modules/bittensor/bittensor.mapping.go` — `SubnetEndpointMappings`, `MapOnChainDataToStruct`, `MapStructToOnChainData`
-- **Request/response mapping (listener):** `pkg/listener/listener.subnetRequest.go` — `mapOnChainDataToAPIRequest`, `mapAPIResponseToOnChainData`, subnet-specific mappers
+- `OnChainData.sol` — struct definition
+- `ISubnetReceiverContract.sol` — callback interface your contract must implement
+- `IDestinationContract.sol` — cross-chain destination interface
+- `Port.sol` — `outboundSubnetMessage` and array length enforcement (≤ 5 per array)
 
 ---
 

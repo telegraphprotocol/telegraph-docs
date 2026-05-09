@@ -100,8 +100,8 @@ The full script (`./local-telegraph.sh`) will:
 
 ### 2. Diamond Contract Deployment
 
-- Deploys Diamond contracts using `contracts/script/DeployLocal.s.sol`
-- Uses default Anvil account: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
+- Deploys Diamond contracts on both local chains using Forge
+- Uses the default Anvil account for deployment
 - Captures deployed Diamond addresses from Forge output
 - Updates `networks.config.json` with deployed addresses
 
@@ -407,7 +407,7 @@ To run **two or more** validator nodes on the same machine (each with its own si
    sudo journalctl -u telegraph-node2.service -f
    ```
 
-Each extra node has a **separate Clef** (separate signer address), separate Cassandra (so its validator table has exactly one `ismine=true`), and the same Anvil chains/Diamond contracts. The app’s validator DB client supports a non-default Cassandra port via `DB_URL=127.0.0.1:9043` (see `pkg/db/validator`).
+Each extra node has a **separate Clef** (separate signer address), separate Cassandra (so its validator table has exactly one `ismine=true`), and the same Anvil chains/Diamond contracts. A non-default Cassandra port can be configured via `DB_URL=127.0.0.1:9043`.
 
 ## Next Steps
 

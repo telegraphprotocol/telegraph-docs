@@ -85,7 +85,7 @@ The x402 client library handles the entire 402 → pay → retry cycle transpare
 | SN34 | `bittensor-sn34-bitmind` | Deepfake detection | `media_authenticity` | `POST /v1/34/detect-image` |
 | SN64 | `bittensor-sn64-chutes` | High-performance LLM | `language_response` | `POST /v1/64/chat/completions` |
 
-New subnets are added by dropping a YAML file into `integrations/` — no code changes needed anywhere.
+New subnets are added by registering a YAML file on-chain — no code changes needed anywhere.
 
 ---
 
@@ -122,7 +122,7 @@ Raw Zeus response:
 signal_mapping: confidence_field="storm_probability", label_field="risk_level"
 
 → On-chain: { type: "weather_risk", confidence: 0.73, label: "moderate" }
-→ Full response: stored in Cassandra for replay and audit
+→ Full response: stored locally for replay and audit
 ```
 
 **External agents (LangChain, ElizaOS)** receive the full raw response and can optionally use `signal_mapping` as a shortcut to extract the most important fields:
@@ -360,29 +360,28 @@ Build your provider registry from this response. The full call path for any endp
 
 ## Adding New Subnets
 
-New subnets appear in the OpenAPI spec automatically when added to the node. No framework code changes needed. The integration process:
+New subnets appear in the OpenAPI spec automatically once registered. No framework code changes needed. The integration process:
 
-1. Add a YAML file to `modules/subnet-dispatcher/integrations/` following the Open Integration Standard
-2. Validate: `telegraph integration validate <file>`
-3. Restart the node
-4. The new subnet's paths appear in `/subnet-dispatcher/openapi.yaml` immediately
-5. Agents that re-fetch the spec gain access to the new subnet
+1. Write a YAML file following the [YAML Standard](../miner-registry/yaml-standard.md)
+2. Register it on-chain via the [Miner Registry](../miner-registry/miner-registry-facet.md)
+3. The node activates the new subnet at the next epoch boundary
+4. The new subnet's paths appear in `/subnet-dispatcher/openapi.yaml` immediately after activation
+5. Agents that re-fetch the spec gain access to the new subnet with no code changes
 
 ---
 
 ## Quick Reference
 
 ```bash
-# Generate committed spec files for the repo
-telegraph integration openapi --node-url https://api.telegraph.network > telegraph-openapi.yaml
-telegraph integration openapi --format json --node-url https://api.telegraph.network > telegraph-openapi.json
+# Fetch the live spec from a running node
+curl http://your-node:7044/subnet-dispatcher/openapi.yaml
+curl http://your-node:7044/subnet-dispatcher/openapi.json
 
-# Test live endpoints
-curl http://localhost:7044/subnet-dispatcher/integrations
-curl http://localhost:7044/subnet-dispatcher/openapi.yaml
+# List all registered subnets
+curl http://your-node:7044/subnet-dispatcher/integrations
 
-# Test inference (will return 402 — configure wallet for actual inference)
-curl -X POST http://localhost:7044/subnet-dispatcher/v1/32/detect \
+# Test inference (returns 402 — configure a wallet for actual inference)
+curl -X POST http://your-node:7044/subnet-dispatcher/v1/32/detect \
   -H "Content-Type: application/json" \
   -d '{"text": "Is this text AI-generated?"}'
 ```

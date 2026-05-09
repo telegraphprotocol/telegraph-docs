@@ -186,9 +186,9 @@ on_chain:
 | `auth.header_name` | string | no | Header name for `type=header`. Defaults to `Authorization` for `type=bearer`. |
 
 **How auth works at runtime:**
-- `type: bearer` — reads `os.Getenv(env_var)`, sets `Authorization: Bearer <value>` (handles double-prefix gracefully)
-- `type: header` — reads `os.Getenv(env_var)`, sets the value on the specified `header_name`
-- `type: none` — no auth header injected
+- `type: bearer` — reads the env var at runtime and injects `Authorization: Bearer <value>` on each upstream request
+- `type: header` — reads the env var at runtime and sets the value on the specified `header_name`
+- `type: none` — no auth header is injected
 
 #### Endpoints
 
@@ -302,60 +302,31 @@ on_chain:
 
 ## For Node Operators
 
-### How the Loader Works
+### How YAML Loading Works
 
-The node loads integration YAMLs from two paths:
+The node loads miner YAMLs from two paths:
 
-1. **Embedded filesystem** (built into the binary): `modules/subnet-dispatcher/integrations/*.yaml`
-2. **On-chain registry** (hot-loaded at epoch boundaries): `HotRegister(rawYAML)` validates and activates
-
-```
-Startup:
-  LoadFromFS(embedded, "integrations/")  →  validates miner YAML files
-  hydrateDispatcher()                     →  loads active DB records into dispatcher
-
-At epoch boundary:
-  activatePending()
-    → For each "pending" record:
-        HotRegister(rawYAML)
-          → LoadBytes(rawYAML) validates against the schema
-          → generic.New(cfg) creates adapter
-          → reg.Upsert(adapter) replaces by slug
-```
-
-### Adding a New Miner (File-Based)
-
-Place a new YAML file in `modules/subnet-dispatcher/integrations/` and rebuild. The embedded filesystem picks it up automatically.
+1. **Built-in integrations** — A set of YAMLs shipped with the node binary that are loaded at startup automatically.
+2. **On-chain registry** — YAMLs registered on-chain are fetched, validated, and activated at epoch boundaries with no restart needed. See [Miner Registry](miner-registry-facet.md) for the full registration flow.
 
 ### Adding a New Miner (On-Chain)
 
-Register via the smart contract. The node will fetch the YAML from the URL, validate it, and activate it at the next epoch boundary. No rebuild or restart needed. See [Miner Registry](miner-registry.md) for the full flow.
+Register via the smart contract. The node fetches the YAML from the declared URL, validates it against the schema, and activates it at the next epoch boundary. No rebuild or restart needed.
 
 ### Schema Validation
 
-The loader validates every YAML against the canonical JSON Schema (`integration.schema.json` or `integration.schema.json`). If validation fails, the integration is stored as "rejected" and logged:
-
-```
-processMinerRecord: schema validation failed registrationId=27 errors=[(root): base_url is required]
-```
+Every YAML is validated against the canonical schema before activation. If validation fails, the entry is stored as rejected and the miner must deregister and re-register with a corrected file.
 
 Common validation failures:
 - Missing `base_url` (required)
-- Missing `slug` pattern compliance (must be `kebab-case`)
+- `slug` not in `kebab-case` format
 - Invalid `auth.type` (must be `bearer`, `header`, or `none`)
 - Missing `supported_intents` in `semantics` block (required)
 - Invalid `semantics.signal_mapping.type` (must be one of the enum values)
 
 ### Intent-Based Routing
 
-The dispatcher builds an `intentMap` from all loaded integrations' `supported_intents`. This maps canonical intent strings to integration slugs:
-
-```
-"weather_check" → "bittensor-sn18-zeus"
-"deepfake_detection" → "bittensor-sn34-bitmind"
-```
-
-The autonomous engine uses this map for deterministic routing — given an intent, it knows which integration to call.
+The node indexes all loaded miners by their declared `supported_intents`. When the autonomous engine receives a task for a given intent, it routes to the miner that declared that intent. If multiple miners declare the same intent, the most recently activated one wins.
 
 ---
 
@@ -379,14 +350,13 @@ The autonomous engine uses this map for deterministic routing — given an inten
 
 2. **Env vars for secrets, not raw keys:** The `auth.env_var` field stores the **name** of an environment variable, never the key value itself. This prevents secrets from being committed to git or stored on-chain.
 
-3. **Slug as deduplication key:** The dispatcher indexes adapters by slug. When a new registration with the same slug arrives (e.g., after deregister + re-register), it replaces the old one.
+3. **Slug as deduplication key:** The node indexes miners by slug. When a new registration with the same slug arrives (e.g., after deregister + re-register), it replaces the previous one.
 
-4. **Multipart and param_map in YAML:** These are the most common per-adapter customizations. Rather than requiring Go code for every new API quirk, we express them declaratively in the YAML.
+4. **Multipart and param_map in YAML:** These cover the most common per-miner API customizations declaratively, without requiring any code changes.
 
 ---
 
 ## Related Documentation
 
-- [Miner Registry](miner-registry.md) — On-chain registration, epoch activation, and catch-up
+- [Miner Registry](miner-registry-facet.md) — On-chain registration, epoch activation, and catch-up
 - [x402 Payment Protocol](x402-payment.md) — Per-request payment gating using `min_price_usdc`
-- [Subnet Dispatcher Overview](../documentation/SUBNET_DISPATCHER_OVERVIEW.md) — Generic adapter architecture

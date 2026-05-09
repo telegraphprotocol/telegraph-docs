@@ -1,245 +1,66 @@
-# Miner Registry — Technical Documentation
+# Miner Registry
 
 ## Overview
 
-The Miner Registry is Telegraph's on-chain system for permissionless miner miner. Any miner can register their YAML configuration on-chain; every Telegraph node automatically discovers, validates, and activates it without restarts.
+The Miner Registry is Telegraph's on-chain system for permissionless miner registration. Any miner can register their YAML configuration on-chain; every Telegraph node automatically discovers, validates, and activates it — no restarts required.
 
 The system has three layers:
 
-1. **On-chain registry** — Solidity contract stores registration metadata and emits events
-2. **Off-chain listener** — Go service that catches events, fetches YAMLs, validates schemas, and persists to Cassandra
-3. **Hot-reload dispatcher** — Loads validated YAMLs into the live routing engine at epoch boundaries
+1. **On-chain registry** — Smart contract stores registration metadata and emits events when miners register or deregister.
+2. **Off-chain discovery** — Nodes listen for registration events, fetch and validate YAML files from the declared URL, and stage them for activation.
+3. **Live routing** — Validated miners are loaded into the node's routing engine at epoch boundaries without requiring a restart.
 
 ---
 
-## Architecture
+## How Registration Works
 
-```
-Miner                           Smart Contract               Telegraph Node
-  │                                 │                            │
-  │  registerMiner(           │                            │
-  │    yamlUrl, yamlHash,           │                            │
-        │                            │
-  │    minPriceUsdc,                │                            │
-  │    supportedIntents)           │                            │
-  │────────────────────────────────▶│                            │
-  │                                 │  MinerRegistered     │
-  │                                 │  event emitted             │
-  │                                 │───────────────────────────▶│
-  │                                 │                            │ Live path:
-  │                                 │                            │  Fetch YAML from URL
-  │                                 │                            │  Verify sha256 == yamlHash
-  │                                 │                            │  Validate against JSON schema
-  │                                 │                            │  Upsert DB as "pending"
-  │                                 │                            │
-  │                                 │    At epoch boundary ──▶  │ Epoch catch-up path:
-  │                                 │                            │  Call minerCount() on-chain
-  │                                 │                            │  Call getDeregisteredIdCount()
-  │                                 │                            │  Process delta: new IDs & deregistrations
-  │                                 │                            │  activatePending() → "active"
-  │                                 │                            │
-  │  deregisterMiner(id)     │                            │
-  │────────────────────────────────▶│  MinerDeregistered   │
-  │                                 │───────────────────────────▶│
-  │                                 │                            │ Live path: immediate HotUnregister
-  │                                 │                            │ Epoch path: catch missed deregistrations
-```
+When a miner registers on-chain:
+
+1. The miner's YAML URL, its SHA-256 hash, supported intents, fee address, and floor price are stored on-chain and a unique `registrationId` is issued.
+2. Telegraph nodes detect the registration event and fetch the YAML from the declared URL.
+3. The node verifies that the fetched YAML's SHA-256 hash matches the on-chain commitment.
+4. If valid, the YAML is staged as pending and activated at the next epoch boundary.
+5. Once active, the miner is live in the node's routing engine with no restart needed.
+
+Deregistered miners are removed from routing immediately on live nodes, and caught up at the next epoch boundary for nodes that were offline.
 
 ---
 
-## For Developers
+## On-Chain Contract
 
-### Key Design Decisions
+`MinerRegistryFacet` is deployed as a facet on the Telegraph Diamond contract (Base). It provides:
 
-1. **Epoch-based activation (not immediate):** New miners are stored as "pending" and promoted to "active" only at an epoch boundary. This ensures all nodes converge on the same block.
-
-2. **Dual-index catch-up (O(delta)):** The contract maintains `minerCount()` and `deregisteredIds[]`. At each epoch boundary, nodes compare their local sync state (`max_registration_id`, `deregistered_count`) against on-chain values and process only the delta. No event replay needed.
-
-3. **Block-height epochs, not wall-clock:** The epoch interval is `EPOCH_BLOCK_INTERVAL` blocks (default 300 on mainnet, 5 for local Anvil testing). A `SubscribeNewHead` subscription detects epoch boundaries even when `anvil_mine N` delivers only the final header.
-
-4. **Startup rehydration:** On connect/reconnect, `hydrateDispatcher()` loads all "active" miners from Cassandra into the in-memory dispatcher. No data is lost on restart.
-
-5. **Rejected YAMLs are stored, not dropped:** If YAML fetch, hash verification, or schema validation fails, the record is stored as "rejected". The miner must deregister and re-register with a new ID to replace it.
-
-6. **No updateMiner function:** Miners deregister the old miner and register a new one. The contract is monotonic — `registrationId` only increments, and deregistered IDs are appended to an immutable array.
-
-7. **Same slug allowed across registrations:** Multiple registrations can share the same slug (e.g., after deregister + re-register). The dispatcher's `HotRegister` replaces by slug — the latest active record wins. Past registrations with the same slug remain in the DB as "deregistered" or "rejected" for audit.
-
-### Smart Contract (`MinerRegistryFacet.sol`)
-
-**Storage:**
-```solidity
-struct MinerRecord {
-    address   miner;
-    string    yamlUrl;           // Off-chain URL (ipfs:// or https://)
-    bytes32   yamlHash;          // sha256 of raw YAML bytes
-
-    bool      active;
-    bytes32   intentId;          // H(msg.sender || yamlHash || block.number)
-    address   feeAddress;        // Miner's Machina payout address
-    uint256   minPriceUsdc;      // Floor price in 6-decimal USDC (min 0.01 = 10000)
-    string[]  supportedIntents;  // Declared Intent IDs
-}
-
-uint256 minerCounter;                        // Monotonic counter = max ID
-mapping(uint256 => MinerRecord) minerRecords;
-uint256[] deregisteredIds;                          // Append-only deregistration index
-```
-
-**Functions:**
-
-| Function | Purpose |
-|---|---|
-| `registerMiner(yamlUrl, yamlHash, feeAddress, minPriceUsdc, supportedIntents)` | Register a new YAML miner. Returns `registrationId`. |
-| `deregisterMiner(registrationId)` | Deactivate and push to `deregisteredIds`. Only original miner. |
-| `getMiner(registrationId)` | Returns all fields. Used by epoch catch-up. |
-| `minerCount()` | Total registrations ever (including deregistered). |
-| `getDeregisteredIdCount()` | Length of `deregisteredIds` array. |
-| `getDeregisteredIdAtIndex(index)` | Access `deregisteredIds[index]`. |
-| `getCanonicalIntents()` | Returns the 27 genesis intent strings (pure view). |
-
-**Validation:**
-- `yamlUrl` must be non-empty
-- `yamlHash` must be non-zero
-- `feeAddress` must be non-zero
-- `minPriceUsdc` must be >= 10,000 (0.01 USDC in 6 decimals)
-- `supportedIntents` must be non-empty
-
-### Off-Chain Processing (`pkg/listener/listener.miner.go`)
-
-**Live event path:**
-1. `MinerRegistered` event → `minerRegisteredEvent()` → contract call `getMiner(id)` → `processMinerRecord()`
-2. `MinerDeregistered` event → `minerDeregisteredEvent()` → immediate `MarkDeregistered` in DB + `HotUnregister` from dispatcher
-
-**Epoch catch-up path (`epochCatchUp`):**
-1. Compare `minerCount()` vs local `max_registration_id` — fetch new registrations by calling `getMiner(id)` for each new ID
-2. Compare `getDeregisteredIdCount()` vs local `deregistered_count` — process new deregistrations via `getDeregisteredIdAtIndex(i)`
-3. Call `activatePending()` — promote "pending" → "active" via `HotRegister`
-4. Persist sync state to `miner_meta` table
-
-**Process flow for a new registration:**
-```
-MinerRegistered event
-  → getMiner(id) via ethclient
-  → fetchYAML(yamlUrl) with 30s timeout, 512KB limit
-  → verify sha256 == yamlHash
-  → extractSlug() from YAML content
-  → schema validation via LoadBytes()
-  → Upsert to Cassandra as "pending" or "rejected"
-  → (at next epoch boundary) activatePending() → HotRegister()
-```
-
-**Hash verification:** The node computes `sha256(rawYAML)` and compares it against the on-chain `yamlHash`. If they don't match, the record is stored as "rejected".
-
-**Schema validation:** Uses the same JSON Schema validation as the file-based loader (`miner.schema.json`). Invalid YAMLs are stored as "rejected" with the validation errors logged.
-
-**URI resolution:** `ipfs://` URIs are resolved through an IPFS gateway (default: `https://ipfs.io/ipfs`), configurable via `IPFS_GATEWAY_URL`.
-
-### Hot-Reload Flow
-
-When an miner is activated at an epoch boundary:
-```
-activatePending()
-  → FindByStatus("pending") from Cassandra
-  → For each pending record:
-      → HotRegister(rawYAML) on the dispatcher
-      →  against the schema
-      → generic.New(cfg) creates a new Adapter
-      → reg.Upsert(adapter) replaces any existing adapter with same slug
-      → MarkActive(minerID) in Cassandra
-```
-
-If `HotRegister` fails (schema validation error), the record stays "pending" and will be retried at the next epoch. If the YAML is structurally invalid (can't parse at all), it stays "rejected" permanently.
-
-### Cassandra Schema
-
-The node persists miner state in Cassandra for fast local access and offline resilience:
-
-- **`miner_registry`** — One row per miner registration. Stores the YAML content, activation status (pending/active/deregistered/rejected), hash, and on-chain committed fields.
-- **`miner_meta`** — Epoch sync bookkeeping. Tracks `max_registration_id` and `deregistered_count` so the node can catch up from where it left off without replaying all history.
-
-### Environment Variables
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `EPOCH_BLOCK_INTERVAL` | 300 | Number of blocks between epoch-boundary checks. Set to 5 for local Anvil testing. |
-| `IPFS_GATEWAY_URL` | `https://ipfs.io/ipfs` | Gateway for resolving `ipfs://` URIs. |
-
----
-
-## For Node Operators
-
-### Configuration
-
-Add to your `.env`:
-```
-EPOCH_BLOCK_INTERVAL=300
-```
-
-For local Anvil testing, set `EPOCH_BLOCK_INTERVAL=5` for faster epochs.
-
-### Monitoring
-
-Watch for these log messages:
-- `hydrateDispatcher: loaded N active miners from cache` — startup rehydration
-- `Epoch tracker initialised at block N` — node connected and tracking epochs
-- `Epoch boundary crossed at block N` — epoch boundary detected
-- `epochCatchUp: done count=X deregCount=Y` — successful epoch sync
-- `epochCatchUp: skipping, previous run still in progress` — concurrent epoch prevented
-- `processMinerRecord: fetch failed` / `hash mismatch` / `schema validation failed` — YAML failures (stored as "rejected")
-- `activatePending: activated slug=X` — miner promoted to active
-- `hot-registered integration slug=X` — dispatcher hot-reload successful
-
-### Database Health
-
-
-### Troubleshooting
-
-| Symptom | Likely Cause | Fix |
-|---|---|---|
-| Miners stuck at "pending" | No epoch boundary crossed | Mine blocks to next epoch (`EPOCH_BLOCK_INTERVAL` blocks) |
-| `getDeregisteredIdAtIndex failed: abi pack` | Old binary without `*big.Int` fix | Rebuild and redeploy the telegraph binary |
-| `schema validation failed registrationId=N errors=[]` | Invalid YAML syntax (can't parse) | Check the `yaml_url` content; miner must deregister and re-register |
-| `schema validation failed registrationId=N errors=[(root): base_url is required]` | Valid YAML but missing required fields | Miner must fix the YAML and re-register |
-| Multiple active records for same slug | Expected behavior — latest wins | `HotRegister` replaces by slug; old records stay as audit trail |
-| `hash mismatch` | YAML content changed after registration | Miner must re-register with the correct hash |
+- **Register** — Submit a new miner entry with YAML URL, hash, fee address, floor price, and supported intents. Returns a unique `registrationId`.
+- **Deregister** — Deactivate a miner by `registrationId`. Only the original registering address can deregister.
+- **Query** — Look up registration details by ID, get the total registration count, or retrieve the list of canonical intent IDs supported by the protocol.
 
 ---
 
 ## For Miners
 
-### Registering a Miner
+### Registering
 
-```bash
-# 1. Compute sha256 of your YAML
-YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
+To register a miner on-chain, call `registerMiner` on the Diamond contract with:
 
-# 2. Host the YAML (e.g., IPFS, S3, or any HTTPS URL)
-YAML_URL="https://my-bucket.s3.amazonaws.com/my-miner.yaml"
-# Or: YAML_URL="ipfs://Qm..."
+| Parameter | Description |
+|---|---|
+| `yamlUrl` | HTTPS or IPFS URL where your YAML is hosted (e.g. `https://...` or `ipfs://...`) |
+| `yamlHash` | SHA-256 of the raw YAML bytes, prefixed with `0x` |
+| `feeAddress` | EVM address where payouts are sent (must be non-zero) |
+| `minPriceUsdc` | Floor price per call in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. |
+| `supportedIntents` | Array of at least one canonical intent string |
 
-# 3. Call registerMiner on the Diamond contract
-cast send \
-  --rpc-url "$RPC_URL" \
-  --private-key "$MINER_KEY" \
-  "$DIAMOND_ADDR" \
-  "registerMiner(string,bytes32,uint256,address,uint256,string[])" \
-  "$YAML_URL" "$YAML_HASH" 18 \
-  "$FEE_ADDRESS" 10000 \
-  "[\"chat_completion\",\"web_search\"]"
-```
+### Updating a Miner
 
-**Parameters:**
-- `yamlUrl`: HTTPS or IPFS URL where the YAML is hosted
-- `yamlHash`: sha256 of the raw YAML bytes (prefix with `0x`)
+There is no update function. To change your YAML, fee address, or floor price:
 
-- `feeAddress`: EVM address where payouts are sent (must be non-zero)
-- `minPriceUsdc`: Floor price in 6-decimal USDC. Minimum is 10000 (= $0.01). Immutable per registration — deregister + re-register to change.
-- `supportedIntents`: Array of canonical intent strings (at least one)
+1. Call `deregisterMiner(registrationId)` to deactivate the current entry
+2. Update your YAML file at the hosting URL (or use a new URL)
+3. Call `registerMiner(...)` with the new YAML URL and hash — a new `registrationId` is issued
 
 ### Canonical Intents
 
-These 27 intents are hardcoded on-chain via `getCanonicalIntents()`:
+Declare at least one intent from the canonical list. Intents outside this list are accepted but will not be routed by the autonomous engine.
 
 | Intent | Intent | Intent |
 |---|---|---|
@@ -261,81 +82,55 @@ These 27 intents are hardcoded on-chain via `getCanonicalIntents()`:
 | | | `image_verification` |
 | | | `video_verification` |
 
-Declaring intents not in this list logs a warning. The miner still loads, but the autonomous engine won't route unknown intents.
+---
 
-### Updating a Miner
+## For Node Operators
 
-There is no `updateMiner` function. To change your YAML, fee address, or floor price:
+### Configuration
 
-1. Call `deregisterMiner(oldId)` — your old miner becomes inactive
-2. Update your YAML file on the hosting URL
-3. Call `registerMiner(newYamlUrl, newYamlHash, ...)` — creates a new ID
+Add to your `.env`:
 
-### Deregistering
-
-```bash
-cast send \
-  --rpc-url "$RPC_URL" \
-  --private-key "$MINER_KEY" \
-  "$DIAMOND_ADDR" \
-  "deregisterMiner(uint256)" \
-  "$INTEGRATION_ID"
+```
+EPOCH_BLOCK_INTERVAL=300
 ```
 
-Only the original registering address can deregister. Deregistration is immediate on live nodes (HotUnregister) and caught at the next epoch boundary for nodes that were offline.
+For local testing with Anvil, set `EPOCH_BLOCK_INTERVAL=5` for faster epoch cycles.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `EPOCH_BLOCK_INTERVAL` | 300 | Blocks between epoch-boundary checks |
+| `IPFS_GATEWAY_URL` | `https://ipfs.io/ipfs` | Gateway for resolving `ipfs://` YAML URIs |
+
+### What to Expect
+
+At startup, the node loads all previously activated miners from its local database. At each epoch boundary, it checks for new registrations and deregistrations on-chain since the last sync and processes only the delta — no full history replay.
+
+If a miner's YAML fails to fetch, fails hash verification, or fails schema validation, it is stored as rejected. The miner must deregister and re-register with a corrected YAML to retry.
+
+### Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| Miner stuck in pending | No epoch boundary has crossed yet | Wait for the next epoch, or lower `EPOCH_BLOCK_INTERVAL` for local testing |
+| YAML validation failed | Missing required fields or invalid format | Check the hosted YAML against the [YAML Standard](yaml-standard.md); miner must deregister and re-register |
+| Hash mismatch | YAML content changed after registration | The node compares the fetched YAML against the on-chain hash; miner must re-register with the correct hash |
 
 ---
 
-## For Executives
+## What the Miner Registry Enables
 
-### What Was Built
+The Miner Registry is the on-chain component of Telegraph's open miner standard. Any miner can permissionlessly register their YAML configuration on Base, and every Telegraph node automatically discovers, validates, and activates it — no whitelisting, no approval required.
 
-The Miner Registry is the on-chain component of Telegraph's open miner standard. It allows any Miner to permissionlessly register their YAML configuration on the Base L2 blockchain, and every Telegraph node automatically discovers, validates, and activates the miner without restarts.
+**Key properties:**
 
-### Whitepaper Alignment
-
-| Whitepaper Section | Requirement | Implementation |
-|---|---|---|
-| §4.1 Supported Intents | Array in registration | `supportedIntents` parameter on-chain |
-| §4.1 Fee Address | Miner payout address | `feeAddress` parameter on-chain |
-| §4.1 min_price_usdc | Floor price | `minPriceUsdc` parameter (min 0.01 USDC) |
-| §4.1 YAML Schema Hash + URL | Off-chain YAML reference | `yamlHash` + `yamlUrl` (per CTO directive, uses `yamlUrl` not `yamlUri`) |
-| §4.1 Intent_ID | H(Registrant \|\| YAML_Hash \|\| Block_Number) | Computed as `intentId` on-chain |
-| §4.1 Permissionless registration | Any address can register | No whitelisting |
-| §4.1 Floor price immutable | Cannot change after registration | Must deregister + re-register |
-| §9.2 Canonical Intents | 27 genesis intents | `getCanonicalIntents()` pure view |
-
-### What Was Deferred
-
-| Feature | Reason |
-|---|---|
-| Miner bond (100 Machina deposit) | Requires token contract miner; not yet in the Port Contract |
-| On-chain writable Intent registry | Hardcoded genesis list; governance (§10) will make it writable |
-| Peer-node YAML fallback | Needs new HTTP endpoint; low priority before mainnet |
-| On-chain callback for hash verification |
-
-### How It Works at Scale
-
-- **O(delta) epoch catch-up:** Only new IDs and deregistrations since the last sync are processed, not O(N) total records
-- **Concurrent-safe:** `epochCatchUp` uses `TryLock` — if a previous run is still in progress, the epoch is skipped
-- **Rejected YAMLs are stored, not dropped:** Failed fetches or schema mismatches are stored as "rejected" — the node doesn't lose track
-- **Fresh nodes catch up from scratch:** `GetMeta` returns 0 for missing keys, so `epochCatchUp` processes all on-chain records from ID 1 on first run
-- **Slug-based dedup in dispatcher:** `HotRegister` replaces by slug — the latest active registration wins. Old records stay in DB for audit.
-
-### Known Limitations
-
-1. **Deregistered miner served between live-event and next epoch:** If a node is offline when `MinerDeregistered` fires, it keeps serving the old miner until the next epoch boundary. The miner bond (when implemented) is the economic deterrent.
-
-2. **Rejected YAMLs are never retried:** If a YAML fetch or schema validation fails, the record sits as "rejected" indefinitely. The miner must deregister and re-register with a new ID.
-
-3. **URL going offline after caching:** Once cached in Cassandra, the node serves from local DB. A fresh node that has never seen the registration will fail to fetch and store as "rejected".
-
-4. **`intentId` not in event emissions:** Nodes query `intentId` via `getMiner()` during epoch catch-up. When the full Port Contract uses `intentId` for payment routing, we'll add it to the `MinerRegistered` event (breaking change, scheduled for Port Contract phase).
+- **Permissionless** — Any address can register. No whitelisting or approval process.
+- **Self-healing** — Nodes that were offline catch up automatically at the next epoch boundary without replaying full history.
+- **Immutable floor price** — `min_price_usdc` is committed at registration and cannot be changed without re-registering, preventing bait-and-switch pricing.
+- **Rejected entries are tracked** — Failed registrations are stored as rejected rather than silently dropped, preserving an audit trail.
 
 ---
 
 ## Related Documentation
 
-- [YAML Miner Standard](yaml-standard.md) — Full reference for writing miner YAML files
+- [YAML Standard](yaml-standard.md) — Full reference for writing miner YAML files
 - [x402 Payment Protocol](x402-payment.md) — How per-request payments work
-- [Miner Registry Discussion](../documentation/miner-registry-discussion.md) — Original team discussion and decisions

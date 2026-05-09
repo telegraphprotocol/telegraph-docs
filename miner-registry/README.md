@@ -17,31 +17,28 @@ and on-chain data transformation declaratively.
 ## Architecture
 
 ```
-Miner publishes YAML → on-chain registerMiner() tx
+Miner publishes YAML → registers on-chain
                               ↓
-                    Node listens for MinerRegistered event
+                    Node detects registration event
                               ↓
-                    Fetches YAML from off-chain URL
+                    Fetches YAML from declared URL
                               ↓
-                    Validates YAML hash + schema
+                    Validates hash and schema
                               ↓
-                    Stores as 'pending' in Cassandra
+                    Staged as pending
                               ↓
                     At next epoch boundary → activates
                               ↓
-                    Hot-loads into dispatcher (no restart)
+                    Live in routing engine (no restart)
 ```
 
 ## On-chain contract
 
-`MinerRegistryFacet` (deployed as a Diamond facet on Base) provides:
+`MinerRegistryFacet` is deployed as a Diamond facet on Base. It supports:
 
-- `registerMiner(yamlUrl, yamlHash, feeAddress, minPriceUsdc, supportedIntents)` — registers with a monotonic `registrationId`
-- `deregisterMiner(registrationId)` — only callable by the original registrant
-- `getMiner(registrationId)` — returns all stored fields
-- `minerCount()` — total registrations (including deregistered)
-- `getDeregisteredIdCount()` / `getDeregisteredIdAtIndex()` — epoch catch-up indexes
-- `getCanonicalIntents()` — returns the 26 canonical intent IDs (uppercase, genesis-hardcoded)
+- **Register** — Submit a new miner with YAML URL, hash, fee address, floor price, and supported intents
+- **Deregister** — Deactivate a miner by registration ID (only the original registrant)
+- **Query** — Look up registration details, total count, and canonical intent IDs
 
 See the [Miner Registry Contract](miner-registry-facet.md) for full details.
 
