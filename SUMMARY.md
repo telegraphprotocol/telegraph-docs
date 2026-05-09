@@ -57,6 +57,13 @@
 * [Port Contract](contract-documentation/port-contract.md)
 * [Telegraph Port Addresses](contract-documentation/telegraph-port-addresses.md)
 
+## Miner Registry
+
+* [Overview](miner-registry/README.md)
+* [Miner Registry Contract & Listener](miner-registry/miner-registry-facet.md)
+* [YAML Standard](miner-registry/yaml-standard.md)
+* [x402 Payment](miner-registry/x402-payment.md)
+
 ## LLM Integration
 
 * [ChatGPT Plugin](llm-integration/chatgpt-plugin.md)
