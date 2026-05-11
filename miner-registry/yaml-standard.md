@@ -263,6 +263,41 @@ endpoints:
     multipart_fields: [image]
 ```
 
+#### On-Chain Request Mapping (`on_chain.request`)
+
+When a web3 on-chain request arrives (via `outboundSubnetMessage`), the node must construct an HTTP request to the upstream API from raw on-chain arrays (strings, integers, bools). The `on_chain.request` block declares how to map on-chain data into HTTP query params or JSON body fields — per endpoint.
+
+```yaml
+on_chain:
+  request:
+    - endpoint: chat              # Matches a suffix of the on-chain endpoint (e.g. /subnet/102/chat)
+      method: POST                # HTTP method for the upstream call
+      body:                       # JSON body fields mapped from on-chain arrays
+        model: { source: strings.0 }
+        messages: { source: strings.1, format: chat_messages }
+
+    - endpoint: predict
+      method: GET
+      query_params:               # Query parameters mapped from on-chain arrays
+        lat: { source: strings.0 }
+        lon: { source: strings.1 }
+        hourly: { source: strings.2 }
+        start_datetime: { source: strings.3, optional: true }
+        end_datetime: { source: strings.4, optional: true }
+```
+
+**Source formats** — where to read the field value from the on-chain arrays:
+- `strings.N` — value from `strings[]` at index N
+- `numbers.N` — value from `integers[]` at index N (stored as `uint256` / `*big.Int`)
+- `bools.N` — value from `bools[]` at index N
+
+**Special formats for body fields:**
+- `format: chat_messages` — Treats strings starting at the source index as alternating `role`/`content` pairs. Auto-detects `temperature` from trailing unpaired float, `max_tokens` from `numbers[0]`, `stream` from `bools[0]`, and `logprobs` from `bools[1]`. Used by OpenAI, Groq, Chutes, and all OpenAI-compatible LLM subnets.
+- `type: float` — Parses the string source as a `float64` number.
+- `optional: true` — Omits the field if the source value is empty/missing.
+
+**Endpoint matching**: The node matches the on-chain endpoint path against the YAML `request[].endpoint` keyword using substring matching (`strings.Contains`). The longest matching keyword wins to avoid ambiguous sub-matches (e.g., `search/mini` matches before `search`).
+
 ### On-Chain Transform Examples
 
 **Direct transform (deterministic field extraction):**
@@ -304,10 +339,15 @@ on_chain:
 
 ### How YAML Loading Works
 
-The node loads miner YAMLs from two paths:
+All miner YAMLs are loaded exclusively on-chain:
 
-1. **Built-in integrations** — A set of YAMLs shipped with the node binary that are loaded at startup automatically.
-2. **On-chain registry** — YAMLs registered on-chain are fetched, validated, and activated at epoch boundaries with no restart needed. See [Miner Registry](miner-registry-facet.md) for the full registration flow.
+1. **On-chain registry** — Miners register YAMLs via `MinerRegistryFacet.registerMiner()`. The listener picks up `MinerRegistered` events from the blockchain, fetches and validates the YAML from the declared URL, and activates it at the next epoch boundary. No restart is needed.
+
+2. **Epoch boundary activation** — New registrations are staged as "pending" and promoted to "active" at the next epoch boundary. This ensures all nodes converge on the same block. Active miners are hot-loaded into the dispatcher's routing engine.
+
+3. **Startup rehydration** — On restart, the node rehydrates all previously active miners from its local database. No data is lost.
+
+YAML files shipped in the reference integrations directory are **documentation only** — they illustrate the schema contract but are never loaded by the dispatcher at runtime. All live integrations come from on-chain registrations.
 
 ### Adding a New Miner (On-Chain)
 

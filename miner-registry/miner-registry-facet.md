@@ -50,6 +50,17 @@ To register a miner on-chain, call `registerMiner` on the Diamond contract with:
 | `minPriceUsdc` | Floor price per call in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. |
 | `supportedIntents` | Array of at least one canonical intent string |
 
+The subnet ID and protocol type are defined **in the YAML itself** (via the `id` and `protocol` fields) — not in the contract call. The node reads these from the fetched YAML at validation time.
+
+**Example using Cast:**
+```bash
+cast send $DIAMOND_ADDR \
+  "registerMiner(string,bytes32,address,uint256,string[])" \
+  "$YAML_URL" "$YAML_HASH" \
+  "$FEE_ADDRESS" 10000 \
+  '["chat_completion","web_search"]'
+```
+
 ### Updating a Miner
 
 There is no update function. To change your YAML, fee address, or floor price:

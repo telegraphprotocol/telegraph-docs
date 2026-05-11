@@ -4,6 +4,8 @@ description: "Technical implementation: OnChainData encoding, per-endpoint reque
 
 # Subnet Integration for Developers (Technical Guide)
 
+> **Mapping authority**: On-chain request → API → on-chain response mappings are now defined **declaratively in each miner's YAML** (`on_chain.request` and `on_chain.fields` blocks). The YAML is the single source of truth — this document describes the conventions. For the full schema and to verify the latest mapping for any subnet, consult the [YAML Standard](../miner-registry/yaml-standard.md) and the miner's published YAML.
+
 This document is the **technical implementation guide** for subnet inference. It explains how **inference** works with Telegraph’s Diamond (Port) contracts: how data is passed as the **OnChainData** struct, how it is serialized and deserialized per subnet/endpoint, and how to build requests and read responses in your contracts. For a quick overview of integrated subnets (HTTP vs contract, high-level flow), see [Integrated Subnets (Overview)](integrated-subnets.md).
 
 ---
@@ -102,6 +104,18 @@ Use the **exact** endpoint string for the capability you use; scripts and docs s
 ---
 
 ## 5. Subnet-by-Subnet: Request (Input) and Response (Output)
+
+> **Current convention**: All OpenAI-compatible LLM subnets (OpenAI, Groq, Chutes) share the same on-chain response layout defined in their YAML `on_chain.fields`:
+> - `strings[0]` = `response_text` (generated content)
+> - `strings[1]` = `model` (model name used)
+> - `integers[0]` = `completion_tokens`
+> - `integers[1]` = `prompt_tokens`
+>
+> BitMind uses `on_chain.fields` with `transform: direct`: `bools[0]` = `is_ai_generated`, `integers[0]` = `confidence_x10000`.
+>
+> Zeus uses `on_chain.fields` with `transform: llm`: `integers[0]` = `temperature_celsius_x100`, `integers[1]` = `wind_speed_ms_x100`, `strings[0]` = `forecast_time`, `strings[1]` = `location`, `strings[2]` = `model`.
+>
+> The authoritative mapping for any subnet is in its published YAML. See [YAML Standard](../miner-registry/yaml-standard.md).
 
 Below, “request” = how to fill **OnChainData** for `outboundSubnetMessage(..., parameters, ...)`. “Response” = how to read **OnChainData** in `subnetMessage(..., response, ...)`.
 
