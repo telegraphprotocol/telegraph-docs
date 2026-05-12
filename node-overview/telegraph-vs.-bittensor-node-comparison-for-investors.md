@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Telegraph vs. Bittensor: Node Comparison for Investors
 
 This section compares **Telegraph** and **Bittensor**, focusing on fees, rewards, and earnings potential to help investors evaluate the benefits of running a node. All rewards and fees for Telegraph are in wTAO.
@@ -81,7 +85,7 @@ _Note_: Earnings are from cross-chain fees only. Subnet fees would further incre
 * **Bittensor Validator**: Constant at 0.5 wTAO/day.
 * **Crossover Point**: \~Month 4.7 (19,800 transactions/day).
 
-<figure><img src="../.gitbook/assets/dailyReward (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/dailyReward.png" alt=""><figcaption></figcaption></figure>
 
 Telegraph earnings increase linearly, surpassing Bittensor’s flat line around month 4.7
 
