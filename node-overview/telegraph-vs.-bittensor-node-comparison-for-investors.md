@@ -1,3 +1,7 @@
+---
+hidden: falsse
+---
+
 # Telegraph Miners: The Earnings Model
 
 This document explains how Telegraph miners earn by fulfilling agent intelligence requests. It compares to Bittensor to show the fundamental difference: Telegraph is demand-driven (earn from real requests), while Bittensor is supply-driven (earn from token emissions). The key insight: Bittensor subnets ARE miners on the Telegraph network, earning Machina tokens directly from agent payments. **This is Machines Improving Machines** — intelligent systems compete to serve other intelligent systems.
