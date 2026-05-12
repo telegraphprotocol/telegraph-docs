@@ -20,6 +20,7 @@
 * [Transactions](node-overview/transactions.md)
 * [Networks](node-overview/networks.md)
 * [Validators](node-overview/validators.md)
+* [Telegraph Miners: The Earnings Model](node-overview/telegraph-miners-the-earnings-model.md)
 * [Registering a Telegraph Node](node-overview/registering-a-telegraph-node.md)
 
 ## Setup
