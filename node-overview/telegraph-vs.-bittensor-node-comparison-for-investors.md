@@ -2,117 +2,85 @@
 hidden: true
 ---
 
-# Telegraph vs. Bittensor: Node Comparison for Investors
+# Telegraph Miners: The Earnings Model
 
-This section compares **Telegraph** and **Bittensor**, focusing on fees, rewards, and earnings potential to help investors evaluate the benefits of running a node. All rewards and fees for Telegraph are in wTAO.
+This document explains how Telegraph miners earn by fulfilling agent intelligence requests. It compares to Bittensor to show the fundamental difference: Telegraph is demand-driven (earn from real requests), while Bittensor is supply-driven (earn from token emissions). The key insight: Bittensor subnets ARE miners on the Telegraph network, earning Machina tokens directly from agent payments. **This is Machines Improving Machines** — intelligent systems compete to serve other intelligent systems.
 
-### Fee Structures
+## The Telegraph Miner Economy: How You Earn
 
-#### Telegraph
+When an agent requests intelligence:
 
-* **Cross-Chain Message Fee**: 0.0025 wTAO per message
-* **Subnet Message Fee**: 0.003 wTAO per message
-* **Fee Distribution**: Fees are collected in wTAO and distributed equally among all nodes (e.g., 99 nodes).
+1. **Agent pays in USDC** — On-chain contract sends a USDC micropayment (x402 standard)
+2. **Telegraph routes to best miner** — Network scores miners by performance and sends request to top performer
+3. **Protocol buys Machina** — USDC payment is used to purchase Machina from the open market in real-time
+4. **Miner earns Machina** — Protocol sends purchased Machina directly to the successful miner
+5. **Value link created** — Every request increases Machina demand, strengthening token value
 
-#### Bittensor
+**vs Bittensor**: Bittensor miners earn fixed block rewards (new emissions). Telegraph miners earn from real agent demand (USDC → Machina conversion). More usage = more value for miners.
 
-* **Network Fees**: Based on computational resource usage, paid in TAO tokens. Exact fees vary, but validators earn a fixed reward.
-* **Fee Distribution**: Validators earn approximately 0.5 wTAO per day from block rewards, while miners earn based on computational contributions.
+---
 
-***
+## Who Becomes a Telegraph Miner?
 
-### Rewards and Emissions
+Telegraph's multi-protocol approach means miners are:
 
-#### Telegraph
+* **Bittensor subnet operators** — Including subnets focused on inference, search, and analytics, running directly as miners on Telegraph
+* **Individual operators** — Anyone can run infrastructure to fulfill requests
+* **Open-source projects** — Teams hosting open models as intelligence providers
+* **Autonomous systems** — Bots and models trained to provide consistent, high-quality signals
+* **Enterprise APIs** — Companies registering proprietary intelligence services
 
-* **Rewards**: Paid in wTAO from fees collected; no new token minting.
-* **Fee Collection**: 0.0025 wTAO per cross-chain message and 0.003 wTAO per subnet message.
-* **Distribution**: Fees are split equally among all nodes.
+All compete equally. Best performance = more requests = higher earnings.
 
-#### Bittensor
+---
 
-* **Token**: TAO
-* **Block Reward**: 1 TAO per block (12-second block time), halving every 4 years
-* **Max Supply**: 21 million TAO tokens
-* **Distribution**: Rewards are distributed to validators and miners, with validators earning a consistent \~0.5 wTAO/day.
+## Miner Earnings: Demand-Driven vs Supply-Side
 
-***
+### Telegraph: Earned from Real Demand
 
-### Fee Splits
+**Revenue**: Agent USDC payments converted to Machina tokens
 
-#### Telegraph
+Every successful intelligence delivery = Machina earned. Zero requests = zero earnings.
 
-* **Message Fees**: Split equally among all nodes. For example, with 100,000 cross-chain messages per day, the total fee pool is 250 wTAO/day (0.0025 wTAO/message × 100,000), split among 99 nodes = \~2.525 wTAO/node/day.
+**Example (at scale)**:
+- 100,000 daily intelligence requests
+- Average: $0.10 USDC per request = $10,000/day total volume
+- Top miner (10% win rate): earns Machina tokens worth ~$1,000/day (USD equivalent at market rates)
+- Mid-tier miner (2% win rate): earns Machina tokens worth ~$200/day (USD equivalent at market rates)
+- Scaling is linear — double adoption = double earnings for same miners
 
-#### Bittensor
+*Note: Token value depends on market conditions; these examples show projected USD value of earned Machina at assumed market rates.*
 
-* **Fee Split**: Validators earn a fixed \~0.5 wTAO/day from block rewards, while miners’ earnings depend on computational contributions.
+### Bittensor: Fixed Rewards (Reference)
 
-***
+- Validators earn ~0.5 wTAO/day (fixed, regardless of activity)
+- Earnings halve every 4 years
+- Total supply capped at 21M TAO
+- Independent of actual network usage
 
-### Comparison Table
+---
 
-| Metric              | Telegraph                      | Bittensor                      |
-| ------------------- | ------------------------------ | ------------------------------ |
-| **Cross-Chain Fee** | 0.0025 wTAO/message            | N/A                            |
-| **Subnet Fee**      | 0.003 wTAO/message             | N/A                            |
-| **Daily Reward**    | Scales with transaction volume | \~0.5 wTAO (validators)        |
-| **Reward Type**     | wTAO from fees                 | TAO from block rewards         |
-| **Fee Split**       | Equal among nodes              | Validators + miners (variable) |
+## Why Demand-Driven Alignment Works Better
 
-***
+| Factor | Telegraph | Bittensor |
+|--------|-----------|-----------|
+| **Revenue Source** | Agent payments (USDC→Machina) | Token emissions |
+| **Scalability** | Linear with adoption | Fixed per epoch |
+| **Miner Incentive** | Quality → More requests → More earnings | Delegation + computational work |
+| **Economic Sustainability** | Usage-based (sound spending) | Emission-based (dilution risk) |
 
-### Earnings Potential: Month 25 Example
+Telegraph miners don't compete for shrinking block rewards. They compete for ever-growing agent demand. Bittensor subnets earn twice: block rewards on Bittensor + Machina earnings on Telegraph. Complementary, not competitive.
 
-Assuming 100,000 cross-chain transactions per day in month 25:
+---
 
-| Period  | Telegraph Node (wTAO) | Bittensor Validator (wTAO) |
-| ------- | --------------------- | -------------------------- |
-| Daily   | 2.525                 | 0.5                        |
-| Monthly | 75.75                 | 15                         |
-| Yearly  | 921.625               | 182.5                      |
+### Telegraph Miner Earnings Trajectory
 
-_Note_: Earnings are from cross-chain fees only. Subnet fees would further increase Telegraph node earnings.
+As network adoption grows (10 → 100,000 daily requests over 24 months):
 
-***
+- **Top miner**: Machina worth $0.25/day → $100/day (USD equivalent)
+- **Mid miner**: Machina worth $0.05/day → $20/day (USD equivalent)
+- **Entry miner**: Machina worth $0.01/day → $4/day (USD equivalent)
 
-### Graphs
+Earnings compound as agent demand accelerates.
 
-#### 1. Daily wTAO Earnings over 24 Months
-
-* **Scenario**: Transaction volume grows linearly from 10 to 100,000 per day over 720 days.
-* **Telegraph Node**: Starts at \~0.000253 wTAO/day, rises to \~2.525 wTAO/day.
-* **Bittensor Validator**: Constant at 0.5 wTAO/day.
-* **Crossover Point**: \~Month 4.7 (19,800 transactions/day).
-
-<figure><img src="../.gitbook/assets/dailyReward.png" alt=""><figcaption></figcaption></figure>
-
-Telegraph earnings increase linearly, surpassing Bittensor’s flat line around month 4.7
-
-#### 2. Cumulative wTAO Earnings over 24 Months
-
-* **Telegraph Node**: Reaches \~636 wTAO by month 24.
-* **Bittensor Validator**: Reaches 360 wTAO by month 24.
-* **Insight**: Telegraph nodes outpace Bittensor validators as transaction volume grows.
-
-<figure><img src="../.gitbook/assets/cumulativeReward.png" alt=""><figcaption></figcaption></figure>
-
-Telegraph’s curve accelerates upward, while Bittensor’s is a straight line.
-
-#### 3. Payouts in Month 25 (100,000 tx/day)
-
-* **Daily**: 2.525 wTAO/node
-* **Monthly**: 75.75 wTAO/node
-* **Yearly**: 921.625 wTAO/node
-
-<figure><img src="../.gitbook/assets/nodePayout.png" alt=""><figcaption></figcaption></figure>
-
-Bar chart showing daily, monthly, and yearly earnings for a Telegraph node.
-
-***
-
-### Why Invest in a Telegraph Node?
-
-* **Scalability**: Earnings grow with network usage, unlike Bittensor’s fixed rewards.
-* **High Potential**: At 100,000 transactions/day, Telegraph nodes earn over 5x more daily than Bittensor validators.
-* **Long-Term Value**: As transaction volume increases, Telegraph nodes offer superior profitability, making them an attractive investment for those betting on network growth
+*Example projection based on assumed adoption curve; actual earnings depend on network growth, miner performance, and Machina market value.*

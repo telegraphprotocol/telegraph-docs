@@ -1,5 +1,7 @@
 # Bridging Fees
 
+> **Note:** This section covers fees for **cross-chain messaging** (the Telegraph Rail). For miner earnings from **agent intelligence requests**, see [Agentic Framework Integration — How Your USDC Gets to Miners](../../llm-integration/agentic-framework-integration.md). Intelligence requests pay in USDC → Machina; miners earn Machina tokens directly from real on-demand agent usage.
+
 A central tenet in Telegraph's mission is to make the process of bridging extremely affordable for any developer and their community. As a result, the cost of sending transactions between chains will always be priced with current network transaction volume in mind. All fees must be paid in the native coin of the chain where the message initiated. The fee is sent alongside the request to the chain's local port contract. As a general goal, Telegraph strives to make cross-chain as affordable as possible and will seek to keep transaction fees as competitive as possible with low cost to the end user top of mind.
 
 #### **How are gas fees determine** <a href="#how-are-gas-fees-determined" id="how-are-gas-fees-determined"></a>

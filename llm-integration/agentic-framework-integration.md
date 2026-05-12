@@ -1,6 +1,6 @@
 # Telegraph — Agentic Framework Integration Guide
 
-This document explains how AI agents and agentic frameworks connect to Telegraph and call Bittensor subnet APIs. It covers the integration architecture, the three discovery endpoints, the x402 payment flow, and step-by-step setup for LangChain, ElizaOS, and any OpenAPI-compatible framework.
+This document explains how AI agents and agentic frameworks connect to Telegraph to request verified intelligence from multiple sources (Bittensor subnets, open-source models, APIs, and more). It covers the integration architecture, the discovery endpoints, the x402 payment flow, and step-by-step setup for LangChain, ElizaOS, and any OpenAPI-compatible framework.
 
 ---
 
@@ -10,19 +10,19 @@ Every Telegraph node exposes two layers:
 
 ### 1. Discovery Layer (free, no payment)
 
-These endpoints require no authentication and no payment. Agents call them at startup (or any time) to discover what subnets are available and how to call them. Re-fetching picks up newly added subnets automatically.
+These endpoints require no authentication and no payment. Agents call them at startup (or any time) to discover what intelligence sources are available and how to request them. Re-fetching picks up newly added sources automatically.
 
 | Endpoint | Format | Purpose |
 |----------|--------|---------|
-| `GET /subnet-dispatcher/integrations` | JSON | List of all registered subnets with metadata, endpoints, and signal mappings |
-| `GET /subnet-dispatcher/openapi.yaml` | YAML | Full OpenAPI 3.0.3 spec — all subnets as paths in one file |
+| `GET /subnet-dispatcher/integrations` | JSON | List of all registered intelligence sources with metadata, endpoints, and capabilities |
+| `GET /subnet-dispatcher/openapi.yaml` | YAML | Full OpenAPI 3.0.3 spec — all sources as paths in one file |
 | `GET /subnet-dispatcher/openapi.json` | JSON | Same spec in JSON format |
 
-The OpenAPI spec is generated live from the node's loaded integrations. When a new subnet YAML is added to the node and it restarts, the spec updates automatically. Agents that re-fetch the spec gain access to new subnets with no code changes.
+The OpenAPI spec is generated live from the node's loaded intelligence sources. When a new provider integration is added to the node and it restarts, the spec updates automatically. Agents that re-fetch the spec gain access to new intelligence sources with no code changes.
 
-### 2. Inference Layer (x402 payment required)
+### 2. Intelligence Layer (x402 payment required)
 
-All subnet inference endpoints are at:
+All intelligence requests are at:
 
 ```
 /subnet-dispatcher/v1/{subnet_id}/{endpoint_path}
@@ -72,10 +72,25 @@ The x402 client library handles the entire 402 → pay → retry cycle transpare
 
 ---
 
-## All 8 Current Subnets
+## How Your USDC Gets to Miners
 
-| Subnet ID | Slug | What it does | Signal type | Key endpoint |
-|-----------|------|-------------|-------------|-------------|
+Here's what happens with your payment after it hits the Telegraph network:
+
+1. **Your USDC payment arrives** — The on-chain Port contract receives it
+2. **Protocol buys Machina** — Telegraph uses the USDC to purchase Machina tokens from the open market in real-time
+3. **Miner earns Machina** — The purchased Machina is sent directly to whichever miner (individual, subnet, or API) provided the intelligence response
+4. **Machina value grows** — Every request creates permanent demand for Machina, strengthening the token's value
+
+**Why?** This ensures miners earn directly from real agent demand, not from token emissions. If agents need better intelligence, they pay more USDC, which buys more Machina for miners who provide it. It's a direct supply-demand relationship.
+
+Bittensor subnets running as Telegraph miners earn this way too — they get Machina from your USDC payments while keeping their Bittensor block rewards. Complementary incentives for the same intelligence providers.
+
+---
+
+## Available Intelligence Sources
+
+| Source ID | Slug | Capability | Signal type | Key endpoint |
+|-----------|------|-----------|-------------|-------------|
 | SN1 | `bittensor-sn1-apex` | Language model (Corcel) | `language_response` | `POST /v1/1/chat` |
 | SN18 | `bittensor-sn18-zeus` | Weather forecasting | `weather_risk` | `GET /v1/18/predict` |
 | SN19 | `bittensor-sn19-nineteen` | Multimodal inference | `multimodal_response` | `POST /v1/19/chat/completions` |
@@ -85,7 +100,7 @@ The x402 client library handles the entire 402 → pay → retry cycle transpare
 | SN34 | `bittensor-sn34-bitmind` | Deepfake detection | `media_authenticity` | `POST /v1/34/detect-image` |
 | SN64 | `bittensor-sn64-chutes` | High-performance LLM | `language_response` | `POST /v1/64/chat/completions` |
 
-New subnets are added by registering a YAML file on-chain — no code changes needed anywhere.
+New intelligence sources are added by registering a configuration on-chain — no code changes needed anywhere.
 
 ---
 
@@ -241,7 +256,7 @@ Add Telegraph to your ElizaOS character JSON. The key setting is the OpenAPI spe
         {
           "url": "http://your-node:7044/subnet-dispatcher/openapi.yaml",
           "name": "telegraph",
-          "description": "Bittensor AI subnet APIs — deepfake detection, weather, search, LLMs"
+          "description": "Telegraph intelligence APIs — deepfake detection, weather, search, language models, and more"
         }
       ]
     },
