@@ -1,5 +1,5 @@
 ---
-hidden: falsse
+hidden: false
 ---
 
 # Telegraph Miners: The Earnings Model
