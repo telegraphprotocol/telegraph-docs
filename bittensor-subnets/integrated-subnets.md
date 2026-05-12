@@ -1,51 +1,51 @@
 ---
 description: >-
-  Quick overview: use Bittensor subnets from your dApp via HTTP or smart
-  contracts, with request/response summaries.
+  Overview of intelligence sources available through Telegraph, including Bittensor subnets and other inference providers. Access via HTTP or smart contracts.
 ---
 
-# Integrated Subnets (Overview)
+# Inference Sources (Overview)
 
-Telegraph integrates **Bittensor subnets** so you can call AI and inference APIs (chat, image/video detection, weather, search, and more) from your dApps. You can use subnets in two ways: **over HTTP** via the Subnet-Dispatcher, or **from smart contracts** via the Diamond (Port). This page is a **quick overview**; for detailed OnChainData encoding, per-endpoint index specs, and implementation details, see [Subnet Integration for Developers](subnet-integration-for-devs.md).
+Telegraph connects your dApp to verified intelligence sources – including Bittensor subnets, open-source models, and other inference providers. You can request intelligence in two ways: **over HTTP** via the Intelligence Dispatcher, or **from smart contracts** via the Diamond (Port). This page is a **quick overview**; for detailed encoding, per-source specs, and implementation details, see [Intelligence Integration for Developers](subnet-integration-for-devs.md).
 
 ***
 
 ## Overview
 
-### What are integrated subnets?
+### What are integrated inference sources?
 
-**Integrated subnets** are Bittensor subnet APIs (Zeus, BitMind, Chutes, DeSearch, etc.) exposed through Telegraph in a unified way:
+Integrated inference sources are verified intelligence providers – including Bittensor subnets (Zeus, BitMind, Chutes, DeSearch, etc.), open-source models, and other APIs – exposed through Telegraph in a unified interface:
 
-* **Subnet-Dispatcher** — Central HTTP gateway with load balancing, rate limiting, circuit breaking, and logging. Use it from backends, scripts, or any HTTP client.
-* **Diamond (Port) contract** — Same subnets are callable from smart contracts. Your contract calls `outboundSubnetMessage`; the node runs the subnet request off-chain and delivers the result to your callback via `subnetMessage`.
+* **Subnet Dispatcher** — Central HTTP gateway with load balancing, rate limiting, circuit breaking, and logging. Use it from backends, scripts, or any HTTP client.
+* **Diamond (Port) contract** — Same intelligence sources are callable from smart contracts. Your contract calls `outboundSubnetMessage`; the node routes the request to the appropriate provider and delivers the result to your callback via `subnetMessage`.
 
-Both paths hit the same underlying subnet APIs; the difference is whether you call over HTTP or from chain.
+Both paths access the same underlying providers; the difference is whether you call over HTTP or from chain.
 
 ### Architecture
 
 ```
 ┌─────────────────┐                    ┌─────────────────────────────────┐
-│  Your dApp      │                    │   Subnet-Dispatcher              │
+│  Your dApp      │                    │   Intelligence Dispatcher        │
 │  (Frontend /    │ ──── HTTP ────────▶│   Load balancing, rate limit,   │
 │   Backend)      │                    │   circuit breaker, logging       │
 └─────────────────┘                    └───────────────┬─────────────────┘
                                                        │
 ┌─────────────────┐                    ┌───────────────▼─────────────────┐
-│  Your contract  │                    │  Subnet clients                │
-│  (Diamond call  │ ──── Event ────────▶  Zeus, BitMind, Chutes,         │
-│  + callback)    │                    │  DeSearch, Nineteen, etc.       │
-└─────────────────┘                    └───────────────┬─────────────────┘
+│  Your contract  │                    │  Intelligence providers         │
+│  (Diamond call  │ ──── Event ────────▶  Bittensor: Zeus, BitMind,      │
+│  + callback)    │                    │  Chutes, DeSearch, Nineteen     │
+└─────────────────┘                    │  Other: OpenAI, local models, etc
+                                        └───────────────┬─────────────────┘
                                                        │
                                                        ▼
                                               ┌─────────────────┐
-                                              │  Subnet APIs    │
+                                              │  Inference APIs │
                                               │  (External)     │
                                               └─────────────────┘
 ```
 
 ***
 
-## Two ways to use subnets
+## Two ways to request intelligence signals
 
 | Use case           | Method                                                                     | Best for                                                                          |
 | ------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |

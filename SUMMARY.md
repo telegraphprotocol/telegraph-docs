@@ -20,7 +20,6 @@
 * [Transactions](node-overview/transactions.md)
 * [Networks](node-overview/networks.md)
 * [Validators](node-overview/validators.md)
-* [Telegraph vs. Bittensor: Node Comparison for Investors](node-overview/telegraph-vs.-bittensor-node-comparison-for-investors.md)
 * [Registering a Telegraph Node](node-overview/registering-a-telegraph-node.md)
 
 ## Setup
@@ -31,10 +30,10 @@
 * [Docker Setup](setup/docker-setup.md)
 * [Dapp Integration](setup/dapp-integration.md)
 
-## Bittensor Subnets
+## Inference Sources
 
-* [Integrated Subnets (Overview)](bittensor-subnets/integrated-subnets.md)
-* [Subnet Integration for Developers](bittensor-subnets/subnet-integration-for-devs.md)
+* [Overview](bittensor-subnets/integrated-subnets.md)
+* [Integration for Developers](bittensor-subnets/subnet-integration-for-devs.md)
 
 ## Examples & Tutorials
 
