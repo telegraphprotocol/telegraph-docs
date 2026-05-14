@@ -4,7 +4,7 @@
 
 The YAML Miner Standard is Telegraph's declarative way to add a new subnet or validator integration without writing any Go code. A miner author writes a YAML file describing their API — endpoints, authentication, parameter mappings, signal types, and on-chain data transforms — and the node loads it at runtime.
 
-The schema is versioned as `"2"` in the `version` field, which is the current and only production format.
+The schema is versioned as `"1"` in the `version` field, which is the current and only production format.
 
 ---
 
@@ -13,7 +13,7 @@ The schema is versioned as `"2"` in the `version` field, which is the current an
 ### Minimal Example 
 
 ```yaml
-version: "2"
+version: "1"
 kind: subnet
 id: 18
 slug: bittensor-sn18-zeus
@@ -49,7 +49,7 @@ semantics:
 ### Complete Reference
 
 ```yaml
-version: "2"                     # Required. Must be "2" .
+version: "1"                     # Required. Must be "2" .
 kind: subnet                     # "subnet" (on-demand) or "validator" (polled)
 id: 34                           # Required. Numeric subnet ID used in URL paths (/v1/34/...)
 slug: bittensor-sn34-bitmind     # Required. kebab-case identifier
@@ -168,7 +168,7 @@ on_chain:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | yes | `"2"` |
+| `version` | string | yes | `"1"` |
 | `kind` | string | yes | `"subnet"` or `"validator"` |
 | `id` | integer | yes | Subnet ID used in URL paths (`/v1/{id}/...`) |
 | `slug` | string | yes | kebab-case identifier (e.g., `bittensor-sn18-zeus`) |
@@ -332,6 +332,21 @@ on_chain:
         name: temperature_celsius_x100
         description: Temperature in Celsius times 100 at nearest forecast hour.
 ```
+
+---
+
+---
+
+## Registration
+
+To register a YAML miner on-chain, see [Miner Registry](miner-registry-facet.md) for:
+
+1. **Contract address** — The Base Sepolia Diamond address to call `registerMiner()` on
+2. **Computing the hash** — SHA-256 of raw YAML bytes, prefixed with `0x`
+3. **`cast` example** — Full registration command with correct function signature
+4. **Deregistration flow** — How to update or remove a miner
+
+The YAML file itself is hosted at the URL you provide during registration (HTTPS or IPFS). After registration, Telegraph nodes automatically fetch, validate, and activate your miner at the next epoch boundary.
 
 ---
 

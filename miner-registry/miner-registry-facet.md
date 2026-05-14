@@ -36,6 +36,52 @@ Deregistered miners are removed from routing immediately on live nodes, and caug
 
 ---
 
+## Registering a YAML Miner
+
+To register a YAML miner on-chain, call `registerMiner` on the Telegraph Diamond contract deployed on Base Sepolia.
+
+**Diamond address (Base Sepolia):** `0x122396E8602BEed349434AA6E83123E7dD97F5A0`
+
+### Computing the YAML Hash
+
+The `yamlHash` parameter requires the **SHA-256** hash of your raw YAML file bytes, prefixed with `0x`. Compute it with:
+
+```bash
+sha256sum my-integration.yaml | awk '{print "0x"$1}'
+```
+
+Do NOT use keccak256 — the node verifies using SHA-256.
+
+### Registration Example
+
+```bash
+DIAMOND="0x122396E8602BEed349434AA6E83123E7dD97F5A0"
+RPC="https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7"
+
+YAML_URL="https://raw.githubusercontent.com/telegraphprotocol/Telegraph/develop/modules/miner-dispatcher/integrations/my-miner.yaml"
+YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
+
+cast send "$DIAMOND" \
+  "registerMiner(string,bytes32,address,uint256,string[])" \
+  "$YAML_URL" "$YAML_HASH" \
+  "0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9" 10000 \
+  '["chat_completion","web_search"]' \
+  --rpc-url "$RPC" \
+  --private-key "$MINER_PRIVATE_KEY"
+```
+
+### Parameter Reference
+
+| Parameter | Description |
+|---|---|
+| `yamlUrl` | HTTPS or IPFS URL where your YAML is hosted |
+| `yamlHash` | **SHA-256** of raw YAML bytes, prefixed with `0x` |
+| `feeAddress` | EVM address where miner payouts are sent (must be non-zero) |
+| `minPriceUsdc` | Floor price in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. |
+| `supportedIntents` | JSON array of at least one canonical intent string from the [canonical list](#canonical-intents) |
+
+---
+
 ## For Miners
 
 ### Registering

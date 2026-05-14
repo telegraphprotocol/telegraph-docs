@@ -6,7 +6,7 @@ description: Contract addresses for Telegraph Diamond (Port) contracts on each n
 
 Below are the **Diamond (Port)** contract addresses used by the Telegraph network. Use these when integrating your dApps or when configuring a node (e.g. in `networks.config.json`).
 
-**Last updated:** 3 March 2026
+**Last updated:** 14 May 2026
 
 ---
 
@@ -14,19 +14,19 @@ Below are the **Diamond (Port)** contract addresses used by the Telegraph networ
 
 | Chain            | Name            | Chain ID | Diamond (Port) Address |
 | ---------------- | --------------- | -------- | ---------------------- |
-| Sepolia          | Sepolia-ETH     | 11155111 | `0x95DAB2159770d2877493Bd13A25BBf2701e989fE` |
-| Avalanche Fuji   | Avalanche-Fuji  | 43113    | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
+| Base Sepolia     | Base-Sepolia    | 84532    | `0x122396E8602BEed349434AA6E83123E7dD97F5A0` |
+| Avalanche Fuji   | Avalanche-Fuji  | 43113    | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 
 **RPC endpoints (examples):**
 
-* **Sepolia-ETH:**  
-  * HTTP: `https://ethereum-sepolia-rpc.publicnode.com`  
-  * WebSocket: `wss://ethereum-sepolia-rpc.publicnode.com`
-* **Avalanche-Fuji:**  
-  * HTTP: `https://avalanche-fuji-c-chain-rpc.publicnode.com`  
-  * WebSocket: `wss://avalanche-fuji-c-chain-rpc.publicnode.com`
+* **Base Sepolia:**
+  * HTTP: `https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
+  * WebSocket: `wss://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
+* **Avalanche Fuji:**
+  * HTTP: `https://avax-fuji.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
+  * WebSocket: `wss://avax-fuji.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
 
-Use the **exact chain names** (e.g. `"Sepolia-ETH"`, `"Avalanche-Fuji"`) when calling the Diamond for cross-chain routing or in your config.
+Use the **exact chain names** (e.g. `"Base-Sepolia"`, `"Avalanche-Fuji"`) when calling the Diamond for cross-chain routing or in your config.
 
 ---
 
