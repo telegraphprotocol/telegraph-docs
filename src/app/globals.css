@@ -1,0 +1,313 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Brand CSS variables ───────────────────────────────── */
+:root {
+  --tg-bg: #000000;
+  --tg-fg: #e9e9e9;
+  --tg-fg-dim: #b5b5b5;
+  --tg-fg-faint: #6b6b6b;
+  --tg-line: #2a2a2a;
+  --tg-line-soft: #1c1c1c;
+  --tg-line-strong: #3a3a3a;
+  --tg-amber: #f59e0b;
+  --tg-amber-dim: rgba(245, 158, 11, 0.15);
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--tg-bg);
+  color: var(--tg-fg);
+  font-family: var(--font-roboto-mono), 'Roboto Mono', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--tg-bg); }
+::-webkit-scrollbar-thumb { background: var(--tg-line-strong); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tg-fg-faint); }
+
+/* ── Animations ───────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tg-blink { animation: blink 1s step-end infinite; }
+.tg-cursor::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+  color: var(--tg-amber);
+}
+
+/* ── Frame container (ASCII border rails) ─────────────── */
+.tg-frame {
+  max-width: 1400px;
+  margin: 0 auto;
+  border-left:  1px solid var(--tg-line);
+  border-right: 1px solid var(--tg-line);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ── Prose styles (docs content) ─────────────────────── */
+.tg-prose { font-size: 0.9rem; line-height: 1.75; color: var(--tg-fg-dim); }
+
+.tg-prose h1 {
+  color: var(--tg-fg);
+  font-size: clamp(1.4rem, 3vw, 1.875rem);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 0;
+  margin-bottom: 1.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--tg-amber);
+}
+
+.tg-prose h2 {
+  color: var(--tg-fg);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 2.75rem;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--tg-line);
+}
+
+.tg-prose h3 {
+  color: var(--tg-fg);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.65rem;
+}
+
+.tg-prose h4 {
+  color: var(--tg-fg-dim);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tg-prose h5, .tg-prose h6 {
+  color: var(--tg-fg-faint);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.tg-prose p {
+  color: var(--tg-fg-dim);
+  margin-bottom: 1.25rem;
+}
+
+.tg-prose a {
+  color: var(--tg-amber);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  transition: border-color 0.15s;
+}
+.tg-prose a:hover { border-bottom-color: var(--tg-amber); }
+
+/* Inline code */
+.tg-prose :not(pre) > code {
+  font-family: var(--font-roboto-mono), monospace;
+  font-size: 0.82em;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tg-line);
+  border-radius: 4px;
+  padding: 0.1em 0.45em;
+  color: var(--tg-amber);
+  white-space: nowrap;
+}
+
+/* Code blocks via .code-block wrapper */
+.code-block {
+  position: relative;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--tg-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+
+/* Header bar: language label + copy button */
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.875rem;
+  border-bottom: 1px solid var(--tg-line);
+  background: #0a0a0a;
+  min-height: 34px;
+}
+.code-block-lang {
+  font-family: var(--font-roboto-mono), monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--tg-fg-faint);
+}
+
+/* Copy button (injected by CodeCopyButtons.tsx) */
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--tg-fg-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+  line-height: 0;
+}
+.code-block:hover .copy-btn { opacity: 1; }
+.copy-btn:hover {
+  color: var(--tg-fg);
+  border-color: var(--tg-line);
+  background: rgba(255,255,255,0.04);
+}
+.copy-btn--success { color: var(--tg-amber) !important; }
+
+.code-block pre {
+  background: #0a0a0a !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 1.1rem 1.5rem;
+  overflow-x: auto;
+  margin: 0;
+}
+.code-block pre code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--tg-fg-dim);
+  font-size: 0.84rem;
+  line-height: 1.75;
+  font-family: var(--font-roboto-mono), monospace;
+  border-radius: 0 !important;
+}
+
+/* Blockquote */
+.tg-prose blockquote {
+  border-left: 2px solid var(--tg-amber);
+  margin: 1.5rem 0;
+  padding: 0.75rem 1.25rem;
+  background: rgba(245, 158, 11, 0.04);
+  border-radius: 0 6px 6px 0;
+}
+.tg-prose blockquote p { color: var(--tg-fg-faint); margin: 0; font-style: italic; }
+
+/* Lists */
+.tg-prose ul, .tg-prose ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+  color: var(--tg-fg-dim);
+}
+.tg-prose li { margin-bottom: 0.4rem; line-height: 1.75; }
+.tg-prose ul li::marker { color: var(--tg-amber); }
+.tg-prose ol li::marker { color: var(--tg-amber); font-weight: 500; }
+
+/* Nested lists */
+.tg-prose li > ul, .tg-prose li > ol { margin-top: 0.4rem; margin-bottom: 0.4rem; }
+
+/* Tables */
+.tg-prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.875rem; overflow-x: auto; display: block; }
+.tg-prose th {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--tg-line);
+  padding: 0.65rem 1rem;
+  text-align: left;
+  color: var(--tg-fg);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.tg-prose td {
+  border: 1px solid var(--tg-line);
+  padding: 0.65rem 1rem;
+  color: var(--tg-fg-dim);
+  vertical-align: top;
+}
+.tg-prose tr:hover td { background: rgba(255, 255, 255, 0.015); }
+
+/* Text decoration */
+.tg-prose strong { color: var(--tg-fg); font-weight: 600; }
+.tg-prose em     { color: var(--tg-fg-dim); }
+
+.tg-prose hr {
+  border: none;
+  border-top: 1px solid var(--tg-line);
+  margin: 2rem 0;
+}
+
+/* ── Heading anchor links ─────────────────────────────── */
+.heading-anchor {
+  position: absolute;
+  left: -1.3em;
+  color: var(--tg-amber);
+  opacity: 0;
+  text-decoration: none !important;
+  border: none !important;
+  font-weight: 400;
+  font-size: 0.9em;
+  transition: opacity 0.15s;
+  user-select: none;
+}
+h2:hover .heading-anchor,
+h3:hover .heading-anchor,
+h4:hover .heading-anchor { opacity: 0.45; }
+.heading-anchor:hover,
+.heading-anchor--copied   { opacity: 1 !important; }
+
+/* ── Highlight.js token colours ──────────────────────── */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag           { color: #f59e0b; }
+.hljs-string,
+.hljs-attr,
+.hljs-attribute     { color: #6ee7b7; }
+.hljs-comment,
+.hljs-quote         { color: var(--tg-fg-faint); font-style: italic; }
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable { color: #93c5fd; }
+.hljs-title,
+.hljs-section       { color: #fbbf24; font-weight: 600; }
+.hljs-type,
+.hljs-class         { color: #c4b5fd; }
+.hljs-params        { color: var(--tg-fg-dim); }
+.hljs-meta          { color: var(--tg-fg-faint); }
+.hljs-operator,
+.hljs-punctuation   { color: var(--tg-fg-faint); }
+.hljs-regexp        { color: #f87171; }
+.hljs-addition      { color: #6ee7b7; background: rgba(110, 231, 183, 0.08); }
+.hljs-deletion      { color: #f87171; background: rgba(248, 113, 113, 0.08); }
