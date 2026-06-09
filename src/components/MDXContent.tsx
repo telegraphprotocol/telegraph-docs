@@ -61,13 +61,66 @@ marked.use({
   },
 })
 
+// ── LaTeX / GitBook preprocessor ─────────────────────────────────────────────
+const LATEX_SYMBOLS: [RegExp, string][] = [
+  [/\\leftrightarrow/g,  '↔'],
+  [/\\rightarrow/g,      '→'],
+  [/\\leftarrow/g,       '←'],
+  [/\\Rightarrow/g,      '⇒'],
+  [/\\Leftarrow/g,       '⇐'],
+  [/\\Leftrightarrow/g,  '⟺'],
+  [/\\to\b/g,            '→'],
+  [/\\ge\b/g,            '≥'],
+  [/\\le\b/g,            '≤'],
+  [/\\neq\b/g,           '≠'],
+  [/\\approx\b/g,        '≈'],
+  [/\\times\b/g,         '×'],
+  [/\\cdot\b/g,          '·'],
+  [/\\pm\b/g,            '±'],
+  [/\\infty\b/g,         '∞'],
+  [/\\alpha\b/g,         'α'],
+  [/\\beta\b/g,          'β'],
+  [/\\gamma\b/g,         'γ'],
+  [/\\delta\b/g,         'δ'],
+  [/\\epsilon\b/g,       'ε'],
+  [/\\lambda\b/g,        'λ'],
+  [/\\mu\b/g,            'μ'],
+  [/\\pi\b/g,            'π'],
+  [/\\sigma\b/g,         'σ'],
+  [/\\tau\b/g,           'τ'],
+  [/\\phi\b/g,           'φ'],
+  [/\\psi\b/g,           'ψ'],
+  [/\\omega\b/g,         'ω'],
+]
+
+function preprocessContent(src: string): string {
+  // Strip GitBook hint/info/warning/danger blocks
+  src = src.replace(/\{%\s*hint\s+style="[^"]*"\s*%\}[\s\S]*?\{%\s*endhint\s*%\}/gi, '')
+  src = src.replace(/\{%\s*\w[^%]*%\}/g, '')
+
+  // Replace $...$ inline math: convert known symbols then strip the $ delimiters
+  src = src.replace(/\$([^$\n]+?)\$/g, (_match, inner: string) => {
+    let result = inner
+    for (const [pattern, replacement] of LATEX_SYMBOLS) {
+      result = result.replace(pattern, replacement)
+    }
+    // If we still have backslash commands, strip them gracefully
+    result = result.replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1')
+    result = result.replace(/\\[a-zA-Z]+/g, '')
+    result = result.replace(/[{}^_]/g, '')
+    return result.trim()
+  })
+
+  return src
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 interface MDXContentProps {
   source: string
 }
 
 export function MDXContent({ source }: MDXContentProps) {
-  const html = marked.parse(source, { async: false }) as string
+  const html = marked.parse(preprocessContent(source), { async: false }) as string
 
   return (
     <div
