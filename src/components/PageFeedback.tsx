@@ -4,29 +4,20 @@ import { useState } from 'react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface PageFeedbackProps {
-  slug: string[]
-}
-
-export function PageFeedback({ slug }: PageFeedbackProps) {
+export function PageFeedback({ slug }: { slug: string[] }) {
   const [voted, setVoted] = useState<'up' | 'down' | null>(null)
-
-  const pageRef   = slug.join('/') || 'index'
-  const issueUrl  = `https://github.com/telegraphprotocol/telegraph-docs/issues/new?title=${encodeURIComponent(`Docs feedback: ${pageRef}`)}&labels=feedback&template=blank`
+  const pageRef  = slug.join('/') || 'index'
+  const issueUrl = `https://github.com/telegraphprotocol/telegraph-docs/issues/new?title=${encodeURIComponent(`Docs feedback: ${pageRef}`)}&labels=feedback&template=blank`
 
   if (voted) {
     return (
-      <div className="flex items-center gap-3 font-mono">
-        <span className="text-[12px] text-tg-fg-dim">
-          {voted === 'up' ? 'Thanks for the feedback! 🙌' : 'Thanks — we\'ll improve this.'}
+      <div className="flex items-center gap-3">
+        <span className="text-[13px] text-[var(--tg-fg-dim)]">
+          {voted === 'up' ? 'Thanks for the feedback! 🙌' : "Thanks — we'll improve this."}
         </span>
         {voted === 'down' && (
-          <a
-            href={issueUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-amber-400 hover:text-amber-300 transition-colors"
-          >
+          <a href={issueUrl} target="_blank" rel="noopener noreferrer"
+            className="text-[12px] text-amber-600 dark:text-amber-400 hover:underline transition-colors">
             Tell us more →
           </a>
         )}
@@ -35,8 +26,8 @@ export function PageFeedback({ slug }: PageFeedbackProps) {
   }
 
   return (
-    <div className="flex items-center gap-4 font-mono">
-      <span className="text-[12px] text-tg-fg-faint uppercase tracking-[0.1em]">
+    <div className="flex items-center gap-4">
+      <span className="text-[12px] text-[var(--tg-fg-faint)] uppercase tracking-[0.08em] font-medium">
         Was this helpful?
       </span>
       <div className="flex items-center gap-2">
@@ -45,17 +36,13 @@ export function PageFeedback({ slug }: PageFeedbackProps) {
             key={v}
             onClick={() => setVoted(v)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-[11px]',
-              'border border-[#2a2a2a] rounded-sm',
-              'text-tg-fg-faint hover:text-tg-fg',
-              'hover:border-[#3a3a3a] hover:bg-white/[0.03]',
-              'transition-all duration-150'
+              'flex items-center gap-1.5 px-3 py-1.5 text-[12px] rounded-md',
+              'border border-[var(--tg-line)] hover:border-[var(--tg-line-strong)]',
+              'text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)]',
+              'hover:bg-[var(--tg-line-soft)] transition-all duration-150'
             )}
           >
-            {v === 'up'
-              ? <ThumbsUp  size={11} />
-              : <ThumbsDown size={11} />
-            }
+            {v === 'up' ? <ThumbsUp size={12} /> : <ThumbsDown size={12} />}
             {v === 'up' ? 'Yes' : 'No'}
           </button>
         ))}

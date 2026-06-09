@@ -60,14 +60,14 @@ export default function DocsPage({ params }: Props) {
       <Breadcrumb nav={nav} slug={slug} />
 
       {/* Page meta bar */}
-      <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 mb-7 font-mono">
-        <span className="flex items-center gap-1.5 text-[11px] text-tg-fg-faint">
-          <Clock size={11} className="opacity-60" />
+      <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 mb-7">
+        <span className="flex items-center gap-1.5 text-[12px] text-[var(--tg-fg-faint)]">
+          <Clock size={12} className="opacity-60" />
           {doc.readingTime} min read
         </span>
         {doc.lastUpdated && (
-          <span className="flex items-center gap-1.5 text-[11px] text-tg-fg-faint">
-            <Calendar size={11} className="opacity-60" />
+          <span className="flex items-center gap-1.5 text-[12px] text-[var(--tg-fg-faint)]">
+            <Calendar size={12} className="opacity-60" />
             Updated {doc.lastUpdated}
           </span>
         )}
@@ -80,24 +80,24 @@ export default function DocsPage({ params }: Props) {
       <MDXContent source={doc.content} />
 
       {/* Feedback */}
-      <div className="mt-10 pt-6 border-t border-tg-line">
+      <div className="mt-10 pt-6 border-t border-[var(--tg-line)]">
         <PageFeedback slug={slug} />
       </div>
 
       {/* Prev / next navigation */}
       {(prev || next) && (
-        <nav className="mt-6 grid grid-cols-2 gap-3 font-mono">
+        <nav className="mt-6 grid grid-cols-2 gap-3">
           <div>
             {prev && (
               <Link
                 href={prev.href}
-                className="group flex flex-col gap-1 p-4 border border-tg-line rounded-lg hover:border-tg-line-strong hover:bg-white/[0.02] transition-all duration-150"
+                className="group flex flex-col gap-1 p-4 border border-[var(--tg-line)] rounded-lg hover:border-[var(--tg-line-strong)] hover:bg-[var(--tg-bg-subtle)] transition-all duration-150"
               >
-                <span className="flex items-center gap-1 text-[9px] uppercase tracking-[0.18em] text-tg-fg-faint">
-                  <ChevronLeft size={10} />
+                <span className="flex items-center gap-1 text-[11px] uppercase tracking-[0.1em] text-[var(--tg-fg-faint)]">
+                  <ChevronLeft size={11} />
                   Previous
                 </span>
-                <span className="text-xs text-tg-fg-dim group-hover:text-tg-fg transition-colors line-clamp-2">
+                <span className="text-[13px] text-[var(--tg-fg-dim)] group-hover:text-[var(--tg-fg)] transition-colors line-clamp-2">
                   {prev.title}
                 </span>
               </Link>
@@ -107,13 +107,13 @@ export default function DocsPage({ params }: Props) {
             {next && (
               <Link
                 href={next.href}
-                className="group flex flex-col gap-1 p-4 border border-tg-line rounded-lg hover:border-tg-line-strong hover:bg-white/[0.02] transition-all duration-150 text-right"
+                className="group flex flex-col gap-1 p-4 border border-[var(--tg-line)] rounded-lg hover:border-[var(--tg-line-strong)] hover:bg-[var(--tg-bg-subtle)] transition-all duration-150 text-right"
               >
-                <span className="flex items-center justify-end gap-1 text-[9px] uppercase tracking-[0.18em] text-tg-fg-faint">
+                <span className="flex items-center justify-end gap-1 text-[11px] uppercase tracking-[0.1em] text-[var(--tg-fg-faint)]">
                   Next
-                  <ChevronRight size={10} />
+                  <ChevronRight size={11} />
                 </span>
-                <span className="text-xs text-tg-fg-dim group-hover:text-tg-fg transition-colors line-clamp-2">
+                <span className="text-[13px] text-[var(--tg-fg-dim)] group-hover:text-[var(--tg-fg)] transition-colors line-clamp-2">
                   {next.title}
                 </span>
               </Link>
@@ -124,13 +124,13 @@ export default function DocsPage({ params }: Props) {
 
       {/* Keyboard shortcut hint */}
       <div className="mt-6 flex items-center justify-end gap-4 opacity-40 hover:opacity-70 transition-opacity">
-        <span className="text-[10px] text-tg-fg-faint font-mono flex items-center gap-1">
-          <kbd className="border border-tg-line rounded px-1 text-[9px] bg-white/[0.02]">←</kbd>
-          <kbd className="border border-tg-line rounded px-1 text-[9px] bg-white/[0.02]">→</kbd>
+        <span className="text-[11px] text-[var(--tg-fg-faint)] font-brand flex items-center gap-1">
+          <kbd className="border border-[var(--tg-line)] rounded px-1 text-[10px] bg-[var(--tg-bg-subtle)]">←</kbd>
+          <kbd className="border border-[var(--tg-line)] rounded px-1 text-[10px] bg-[var(--tg-bg-subtle)]">→</kbd>
           navigate pages
         </span>
-        <span className="text-[10px] text-tg-fg-faint font-mono flex items-center gap-1">
-          <kbd className="border border-tg-line rounded px-1 text-[9px] bg-white/[0.02]">/</kbd>
+        <span className="text-[11px] text-[var(--tg-fg-faint)] font-brand flex items-center gap-1">
+          <kbd className="border border-[var(--tg-line)] rounded px-1 text-[10px] bg-[var(--tg-bg-subtle)]">/</kbd>
           search
         </span>
       </div>

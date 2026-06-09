@@ -26,30 +26,26 @@ export function Breadcrumb({ nav, slug }: BreadcrumbProps) {
 
   for (const section of nav) {
     const found = findItem(section.items, href)
-    if (found) {
-      sectionTitle = section.title
-      itemTitle    = found.title
-      break
-    }
+    if (found) { sectionTitle = section.title; itemTitle = found.title; break }
   }
 
   if (!sectionTitle) return null
 
   return (
-    <nav className="flex items-center flex-wrap gap-1 text-[11px] text-tg-fg-faint mb-7 font-mono">
-      <Link href="/docs" className="hover:text-tg-fg-dim transition-colors uppercase tracking-wider">
+    <nav className="flex items-center flex-wrap gap-1 text-[12px] text-[var(--tg-fg-faint)] mb-6">
+      <Link href="/docs" className="hover:text-[var(--tg-fg-dim)] transition-colors">
         Docs
       </Link>
       {sectionTitle && (
         <>
           <ChevronRight size={11} className="opacity-40 flex-shrink-0" />
-          <span className="text-tg-fg-faint uppercase tracking-wider">{sectionTitle}</span>
+          <span>{sectionTitle}</span>
         </>
       )}
       {itemTitle && itemTitle !== sectionTitle && (
         <>
           <ChevronRight size={11} className="opacity-40 flex-shrink-0" />
-          <span className="text-tg-fg-dim">{itemTitle}</span>
+          <span className="text-[var(--tg-fg-dim)] font-medium">{itemTitle}</span>
         </>
       )}
     </nav>

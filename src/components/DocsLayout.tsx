@@ -54,7 +54,7 @@ export function DocsLayout({
   }, [prevHref, nextHref, router])
 
   return (
-    <div className="min-h-screen bg-black font-mono">
+    <div className="min-h-screen bg-[var(--tg-bg)] font-sans">
       {/* Amber scroll progress bar */}
       <ScrollProgress />
 
@@ -72,8 +72,8 @@ export function DocsLayout({
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
 
       {/* Page body */}
-      <div className="pt-[72px] lg:pl-[280px]">
-        <div className="flex min-h-[calc(100vh-72px)]">
+      <div className="pt-16 lg:pl-[272px]">
+        <div className="flex min-h-[calc(100vh-64px)]">
 
           {/* Main content */}
           <main className="flex-1 min-w-0 py-10 px-5 sm:px-8 lg:px-14">
@@ -81,10 +81,10 @@ export function DocsLayout({
               {children}
 
               {/* Bottom rule */}
-              <div className="mt-16 pt-8 border-t border-tg-line">
+              <div className="mt-16 pt-8 border-t border-[var(--tg-line)]">
                 <div className="flex items-center gap-1.5">
                   <div className="h-px flex-1 bg-gradient-to-r from-amber-500/20 to-transparent" />
-                  <span className="text-[9px] text-tg-fg-faint uppercase tracking-[0.2em] font-mono">
+                  <span className="text-[10px] text-[var(--tg-fg-faint)] uppercase tracking-[0.15em] font-brand">
                     telegraph protocol
                   </span>
                 </div>

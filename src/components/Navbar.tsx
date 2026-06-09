@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, X, Github, ExternalLink, Search } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
 import { cn } from '@/lib/utils'
 
 interface NavbarProps {
@@ -13,124 +14,96 @@ interface NavbarProps {
 
 export function Navbar({ menuOpen, onMenuToggle, onSearchOpen }: NavbarProps) {
   return (
-    <header
-      className={cn(
-        'fixed top-0 left-0 right-0 z-50',
-        'h-[72px] flex items-center',
-        'border-b border-[#2a2a2a]',
-        'bg-[#010101]/50 backdrop-blur-md',
-      )}
-    >
-      <div className="flex w-full items-center justify-between px-6 md:px-10">
+    <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--tg-bg)]/90 backdrop-blur-md border-b border-[var(--tg-line)]">
+      <div className="flex items-center h-full px-4 md:px-6 gap-3">
 
         {/* Logo */}
-        <Link
-          href="/docs"
-          className="flex items-center gap-2.5 text-[var(--tg-fg)] no-underline group"
-        >
+        <Link href="/docs" className="flex items-center gap-2.5 group flex-shrink-0">
           <Image
             src="/t-logo.png"
             alt="Telegraph"
-            width={28}
-            height={28}
-            className="h-5 w-auto opacity-90 group-hover:opacity-100 transition-opacity"
+            width={24}
+            height={24}
+            className="h-[22px] w-auto opacity-90 group-hover:opacity-100 transition-opacity"
           />
-          <span className="font-medium text-[15px] tracking-[0.05em] hidden sm:block">
+          <span className="text-[15px] font-semibold text-[var(--tg-fg)] tracking-tight hidden sm:block">
             Telegraph
           </span>
-          {/* DOCS badge — same amber style as main site token report badge */}
-          <span
-            className={cn(
-              'inline-flex items-center whitespace-nowrap rounded-sm',
-              'border border-amber-500/80 bg-amber-500/10',
-              'px-2 py-[3px]',
-              'text-[10px] font-semibold uppercase tracking-[0.12em] leading-none',
-              'text-amber-400',
-            )}
-          >
+          <span className="px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-[0.12em] rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-brand">
             Docs
           </span>
         </Link>
 
-        {/* Search bar (desktop) */}
+        {/* Search (desktop) */}
         <button
           onClick={onSearchOpen}
           className={cn(
-            'hidden md:flex items-center gap-2.5 mx-4',
-            'px-3 py-[7px] rounded-sm',
-            'border border-[#2a2a2a] hover:border-[#3a3a3a]',
-            'bg-white/[0.02] hover:bg-white/[0.04]',
-            'text-tg-fg-faint hover:text-tg-fg-dim',
-            'transition-all duration-150 w-52',
+            'hidden md:flex items-center gap-2 ml-4',
+            'px-3 py-[7px] w-52 rounded-lg',
+            'border border-[var(--tg-line)] hover:border-[var(--tg-line-strong)]',
+            'bg-[var(--tg-bg-subtle)] hover:bg-[var(--tg-line-soft)]',
+            'text-[var(--tg-fg-faint)] transition-all duration-150',
           )}
         >
-          <Search size={12} />
-          <span className="text-[11px] font-mono flex-1 text-left">Search docs...</span>
-          <kbd className="text-[9px] font-mono border border-[#3a3a3a] rounded px-1 py-0.5 bg-white/[0.03]">
+          <Search size={13} />
+          <span className="text-[13px] flex-1 text-left">Search...</span>
+          <kbd className="text-[10px] font-brand border border-[var(--tg-line)] rounded px-1 py-0.5 bg-[var(--tg-bg)]">
             ⌘K
           </kbd>
         </button>
 
-        {/* Desktop right side */}
-        <div className="hidden md:flex items-center gap-3">
-          {/* Plain nav links — hackathon style: 10px uppercase monospace */}
-          <a
-            href="https://github.com/telegraphprotocol"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              'inline-flex items-center gap-1.5',
-              'text-[10px] font-mono uppercase tracking-[0.12em]',
-              'text-[var(--tg-fg)] opacity-70 hover:opacity-100 transition-opacity',
-              'no-underline',
-            )}
-          >
-            GitHub
-            <ExternalLink size={9} />
-          </a>
+        <div className="flex-1" />
 
-          {/* Divider */}
-          <span className="h-4 w-px bg-[#2a2a2a]" />
-
-          {/* Main site CTA — dark variant */}
+        {/* Right actions */}
+        <div className="flex items-center gap-1.5">
           <a
             href="https://telegraphprotocol.com"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              'group inline-flex items-center gap-2 whitespace-nowrap rounded-sm',
-              'bg-[#1a1a1a] hover:bg-[#222]',
-              'px-[14px] py-[9px]',
-              'text-[13px] font-medium leading-none text-[var(--tg-fg)]',
-              'no-underline transition-all',
+              'hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px]',
+              'text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)]',
+              'hover:bg-[var(--tg-line-soft)]',
+              'transition-colors duration-150',
             )}
           >
-            telegraphprotocol.com
-            <ExternalLink size={11} className="opacity-50 group-hover:opacity-80 transition-opacity" />
+            <span>Website</span>
+            <ExternalLink size={11} className="opacity-50" />
           </a>
-        </div>
 
-        {/* Mobile right side */}
-        <div className="md:hidden flex items-center gap-2">
-          {/* Mobile search */}
+          <a
+            href="https://github.com/telegraphprotocol"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              'flex items-center justify-center w-8 h-8 rounded-md',
+              'text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)]',
+              'hover:bg-[var(--tg-line-soft)]',
+              'border border-transparent hover:border-[var(--tg-line)]',
+              'transition-colors duration-150',
+            )}
+            aria-label="GitHub"
+          >
+            <Github size={16} />
+          </a>
+
+          <ThemeToggle />
+
+          {/* Mobile: search + hamburger */}
           <button
             onClick={onSearchOpen}
-            className="inline-flex items-center justify-center rounded-sm bg-[#1a1a1a] hover:bg-[#222] p-[10px] text-tg-fg-dim transition-colors"
+            className="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] transition-colors"
             aria-label="Search"
           >
-            <Search size={15} />
+            <Search size={16} />
           </button>
-          {/* Hamburger */}
+
           <button
             onClick={onMenuToggle}
-            className={cn(
-              'inline-flex items-center justify-center rounded-sm',
-              'bg-[#1a1a1a] hover:bg-[#222] p-[10px]',
-              'text-[var(--tg-fg)] transition-colors',
-            )}
-            aria-label="Toggle navigation"
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] transition-colors"
+            aria-label="Menu"
           >
-            {menuOpen ? <X size={15} /> : <Menu size={15} />}
+            {menuOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>
       </div>
