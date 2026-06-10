@@ -27,22 +27,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const doc  = getDocContent(slug)
   if (!doc) return { title: 'Not Found' }
 
-  const description = (doc.frontmatter.description as string | undefined) ?? `Telegraph Protocol documentation — ${doc.title}`
-
   return {
     title: doc.title,
-    description,
-    twitter: {
-      card:        'summary_large_image',
-      title:       `${doc.title} — Telegraph Docs`,
-      description,
-    },
-    openGraph: {
-      title:       `${doc.title} — Telegraph Docs`,
-      description,
-      type:        'article',
-      siteName:    'Telegraph Docs',
-    },
+    description: (doc.frontmatter.description as string | undefined) ?? undefined,
   }
 }
 
