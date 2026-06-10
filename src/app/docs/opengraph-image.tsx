@@ -22,7 +22,7 @@ export default function OgImage() {
         {/* Grid */}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(#1a1400 1px, transparent 1px), linear-gradient(90deg, #1a1400 1px, transparent 1px)',
           backgroundSize: '48px 48px',
         }} />
 
@@ -30,7 +30,7 @@ export default function OgImage() {
         <div style={{
           position: 'absolute', top: -120, right: -80,
           width: 500, height: 500, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, #2a1f00 0%, #0a0a0a 70%)',
         }} />
 
         {/* Logo row */}
@@ -38,8 +38,8 @@ export default function OgImage() {
           <span style={{ color: '#f1f5f9', fontSize: 22, fontWeight: 600 }}>Telegraph</span>
           <div style={{
             padding: '3px 10px', borderRadius: 6,
-            border: '1px solid rgba(245,158,11,0.3)',
-            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid #3d2e00',
+            background: '#1a1200',
             color: '#f59e0b', fontSize: 11, fontWeight: 700,
             letterSpacing: '0.12em', textTransform: 'uppercase',
           }}>Docs</div>
@@ -61,7 +61,7 @@ export default function OgImage() {
         {/* Bottom */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24,
+          borderTop: '1px solid #1e2432', paddingTop: 24,
         }}>
           <span style={{ color: '#64748b', fontSize: 14 }}>docs.telegraphprotocol.com</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
