@@ -7,8 +7,9 @@ import matter from 'gray-matter'
 const DOCS_ROOT = process.cwd()
 
 export interface NavItem {
-  title: string
-  href: string
+  title:    string
+  href:     string
+  filePath: string        // original path from SUMMARY.md e.g. "getting-started/core-concepts/message-data.md"
   children?: NavItem[]
 }
 
@@ -84,11 +85,12 @@ export function getNavigation(): NavSection[] {
     // Nav item: * [Title](path.md)
     const match = line.match(/^(\s*)\*\s+\[([^\]]+)\]\(([^)]+)\)/)
     if (match && currentSection) {
-      const indent = match[1].length
-      const title  = match[2]
-      const href   = filePathToHref(match[3])
-      const item: NavItem = { title, href }
-      const depth  = Math.floor(indent / 2) + 1
+      const indent    = match[1].length
+      const title     = match[2]
+      const rawPath   = match[3].replace(/\\/g, '/')
+      const href      = filePathToHref(rawPath)
+      const item: NavItem = { title, href, filePath: rawPath }
+      const depth     = Math.floor(indent / 2) + 1
       addItemAtDepth(currentSection.items, item, depth)
     }
   }
@@ -107,11 +109,11 @@ export function slugToFilePath(slug: string[]): string | null {
 
   // Try direct match: foo/bar.md
   const direct = path.join(DOCS_ROOT, joined + '.md')
-  if (fs.existsSync(direct)) return joined + '.md'
+  if (fs.existsSync(direct)) return (joined + '.md').replace(/\\/g, '/')
 
   // Try directory index: foo/bar/README.md
   const readme = path.join(DOCS_ROOT, joined + '/README.md')
-  if (fs.existsSync(readme)) return joined + '/README.md'
+  if (fs.existsSync(readme)) return (joined + '/README.md').replace(/\\/g, '/')
 
   return null
 }
@@ -150,15 +152,37 @@ function getLastUpdated(relativeFilePath: string): string | null {
     ).trim()
     if (!iso) return null
     const date = new Date(iso.split(' ')[0])
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   } catch {
     return null
   }
 }
 
 // ── Main content loader ───────────────────────────────────────────────────────
+function findFilePathByHref(nav: NavSection[], href: string): string | null {
+  function search(items: NavItem[]): string | null {
+    for (const item of items) {
+      if (item.href === href) return item.filePath
+      if (item.children) {
+        const found = search(item.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  for (const section of nav) {
+    const found = search(section.items)
+    if (found) return found
+  }
+  return null
+}
+
 export function getDocContent(slug: string[]): DocContent | null {
-  const filePath = slugToFilePath(slug)
+  const href = slug.length === 0 ? '/docs' : `/docs/${slug.join('/')}`
+
+  // Look up the exact filePath from the nav tree (source of truth: SUMMARY.md)
+  const nav      = getNavigation()
+  const filePath = findFilePathByHref(nav, href) ?? slugToFilePath(slug)
   if (!filePath) return null
 
   const fullPath = path.join(DOCS_ROOT, filePath)

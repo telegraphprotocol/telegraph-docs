@@ -42,6 +42,37 @@ marked.use({
       )
     },
 
+    table(header: string, body: string): string {
+      return (
+        `<div class="tg-table-wrap">` +
+        `<table><thead>${header}</thead><tbody>${body}</tbody></table>` +
+        `</div>\n`
+      )
+    },
+
+    blockquote(body: string): string {
+      // GitHub-style callouts: > [!NOTE], > [!TIP], > [!WARNING], > [!DANGER], > [!IMPORTANT]
+      const match = body.match(/^\s*<p>\[!(NOTE|TIP|WARNING|DANGER|IMPORTANT)\]([\s\S]*?)<\/p>/i)
+      if (match) {
+        const type  = match[1].toUpperCase()
+        const rest  = match[2].trim()
+        const icons: Record<string, string> = {
+          NOTE:      '📝',
+          TIP:       '💡',
+          WARNING:   '⚠️',
+          DANGER:    '🚨',
+          IMPORTANT: '⭐',
+        }
+        return (
+          `<div class="callout callout-${type.toLowerCase()}">` +
+          `<div class="callout-title"><span class="callout-icon">${icons[type]}</span>${type.charAt(0) + type.slice(1).toLowerCase()}</div>` +
+          `<div class="callout-body">${rest}</div>` +
+          `</div>\n`
+        )
+      }
+      return `<blockquote>${body}</blockquote>\n`
+    },
+
     link(href: string, _title: string | null | undefined, text: string): string {
       const isExternal = href.startsWith('http://') || href.startsWith('https://')
       const attrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''

@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Clock, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Calendar, Pencil } from 'lucide-react'
 import { getDocContent, getNavigation, getAllSlugs, getPrevNext } from '@/lib/docs'
 import { DocsLayout }       from '@/components/DocsLayout'
 import { MDXContent }       from '@/components/MDXContent'
-import { Breadcrumb }       from '@/components/Breadcrumb'
 import { PageFeedback }     from '@/components/PageFeedback'
 import { CodeCopyButtons }  from '@/components/CodeCopyButtons'
 import { HeadingAnchors }   from '@/components/HeadingAnchors'
@@ -27,9 +26,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = params.slug ?? []
   const doc  = getDocContent(slug)
   if (!doc) return { title: 'Not Found' }
+
+  const description = (doc.frontmatter.description as string | undefined) ?? `Telegraph Protocol documentation — ${doc.title}`
+
   return {
     title: doc.title,
-    description: (doc.frontmatter.description as string | undefined) ?? undefined,
+    description,
+    twitter: {
+      card:        'summary_large_image',
+      title:       `${doc.title} — Telegraph Docs`,
+      description,
+    },
+    openGraph: {
+      title:       `${doc.title} — Telegraph Docs`,
+      description,
+      type:        'article',
+      siteName:    'Telegraph Docs',
+    },
   }
 }
 
@@ -56,22 +69,34 @@ export default function DocsPage({ params }: Props) {
       <CodeCopyButtons />
       <HeadingAnchors />
 
-      {/* Breadcrumb */}
-      <Breadcrumb nav={nav} slug={slug} />
-
       {/* Page meta bar */}
-      <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 mb-7">
-        <span className="flex items-center gap-1.5 text-[12px] text-[var(--tg-fg-faint)]">
-          <Clock size={12} className="opacity-60" />
-          {doc.readingTime} min read
-        </span>
-        {doc.lastUpdated && (
+      <div className="flex flex-col sm:flex-row sm:items-center gap-y-2 gap-x-5 mb-7">
+        {/* Left: reading time + last updated */}
+        <div className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1.5 text-[12px] text-[var(--tg-fg-faint)]">
-            <Calendar size={12} className="opacity-60" />
-            Updated {doc.lastUpdated}
+            <Clock size={12} className="opacity-60" />
+            {doc.readingTime} min read
           </span>
-        )}
-        <div className="ml-auto">
+          {doc.lastUpdated && (
+            <span className="flex items-center gap-1.5 text-[12px] text-[var(--tg-fg-faint)]">
+              <Calendar size={12} className="opacity-60" />
+              Updated {doc.lastUpdated}
+            </span>
+          )}
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <a
+            href={`https://github.com/telegraphprotocol/telegraph-docs/edit/main/${doc.filePath.replace(/\\/g, '/')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Edit this page on GitHub"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-[var(--tg-line)] hover:border-[var(--tg-line-strong)] bg-transparent hover:bg-[var(--tg-line-soft)] text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg-dim)] transition-all duration-150"
+          >
+            <Pencil size={12} />
+            Suggest an Edit
+          </a>
           <CopyPageButton content={doc.content} title={doc.title} />
         </div>
       </div>

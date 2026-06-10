@@ -57,7 +57,67 @@ html, body {
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
-@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes orb-drift-1 {
+  0%,100% { transform: translate(0,0); }
+  33%     { transform: translate(70px, 50px); }
+  66%     { transform: translate(-40px, 80px); }
+}
+@keyframes orb-drift-2 {
+  0%,100% { transform: translate(0,0); }
+  33%     { transform: translate(-60px, -70px); }
+  66%     { transform: translate(50px, -30px); }
+}
+
+/* ── App background (dark mode only) ──────────────────────────────────────── */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: none;
+}
+.dark .app-bg { display: block; }
+
+.app-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 30%, transparent 100%);
+}
+
+.app-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.13;
+}
+.app-bg-orb-1 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(160,160,255,0.7), transparent 70%);
+  top: -150px; left: -150px;
+  animation: orb-drift-1 20s ease-in-out infinite;
+}
+.app-bg-orb-2 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(80,190,255,0.6), transparent 70%);
+  bottom: -100px; right: -100px;
+  animation: orb-drift-2 26s ease-in-out infinite;
+}
+
+.app-bg-scanline {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(255,255,255,0.008) 3px,
+    rgba(255,255,255,0.008) 4px
+  );
+}
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
 /* ── Prose styles ────────────────────────────────────────────────────────── */
@@ -232,6 +292,72 @@ html, body {
 }
 .tg-prose blockquote p { color: var(--tg-fg-dim); margin: 0; font-style: italic; }
 
+/* ── Callout blocks ────────────────────────────────────────────────────────── */
+.callout {
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  border: 1px solid;
+  overflow: hidden;
+}
+.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.callout-icon { font-size: 0.95rem; line-height: 1; }
+.callout-body {
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.callout-body p { margin: 0; }
+.callout-body p + p { margin-top: 0.5rem; }
+
+/* Note — blue */
+.callout-note {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+.callout-note .callout-title { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.callout-note .callout-body  { color: var(--tg-fg-dim); }
+
+/* Tip — green */
+.callout-tip {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+}
+.callout-tip .callout-title { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.callout-tip .callout-body  { color: var(--tg-fg-dim); }
+
+/* Warning — amber */
+.callout-warning {
+  border-color: var(--tg-amber);
+  background: rgba(245, 158, 11, 0.06);
+}
+.callout-warning .callout-title { background: rgba(245, 158, 11, 0.1); color: var(--tg-amber); }
+.callout-warning .callout-body  { color: var(--tg-fg-dim); }
+
+/* Danger — red */
+.callout-danger {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+.callout-danger .callout-title { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.callout-danger .callout-body  { color: var(--tg-fg-dim); }
+
+/* Important — purple */
+.callout-important {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.06);
+}
+.callout-important .callout-title { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.callout-important .callout-body  { color: var(--tg-fg-dim); }
+
 /* Lists */
 .tg-prose ul, .tg-prose ol {
   padding-left: 1.5rem;
@@ -244,31 +370,67 @@ html, body {
 .tg-prose li > ul, .tg-prose li > ol { margin-top: 0.4rem; margin-bottom: 0.4rem; }
 
 /* Tables */
-.tg-prose table {
+/* ── Tables ────────────────────────────────────────────────────────────────── */
+.tg-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.75rem 0;
+  border: 1px solid var(--tg-line);
+  border-radius: 8px;
+}
+.tg-table-wrap::-webkit-scrollbar { height: 4px; }
+.tg-table-wrap::-webkit-scrollbar-track { background: var(--tg-bg-subtle); }
+.tg-table-wrap::-webkit-scrollbar-thumb { background: var(--tg-line-strong); border-radius: 4px; }
+
+.tg-table-wrap table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1.5rem;
   font-size: 0.875rem;
-  overflow-x: auto;
-  display: block;
+  min-width: 480px;
 }
-.tg-prose th {
+
+.tg-table-wrap thead {
   background: var(--tg-bg-subtle);
-  border: 1px solid var(--tg-line);
-  padding: 0.6rem 1rem;
-  text-align: left;
-  color: var(--tg-fg);
-  font-weight: 600;
-  font-size: 0.8125rem;
-  white-space: nowrap;
+  border-bottom: 1px solid var(--tg-line);
 }
-.tg-prose td {
-  border: 1px solid var(--tg-line);
-  padding: 0.6rem 1rem;
+
+.tg-table-wrap th {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tg-fg);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.tg-table-wrap td {
+  padding: 0.65rem 1rem;
   color: var(--tg-fg-dim);
   vertical-align: top;
+  border-top: 1px solid var(--tg-line);
+  line-height: 1.6;
 }
-.tg-prose tr:hover td { background: var(--tg-line-soft); }
+
+/* Striped rows */
+.tg-table-wrap tbody tr:nth-child(even) td {
+  background: var(--tg-bg-subtle);
+}
+
+.tg-table-wrap tbody tr:hover td {
+  background: var(--tg-line-soft);
+  color: var(--tg-fg);
+  transition: background 0.1s, color 0.1s;
+}
+
+/* First column slight emphasis */
+.tg-table-wrap td:first-child {
+  font-weight: 500;
+  color: var(--tg-fg);
+  white-space: nowrap;
+}
 
 /* Text */
 .tg-prose strong { color: var(--tg-fg); font-weight: 600; }

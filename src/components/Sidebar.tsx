@@ -79,8 +79,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
+  const handleNavigate = () => {
+    if (window.innerWidth < 1024) onClose()
+  }
+
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : ''
+    const isMobile = window.innerWidth < 1024
+    document.body.style.overflow = (isOpen && isMobile) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
@@ -102,11 +107,19 @@ export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
           'bg-[var(--tg-sidebar)] border-r border-[var(--tg-line)]',
           'overflow-y-auto overscroll-contain',
           'transition-transform duration-200 ease-out',
-          'lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <nav className="py-5 px-3">
+          {/* Search hint */}
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
+            className="w-full flex items-center justify-between gap-2 mb-5 px-2.5 py-2 rounded-md border border-[var(--tg-line)] hover:border-[var(--tg-line-strong)] bg-[var(--tg-bg)] hover:bg-[var(--tg-line-soft)] text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg-dim)] transition-all duration-150"
+          >
+            <span className="text-[12px]">Search docs...</span>
+            <kbd className="flex items-center gap-0.5 text-[10px] font-brand border border-[var(--tg-line)] rounded px-1.5 py-0.5 bg-[var(--tg-bg-subtle)]">⌘K</kbd>
+          </button>
+
           {nav.map((section, si) => (
             <div key={section.title} className={cn('mb-4', si > 0 && 'mt-5')}>
               {/* Section label */}
@@ -115,7 +128,7 @@ export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
               </p>
               <div className="space-y-px">
                 {section.items.map((item) => (
-                  <NavItemRow key={item.href} item={item} onNavigate={onClose} />
+                  <NavItemRow key={item.href} item={item} onNavigate={handleNavigate} />
                 ))}
               </div>
             </div>

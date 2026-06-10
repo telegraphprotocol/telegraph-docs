@@ -1,25 +1,29 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 export function ScrollProgress() {
-  const [pct, setPct] = useState(0)
+  const barRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const onScroll = () => {
+    const update = () => {
       const el    = document.documentElement
       const total = el.scrollHeight - el.clientHeight
-      setPct(total > 0 ? (el.scrollTop / total) * 100 : 0)
+      const pct   = total > 0 ? el.scrollTop / total : 0
+      if (barRef.current) barRef.current.style.transform = `scaleX(${pct})`
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+
+    window.addEventListener('scroll', update, { passive: true })
+    update()
+    return () => window.removeEventListener('scroll', update)
   }, [])
 
   return (
     <div className="fixed top-16 left-0 right-0 z-50 h-[2px] bg-transparent pointer-events-none">
       <div
-        className="h-full bg-amber-400 transition-[width] duration-75 ease-out"
-        style={{ width: `${pct}%` }}
+        ref={barRef}
+        className="h-full bg-amber-400 origin-left will-change-transform"
+        style={{ transform: 'scaleX(0)' }}
       />
     </div>
   )

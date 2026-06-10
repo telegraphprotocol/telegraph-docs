@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { PanelLeft, PanelLeftClose } from 'lucide-react'
 import { Navbar }         from './Navbar'
 import { Sidebar }        from './Sidebar'
 import { TOC }            from './TOC'
 import { ScrollProgress } from './ScrollProgress'
 import { SearchModal }    from './SearchModal'
+import { Breadcrumb }      from './Breadcrumb'
+import { AppBackground }   from './AppBackground'
+import { BackToTop }       from './BackToTop'
 import type { NavSection, DocHeading } from '@/lib/docs'
+import { cn } from '@/lib/utils'
 
 interface DocsLayoutProps {
   nav:      NavSection[]
@@ -19,11 +24,16 @@ interface DocsLayoutProps {
 }
 
 export function DocsLayout({
-  nav, slug: _slug, headings, prevHref, nextHref, children,
+  nav, slug, headings, prevHref, nextHref, children,
 }: DocsLayoutProps) {
   const [menuOpen,   setMenuOpen]   = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const router = useRouter()
+
+  // Open sidebar by default on desktop, keep closed on mobile
+  useEffect(() => {
+    if (window.innerWidth >= 1024) setMenuOpen(true)
+  }, [])
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -55,6 +65,7 @@ export function DocsLayout({
 
   return (
     <div className="min-h-screen bg-[var(--tg-bg)] font-sans">
+      <AppBackground />
       {/* Amber scroll progress bar */}
       <ScrollProgress />
 
@@ -71,13 +82,29 @@ export function DocsLayout({
       {/* Search modal */}
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
 
+
       {/* Page body */}
-      <div className="pt-16 lg:pl-[272px]">
+      <div className={cn('pt-16 transition-[padding] duration-200 ease-out', menuOpen && 'lg:pl-[272px]')}>
         <div className="flex min-h-[calc(100vh-64px)]">
 
           {/* Main content */}
           <main className="flex-1 min-w-0 py-10 px-5 sm:px-8 lg:px-14">
             <div className="w-full lg:w-2/3">
+              {/* Breadcrumb row with sidebar toggle */}
+              <div className="flex items-center gap-1.5 mb-6">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className={cn(
+                    'hidden lg:flex flex-shrink-0 items-center justify-center w-6 h-6 rounded transition-colors duration-150',
+                    'text-[var(--tg-fg)] hover:text-white hover:bg-[var(--tg-line-soft)]',
+                  )}
+                  aria-label="Toggle sidebar"
+                >
+                  {menuOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+                </button>
+                <Breadcrumb nav={nav} slug={slug} />
+              </div>
+
               {children}
 
               {/* Bottom rule */}
@@ -94,10 +121,11 @@ export function DocsLayout({
 
           {/* TOC (right rail, xl+) */}
           {headings.length > 1 && (
-            <aside className="hidden xl:block w-60 flex-shrink-0 py-10 pr-8 pl-2">
+            <aside className="hidden xl:block w-72 flex-shrink-0 py-10 pr-6 pl-5">
               <TOC headings={headings} />
             </aside>
           )}
+          <BackToTop />
         </div>
       </div>
     </div>

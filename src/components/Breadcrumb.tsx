@@ -32,7 +32,7 @@ export function Breadcrumb({ nav, slug }: BreadcrumbProps) {
   if (!sectionTitle) return null
 
   return (
-    <nav className="flex items-center flex-wrap gap-1 text-[12px] text-[var(--tg-fg-faint)] mb-6">
+    <nav className="flex items-center flex-wrap gap-1 text-[12px] text-[var(--tg-fg-faint)]">
       <Link href="/docs" className="hover:text-[var(--tg-fg-dim)] transition-colors">
         Docs
       </Link>

@@ -7,7 +7,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { cn } from '@/lib/utils'
 
 interface NavbarProps {
-  menuOpen: boolean
+  menuOpen:     boolean
   onMenuToggle: () => void
   onSearchOpen: () => void
 }
@@ -17,6 +17,15 @@ export function Navbar({ menuOpen, onMenuToggle, onSearchOpen }: NavbarProps) {
     <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--tg-bg)]/90 backdrop-blur-md border-b border-[var(--tg-line)]">
       <div className="flex items-center h-full px-4 md:px-6 gap-3">
 
+        {/* Mobile hamburger — left side, controls left sidebar */}
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] border border-transparent hover:border-[var(--tg-line)] transition-colors"
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+
         {/* Logo */}
         <Link href="/docs" className="flex items-center gap-2.5 group flex-shrink-0">
           <Image
@@ -24,7 +33,7 @@ export function Navbar({ menuOpen, onMenuToggle, onSearchOpen }: NavbarProps) {
             alt="Telegraph"
             width={24}
             height={24}
-            className="h-[22px] w-auto opacity-90 group-hover:opacity-100 transition-opacity"
+            className="h-[22px] w-auto opacity-90 group-hover:opacity-100 transition-opacity dark:invert-0 invert"
           />
           <span className="text-[15px] font-semibold text-[var(--tg-fg)] tracking-tight hidden sm:block">
             Telegraph
@@ -89,21 +98,13 @@ export function Navbar({ menuOpen, onMenuToggle, onSearchOpen }: NavbarProps) {
 
           <ThemeToggle />
 
-          {/* Mobile: search + hamburger */}
+          {/* Mobile: search */}
           <button
             onClick={onSearchOpen}
-            className="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] transition-colors"
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] transition-colors"
             aria-label="Search"
           >
             <Search size={16} />
-          </button>
-
-          <button
-            onClick={onMenuToggle}
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg)] hover:bg-[var(--tg-line-soft)] transition-colors"
-            aria-label="Menu"
-          >
-            {menuOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>
       </div>

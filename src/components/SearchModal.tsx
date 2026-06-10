@@ -12,6 +12,21 @@ interface SearchResult {
   excerpt: string
 }
 
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query || query.length < 2) return <>{text}</>
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  const parts = text.split(regex)
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part)
+          ? <mark key={i} className="bg-amber-400/25 text-amber-700 dark:text-amber-300 rounded-[2px] px-[1px] not-italic">{part}</mark>
+          : part
+      )}
+    </>
+  )
+}
+
 export function SearchModal({ onClose }: { onClose: () => void }) {
   const [query,    setQuery]    = useState('')
   const [results,  setResults]  = useState<SearchResult[]>([])
@@ -109,8 +124,12 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
                       {result.section}
                     </p>
                   )}
-                  <p className="text-[13.5px] font-semibold text-[var(--tg-fg)] mb-0.5 truncate">{result.title}</p>
-                  <p className="text-[12px] text-[var(--tg-fg-faint)] leading-relaxed line-clamp-2">{result.excerpt}</p>
+                  <p className="text-[13.5px] font-semibold text-[var(--tg-fg)] mb-0.5 truncate">
+                    <Highlight text={result.title} query={query} />
+                  </p>
+                  <p className="text-[12px] text-[var(--tg-fg-faint)] leading-relaxed line-clamp-2">
+                    <Highlight text={result.excerpt} query={query} />
+                  </p>
                 </div>
                 <ArrowRight size={12} className={cn('flex-shrink-0 mt-1', i === selected ? 'text-amber-500' : 'text-[var(--tg-fg-faint)]')} />
               </button>

@@ -6,17 +6,18 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 interface SearchItem {
-  title: string
-  href: string
+  title:   string
+  href:    string
   section: string
-  excerpt: string
+  body:    string   // full stripped content for indexing
 }
 
-let cachedFuse: Fuse<SearchItem> | null = null
+let cachedFuse:  Fuse<SearchItem> | null = null
+let cachedItems: SearchItem[]            = []
 
 function stripMarkdown(text: string): string {
   return text
-    .replace(/```[\s\S]*?```/g, '')
+    .replace(/```[\s\S]*?```/g, ' ')
     .replace(/#{1,6}\s+/g, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
@@ -28,10 +29,22 @@ function stripMarkdown(text: string): string {
     .trim()
 }
 
-function buildIndex(): Fuse<SearchItem> {
+// Return a ~180-char snippet centred on the first occurrence of `query`
+function getSnippet(body: string, query: string): string {
+  const lower = body.toLowerCase()
+  const idx   = lower.indexOf(query.toLowerCase())
+  if (idx === -1) return body.slice(0, 180).trim() + '…'
+
+  const start = Math.max(0, idx - 60)
+  const end   = Math.min(body.length, idx + query.length + 120)
+  const snippet = (start > 0 ? '…' : '') + body.slice(start, end).trim() + (end < body.length ? '…' : '')
+  return snippet
+}
+
+function buildIndex(): void {
   const slugs = getAllSlugs()
   const nav   = getNavigation()
-  const items: SearchItem[] = []
+  cachedItems  = []
 
   for (const slug of slugs) {
     const doc = getDocContent(slug)
@@ -44,22 +57,24 @@ function buildIndex(): Fuse<SearchItem> {
       if (findNavItem(s.items, href)) { section = s.title; break }
     }
 
-    items.push({
-      title:   doc.title,
+    cachedItems.push({
+      title: doc.title,
       href,
       section,
-      excerpt: stripMarkdown(doc.content).slice(0, 220),
+      body:  stripMarkdown(doc.content),
     })
   }
 
-  return new Fuse(items, {
+  cachedFuse = new Fuse(cachedItems, {
     keys: [
-      { name: 'title',   weight: 0.65 },
-      { name: 'excerpt', weight: 0.35 },
+      { name: 'title', weight: 0.6 },
+      { name: 'body',  weight: 0.4 },
     ],
-    threshold: 0.4,
-    includeScore: true,
+    threshold:        0.35,
+    includeScore:     true,
     minMatchCharLength: 2,
+    ignoreLocation:   true,   // match anywhere in the body, not just near the start
+    distance:         100000, // effectively unlimited
   })
 }
 
@@ -68,16 +83,16 @@ export async function GET(request: NextRequest) {
 
   if (q.length < 2) return NextResponse.json([])
 
-  if (!cachedFuse) cachedFuse = buildIndex()
+  if (!cachedFuse) buildIndex()
 
-  const results = cachedFuse.search(q, { limit: 8 })
+  const results = cachedFuse!.search(q, { limit: 8 })
 
   return NextResponse.json(
     results.map((r) => ({
       title:   r.item.title,
       href:    r.item.href,
       section: r.item.section,
-      excerpt: r.item.excerpt,
+      excerpt: getSnippet(r.item.body, q),
     }))
   )
 }
