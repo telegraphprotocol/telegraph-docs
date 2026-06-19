@@ -32,6 +32,29 @@ export const metadata: Metadata = {
     'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
   metadataBase: new URL('https://docs.telegraphprotocol.com'),
   icons: { icon: '/favicon.ico' },
+  openGraph: {
+    title: 'Telegraph Docs',
+    description:
+      'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+    url: 'https://docs.telegraphprotocol.com',
+    siteName: 'Telegraph Docs',
+    images: [
+      {
+        url: '/telegraph-social-card.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Telegraph Protocol',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Telegraph Docs',
+    description:
+      'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+    images: ['/telegraph-social-card.jpg'],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
