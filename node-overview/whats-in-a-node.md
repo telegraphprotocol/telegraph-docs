@@ -6,11 +6,13 @@ Every node participates in a permissionless marketplace: agents submit payment r
 
 ## Node Role: Intelligence Router & Validator
 
-A Telegraph node serves two core functions:
+A Telegraph node serves three core functions:
 
-1. **Request Router** — Listens for intelligence requests from on-chain Ports and routes them to the best-performing miners (which may be Bittensor subnets, open-source models, APIs, or individual operators). The node aggregates responses, verifies them against ground-truth, and publishes results on-chain.
+1. **Request Router** — Listens for intelligence requests from on-chain Ports (ERC-8183 job creation events and subnet request events) and routes them to the best-performing miners (which may be Bittensor subnets, open-source models, APIs, or individual operators). The node aggregates responses, verifies them against ground-truth, and publishes results on-chain with cryptographic output hashes.
 
-2. **Validator** — Scores miner outputs against known ground-truth data to rank performance. These scores influence which miners receive future requests. Better performance = more requests = higher earnings.
+2. **Validator** — Scores miner outputs against known ground-truth data to rank performance. These scores influence which miners receive future requests. Better performance = more requests = higher earnings. Miners can validate their configuration before registration using the Validation API, which sandbox-tests all declared endpoints against the upstream API.
+
+3. **Epoch Settlement Engine** — Aggregates resolved jobs per epoch, executes Uniswap V3 swaps (USDC → MACHINA), and distributes MACHINA tokens to miners. The volume tracker counts 24h rolling request volumes per intent and pushes counts on-chain for demand-tier dynamic pricing.
 
 ## Security Layer: The Port Contract
 

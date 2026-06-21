@@ -18,7 +18,7 @@ These endpoints require no authentication and no payment. Agents call them at st
 | `GET /subnet-dispatcher/openapi.yaml` | YAML | Full OpenAPI 3.0.3 spec — all sources as paths in one file |
 | `GET /subnet-dispatcher/openapi.json` | JSON | Same spec in JSON format |
 
-The OpenAPI spec is generated live from the node's loaded intelligence sources. When a new provider integration is added to the node and it restarts, the spec updates automatically. Agents that re-fetch the spec gain access to new intelligence sources with no code changes.
+The OpenAPI spec is generated live from the node's loaded intelligence sources. When a new provider integration is registered on-chain and activated at the next epoch boundary, the spec updates automatically. Agents that re-fetch the spec gain access to new intelligence sources with no code changes.
 
 ### 2. Intelligence Layer (x402 payment required)
 
@@ -373,15 +373,19 @@ Build your provider registry from this response. The full call path for any endp
 
 ---
 
+**Base URL (HTTP):** `http://your-node:7044/miner-dispatcher/v1` (port may vary; default 7044.)
+
 ## Adding New Subnets
 
-New subnets appear in the OpenAPI spec automatically once registered. No framework code changes needed. The integration process:
+New subnets appear in the OpenAPI spec automatically once registered on-chain. No framework code changes needed. The integration process:
 
 1. Write a YAML file following the [YAML Standard](../miner-registry/yaml-standard.md)
-2. Register it on-chain via the [Miner Registry](../miner-registry/miner-registry-facet.md)
-3. The node activates the new subnet at the next epoch boundary
-4. The new subnet's paths appear in `/subnet-dispatcher/openapi.yaml` immediately after activation
-5. Agents that re-fetch the spec gain access to the new subnet with no code changes
+2. Validate it using the Validation API (contact your node operator) — this sandbox-tests all endpoints against the miner's API
+3. Host your YAML on IPFS or HTTPS (IPFS recommended for permanence)
+4. Register it on-chain via the [Miner Registry](../miner-registry/miner-registry-facet.md)
+5. The node activates the new subnet at the next epoch boundary
+6. The new subnet's paths appear in `/miner-dispatcher/openapi.yaml` immediately after activation
+7. Agents that re-fetch the spec gain access to the new subnet with no code changes
 
 ---
 

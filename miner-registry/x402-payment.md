@@ -57,9 +57,19 @@ The client selects a payment option and submits USDC on the chosen network.
 
 ## Dynamic Pricing
 
-Each miner sets their floor price at registration time via `min_price_usdc`. The node reads this value directly from the on-chain registration at request time — the YAML's `on_chain.min_price_usdc` field is informational; the on-chain committed value is the source of truth.
+Telegraph uses a two-tier pricing model:
 
-The minimum floor price is $0.01 USDC. Subnets without a declared price fall back to this default.
+1. **Floor price** — Each miner sets `minPriceUsdc` at registration time. This is the minimum per-call cost and is committed on-chain (immutable without re-registration). The minimum floor price is $0.01 USDC (10,000 in 6-decimal format).
+
+2. **Demand-tier multipliers** — The protocol applies automatic price multipliers based on 24-hour request volume per intent. Operators configure threshold tiers on-chain via the PricingFacet. For example:
+   - 0–99 requests/24h → 1.0x (base price)
+   - 100–499 requests/24h → 1.5x
+   - 500–999 requests/24h → 2.0x
+   - 1000+ requests/24h → 4.0x
+
+A 24-hour rolling volume tracker counts requests per intent and pushes counts on-chain hourly. The node reads the miner's on-chain committed price and the current demand multiplier at request time — the YAML's `on_chain.min_price_usdc` field is informational; the on-chain committed value is the source of truth.
+
+A 2% protocol fee (200 basis points) is applied to every transaction. The remaining USDC is swapped for MACHINA tokens via Uniswap V3 and sent to the miner.
 
 ---
 
@@ -107,10 +117,10 @@ x402 activates when `FACILITATOR_URL` and at least one receiving address are con
 
 ### Testnet Defaults
 
-| Network | Receiver | USDC Contract | Price |
+| Network | Receiver | USDC Contract | Base Price |
 |---|---|---|---|
-| Base Sepolia | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | 0.01 USDC |
-| Solana Devnet | `7BUgACDYC5wenaSp6K97mmd2nEkZufoaYR9HrZPzYqsb` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` | 0.01 USDC |
+| Base Sepolia | `0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8` | `0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18` | 0.01 USDC |
+| Solana Devnet | `8mVxpTSb8F3SGmiJUc8tkpiL6DxCTtNR6eTCQQ9FxwfW` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` | 0.01 USDC |
 
 ---
 

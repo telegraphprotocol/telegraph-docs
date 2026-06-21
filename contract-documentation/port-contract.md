@@ -10,9 +10,13 @@ The Telegraph Port is implemented as a **Diamond (EIP-2535)** proxy: one contrac
 | ----- | ----- |
 | **CrossChainFacet** | Outbound/inbound cross-chain messages, TAO fees, gas reimbursement. |
 | **SubnetFacet** | Same-chain subnet requests and responses, TAO/subnet token fees, callbacks. |
+| **JobFacet** | ERC-8183 job creation, resolution, and output verification. Agents create jobs specifying miners, budget, and intents; nodes resolve them on-chain with output hashes. |
+| **SettlementFacet** | Epoch-based miner settlement. Aggregates resolved jobs per epoch, calculates miner payouts, executes Uniswap V3 swaps (USDC → MACHINA), and distributes MACHINA to miners. |
+| **PricingFacet** | Demand-tier dynamic pricing. Operators configure threshold-based multipliers (e.g., 100 requests/24h → 1.5x price). Volume counts are pushed on-chain to adjust per-intent pricing automatically. |
+| **MinerRegistryFacet** | Permissionless miner registration. Miners declare their YAML URL, supported intents, fee address, and floor price. Nodes hot-load miners at each epoch boundary. |
 | **GasFacet** | User gas deposits, balance queries, withdrawal requests. |
 | **SignerFacet** | Validator/signer add/remove, entry fees, metadata. |
-| **FeeFacet** | TAO and subnet token fee configuration. |
+| **FeeFacet** | Protocol fee configuration (2% / 200 bps). |
 | **RewardFacet** | Reward pool, distribution to nodes, claimable rewards. |
 | **AdminFacet** | Initialization, chain config, auth (multi-sig). |
 | **ERC20Facet** | Telegraph/MSG token (transfer, approve, etc.). |

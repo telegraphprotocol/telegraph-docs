@@ -40,7 +40,7 @@ Deregistered miners are removed from routing immediately on live nodes, and caug
 
 To register a YAML miner on-chain, call `registerMiner` on the Telegraph Diamond contract deployed on Base Sepolia.
 
-**Diamond address (Base Sepolia):** `0x122396E8602BEed349434AA6E83123E7dD97F5A0`
+**Diamond address (Base Sepolia):** `0x45b0A6e07E2e15D203f3B5285945c549221f5b0a`
 
 ### Computing the YAML Hash
 
@@ -55,10 +55,10 @@ Do NOT use keccak256 — the node verifies using SHA-256.
 ### Registration Example
 
 ```bash
-DIAMOND="0x122396E8602BEed349434AA6E83123E7dD97F5A0"
+DIAMOND="0x45b0A6e07E2e15D203f3B5285945c549221f5b0a"
 RPC="https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7"
 
-YAML_URL="https://raw.githubusercontent.com/telegraphprotocol/Telegraph/develop/modules/miner-dispatcher/integrations/my-miner.yaml"
+YAML_URL="ipfs://bafkreig5nxc..."
 YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
 
 cast send "$DIAMOND" \
@@ -74,10 +74,10 @@ cast send "$DIAMOND" \
 
 | Parameter | Description |
 |---|---|
-| `yamlUrl` | HTTPS or IPFS URL where your YAML is hosted |
+| `yamlUrl` | IPFS or HTTPS URL where your YAML is hosted. IPFS is recommended (`ipfs://`) for permanent, censorship-resistant hosting. |
 | `yamlHash` | **SHA-256** of raw YAML bytes, prefixed with `0x` |
-| `feeAddress` | EVM address where miner payouts are sent (must be non-zero) |
-| `minPriceUsdc` | Floor price in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. |
+| `feeAddress` | EVM address where miner payouts are sent (must be non-zero). Payouts are in MACHINA tokens. |
+| `minPriceUsdc` | Floor price in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. The actual per-request price may be higher due to demand-tier multipliers. |
 | `supportedIntents` | JSON array of at least one canonical intent string from the [canonical list](#canonical-intents) |
 
 ---
@@ -90,9 +90,9 @@ To register a miner on-chain, call `registerMiner` on the Diamond contract with:
 
 | Parameter | Description |
 |---|---|
-| `yamlUrl` | HTTPS or IPFS URL where your YAML is hosted (e.g. `https://...` or `ipfs://...`) |
+| `yamlUrl` | IPFS or HTTPS URL where your YAML is hosted (e.g. `ipfs://...` or `https://...`) |
 | `yamlHash` | SHA-256 of the raw YAML bytes, prefixed with `0x` |
-| `feeAddress` | EVM address where payouts are sent (must be non-zero) |
+| `feeAddress` | EVM address where payouts are sent (must be non-zero). Payouts are in MACHINA tokens. |
 | `minPriceUsdc` | Floor price per call in 6-decimal USDC. Minimum is 10,000 (= $0.01). Immutable per registration. |
 | `supportedIntents` | Array of at least one canonical intent string |
 

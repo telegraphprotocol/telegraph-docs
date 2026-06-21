@@ -396,6 +396,12 @@ GET /subnet-dispatcher/v1/18/predict?lat=40.76&lon=-73.86&start_timestamp=<unix>
 | 34        | BitMind  | Image/video detection | `/34/detect-image`, `/34/detect-video`, `/34/get-video-upload-url` | POST        |
 | 64        | Chutes   | LLM chat/completions  | `/64/chat/completions`, `/64/completions`                          | POST        |
 
+### Generic Adapter Miners
+
+Beyond Bittensor subnets, Telegraph supports any REST API through the **generic adapter**. Miners declare their protocol as `generic` in their YAML — this enables models, APIs, and custom services without any Bittensor dependency. All authentication, endpoint routing, and parameter mapping is defined declaratively in the YAML. This is how miners like Groq, OpenAI, and other third-party LLM providers connect to Telegraph without any Go code changes.
+
+See [YAML Standard](../miner-registry/yaml-standard.md) for the full generic adapter schema and [Miner Registry](../miner-registry/README.md) for registration instructions.
+
 ***
 
 ## HTTP status and errors

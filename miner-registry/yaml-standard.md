@@ -339,6 +339,8 @@ on_chain:
 
 ## Registration
 
+Before registering on-chain, miners should validate their YAML and API key using the Validation API. Node operators can call `POST /validate` with the YAML and key — the system sandbox-tests every declared endpoint against the upstream API and reports pass/fail per endpoint. API keys that pass validation are stored in the database for use at dispatch time.
+
 To register a YAML miner on-chain, see [Miner Registry](miner-registry-facet.md) for:
 
 1. **Contract address** — The Base Sepolia Diamond address to call `registerMiner()` on
@@ -346,7 +348,7 @@ To register a YAML miner on-chain, see [Miner Registry](miner-registry-facet.md)
 3. **`cast` example** — Full registration command with correct function signature
 4. **Deregistration flow** — How to update or remove a miner
 
-The YAML file itself is hosted at the URL you provide during registration (HTTPS or IPFS). After registration, Telegraph nodes automatically fetch, validate, and activate your miner at the next epoch boundary.
+Host your YAML on IPFS for permanent, censorship-resistant URLs. After registration, Telegraph nodes automatically fetch, validate, and activate your miner at the next epoch boundary — no restarts needed.
 
 ---
 

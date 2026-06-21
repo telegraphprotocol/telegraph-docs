@@ -118,4 +118,6 @@ contract MySubnetCallback is ISubnetReceiverContract {
 | 2 | Call `outboundSubnetMessage(subnetId, endpoint, parameters, callbackContract)` on the Diamond; save returned `id` if needed. |
 | 3 | Deploy a contract that implements `subnetMessage(id, success, response, errorMessage)` and restrict to the Diamond. |
 
+For a simpler flow that doesn't require a callback contract, see the [ERC-8183 Job Example](erc8183-job-example.md) — create a job, let the node auto-resolve it, and retrieve results from any Telegraph node.
+
 For interfaces and repo references, see [Dapp Examples](../../dapp-examples/README.md).
