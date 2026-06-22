@@ -36,7 +36,7 @@ Build the payload and call the Diamond. Use the **exact** destination chain name
 
 ```solidity
 // Diamond on origin chain
-address diamond = 0x95DAB2159770d2877493Bd13A25BBf2701e989fE; // e.g. Sepolia
+address diamond = 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a; // Base Sepolia (current testnet)
 
 address[] memory addrs;
 uint256[] memory ints;

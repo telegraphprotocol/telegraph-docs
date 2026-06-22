@@ -14,7 +14,7 @@ The schema is versioned as `"1"` in the `version` field, which is the current an
 
 ```yaml
 version: "1"
-kind: subnet
+kind: miner
 id: 18
 slug: bittensor-sn18-zeus
 protocol: bittensor
@@ -49,9 +49,9 @@ semantics:
 ### Complete Reference
 
 ```yaml
-version: "1"                     # Required. Must be "2" .
-kind: subnet                     # "subnet" (on-demand) or "validator" (polled)
-id: 34                           # Required. Numeric subnet ID used in URL paths (/v1/34/...)
+version: "1"                     # Required. Must be "1" .
+kind: miner                      # "miner" (on-demand) or "validator" (polled)
+id: 34                           # Required. Numeric ID used in URL paths (/v1/34/...)
 slug: bittensor-sn34-bitmind     # Required. kebab-case identifier
 protocol: bittensor              # "bittensor" or "generic". Default: bittensor
 name: BitMind AI/Human Media Detector  # Required. Human-readable display name
@@ -169,7 +169,7 @@ on_chain:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `version` | string | yes | `"1"` |
-| `kind` | string | yes | `"subnet"` or `"validator"` |
+| `kind` | string | yes | `"miner"` or `"validator"` |
 | `id` | integer | yes | Subnet ID used in URL paths (`/v1/{id}/...`) |
 | `slug` | string | yes | kebab-case identifier (e.g., `bittensor-sn18-zeus`) |
 | `protocol` | string | no | `"bittensor"` (default) or `"generic"` |
@@ -339,6 +339,8 @@ on_chain:
 
 ## Registration
 
+Before registering on-chain, miners should validate their YAML and API key using the Validation API. Node operators can call `POST /validate` with the YAML and key — the system sandbox-tests every declared endpoint against the upstream API and reports pass/fail per endpoint. API keys that pass validation are stored in the database for use at dispatch time.
+
 To register a YAML miner on-chain, see [Miner Registry](miner-registry-facet.md) for:
 
 1. **Contract address** — The Base Sepolia Diamond address to call `registerMiner()` on
@@ -346,7 +348,7 @@ To register a YAML miner on-chain, see [Miner Registry](miner-registry-facet.md)
 3. **`cast` example** — Full registration command with correct function signature
 4. **Deregistration flow** — How to update or remove a miner
 
-The YAML file itself is hosted at the URL you provide during registration (HTTPS or IPFS). After registration, Telegraph nodes automatically fetch, validate, and activate your miner at the next epoch boundary.
+Host your YAML on IPFS for permanent, censorship-resistant URLs. After registration, Telegraph nodes automatically fetch, validate, and activate your miner at the next epoch boundary — no restarts needed.
 
 ---
 

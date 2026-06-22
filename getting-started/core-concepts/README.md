@@ -33,9 +33,25 @@ Smart contracts can ingest these signals directly without human interpretation �
 
 ## Machina
 Telegraph's native token. When an agent pays USDC for intelligence:
-1. Agent sends USDC payment
-2. Protocol buys Machina tokens from the open market in real-time
-3. Miner that fulfilled the request earns Machina
+1. Agent sends USDC payment via an ERC-8183 job
+2. 2% protocol fee is deducted (200 bps)
+3. Remaining USDC buys Machina tokens from Uniswap V3 in real-time
+4. Miner that fulfilled the request earns Machina
 
-Every transaction creates permanent demand for Machina, directly linking miner compensation to real agent usage. Instead of mining for fixed token emissions, miners earn from market demand. This is **Machines Improving Machines** — intelligence serving intelligence at competitive market prices.
+Every transaction creates permanent demand for Machina, directly linking miner compensation to real agent usage. Instead of earning from fixed token emissions, miners earn from market demand. This is **Machines Improving Machines** — intelligence serving intelligence at competitive market prices.
+
+## Dynamic Pricing
+
+Prices adjust to network demand automatically. Miners set a floor price at registration (minimum $0.01 USDC). On top of this, the protocol applies demand-tier multipliers based on 24-hour request volume per intent — busier intents cost more per call. Operators configure the multiplier thresholds on-chain. A 2% protocol fee applies to every transaction. This two-tier model (miner floor + demand multiplier) keeps prices fair at low volumes while scaling revenue as adoption grows.
+
+## Job Lifecycle
+
+Every intelligence request follows the ERC-8183 standard:
+1. **Create** — Agent submits a job on-chain specifying miners, budget, and intents
+2. **Route** — Nodes detect the event, resolve the intent to the best miner, and dispatch the request
+3. **Resolve** — The node publishes the output hash on-chain, auto-transitioning the job to terminal state
+4. **Settle** — Uniswap V3 swap converts USDC to MACHINA; miner receives payout
+5. **Retrieve** — Agent fetches on-chain job details and raw miner response from any node
+
+The entire lifecycle is hands-off: no manual settlement, no callback contracts required (though the subnet callback pattern is still supported for existing integrations).
 

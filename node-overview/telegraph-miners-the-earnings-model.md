@@ -8,11 +8,12 @@ This document explains how Telegraph miners earn by fulfilling agent intelligenc
 
 When an agent requests intelligence:
 
-1. **Agent pays in USDC** — On-chain contract sends a USDC micropayment (x402 standard)
-2. **Telegraph routes to best miner** — Network scores miners by performance and sends request to top performer
-3. **Protocol buys Machina** — USDC payment is used to purchase Machina from the open market in real-time
-4. **Miner earns Machina** — Protocol sends purchased Machina directly to the successful miner
-5. **Value link created** — Every request increases Machina demand, strengthening token value
+1. **Agent pays in USDC** — On-chain contract sends a USDC micropayment through the ERC-8183 job system
+2. **Telegraph routes to best miner** — Network resolves the intent to the highest-capability miner
+3. **Protocol fee deducted** — 2% (200 bps) protocol fee is taken from the payment
+4. **Protocol buys Machina** — Remaining USDC is used to purchase Machina from Uniswap V3 in real-time
+5. **Miner earns Machina** — Purchased Machina is sent directly to the miner's declared fee address
+6. **Value link created** — Every request increases Machina buy pressure, strengthening token value
 
 **vs Bittensor**: Bittensor miners earn fixed block rewards (new emissions). Telegraph miners earn from real agent demand (USDC → Machina conversion). More usage = more value for miners.
 
@@ -36,7 +37,7 @@ All compete equally. Best performance = more requests = higher earnings.
 
 #### Telegraph: Earned from Real Demand
 
-**Revenue**: Agent USDC payments converted to Machina tokens
+**Revenue**: Agent USDC payments converted to Machina tokens. 2% protocol fee is deducted from gross revenue before the swap.
 
 Every successful intelligence delivery = Machina earned. Zero requests = zero earnings.
 

@@ -14,28 +14,28 @@ These endpoints require no authentication and no payment. Agents call them at st
 
 | Endpoint | Format | Purpose |
 |----------|--------|---------|
-| `GET /subnet-dispatcher/integrations` | JSON | List of all registered intelligence sources with metadata, endpoints, and capabilities |
-| `GET /subnet-dispatcher/openapi.yaml` | YAML | Full OpenAPI 3.0.3 spec — all sources as paths in one file |
-| `GET /subnet-dispatcher/openapi.json` | JSON | Same spec in JSON format |
+| `GET /miner-dispatcher/integrations` | JSON | List of all registered intelligence sources with metadata, endpoints, and capabilities |
+| `GET /miner-dispatcher/openapi.yaml` | YAML | Full OpenAPI 3.0.3 spec — all sources as paths in one file |
+| `GET /miner-dispatcher/openapi.json` | JSON | Same spec in JSON format |
 
-The OpenAPI spec is generated live from the node's loaded intelligence sources. When a new provider integration is added to the node and it restarts, the spec updates automatically. Agents that re-fetch the spec gain access to new intelligence sources with no code changes.
+The OpenAPI spec is generated live from the node's loaded intelligence sources. When a new provider integration is registered on-chain and activated at the next epoch boundary, the spec updates automatically. Agents that re-fetch the spec gain access to new intelligence sources with no code changes.
 
 ### 2. Intelligence Layer (x402 payment required)
 
 All intelligence requests are at:
 
 ```
-/subnet-dispatcher/v1/{subnet_id}/{endpoint_path}
+/miner-dispatcher/v1/{subnet_id}/{endpoint_path}
 ```
 
 Examples:
 ```
-POST /subnet-dispatcher/v1/34/detect-image     ← BitMind deepfake detection
-POST /subnet-dispatcher/v1/22/search           ← DeSearch web + Twitter search
-GET  /subnet-dispatcher/v1/18/predict          ← Zeus weather forecast
-POST /subnet-dispatcher/v1/64/chat/completions ← Chutes LLM
-POST /subnet-dispatcher/v1/32/detect           ← ItsAI text authenticity
-POST /subnet-dispatcher/v1/1/chat              ← Apex language model
+POST /miner-dispatcher/v1/34/detect-image     ← BitMind deepfake detection
+POST /miner-dispatcher/v1/22/search           ← DeSearch web + Twitter search
+GET  /miner-dispatcher/v1/18/predict          ← Zeus weather forecast
+POST /miner-dispatcher/v1/64/chat/completions ← Chutes LLM
+POST /miner-dispatcher/v1/32/detect           ← ItsAI text authenticity
+POST /miner-dispatcher/v1/1/chat              ← Apex language model
 ```
 
 Every inference request requires an x402 micropayment (a small USDC amount on Base or Solana, configured by the node operator). There are no API keys. **The payment is the authentication.**
@@ -183,7 +183,7 @@ TELEGRAPH_NODE = "http://your-node:7044"
 
 # Fetch live spec from running node — re-fetch any time to pick up new subnets
 raw_spec = yaml.safe_load(
-    requests.get(f"{TELEGRAPH_NODE}/subnet-dispatcher/openapi.yaml").text
+    requests.get(f"{TELEGRAPH_NODE}/miner-dispatcher/openapi.yaml").text
 )
 spec = reduce_openapi_spec(raw_spec)
 
@@ -211,7 +211,7 @@ import requests
 
 def call_telegraph(node_url, path, method="POST", **kwargs):
     """Make a Telegraph inference call, handling x402 manually."""
-    resp = requests.request(method, f"{node_url}/subnet-dispatcher{path}", **kwargs)
+    resp = requests.request(method, f"{node_url}/miner-dispatcher{path}", **kwargs)
     if resp.status_code == 402:
         payment_info = resp.json()
         # Submit USDC payment on-chain using web3.py, then retry with proof header
@@ -254,7 +254,7 @@ Add Telegraph to your ElizaOS character JSON. The key setting is the OpenAPI spe
     "openapi": {
       "specs": [
         {
-          "url": "http://your-node:7044/subnet-dispatcher/openapi.yaml",
+          "url": "http://your-node:7044/miner-dispatcher/openapi.yaml",
           "name": "telegraph",
           "description": "Telegraph intelligence APIs — deepfake detection, weather, search, language models, and more"
         }
@@ -307,11 +307,11 @@ If your framework supports OpenAPI (GPT function calling, AutoGPT, CrewAI, Llama
 
 1. **Point at the spec URL:**
    ```
-   http://your-node:7044/subnet-dispatcher/openapi.yaml
+   http://your-node:7044/miner-dispatcher/openapi.yaml
    ```
    or the JSON version:
    ```
-   http://your-node:7044/subnet-dispatcher/openapi.json
+   http://your-node:7044/miner-dispatcher/openapi.json
    ```
 
 2. **Configure x402 payment** at the HTTP client layer (your framework's HTTP client or a middleware). Any call returning 402 needs to submit USDC on-chain and retry with the proof header. Use `x402-fetch` (JS/TS) or implement the 402 → pay → retry cycle manually.
@@ -327,7 +327,7 @@ That is the complete integration. No API keys. No SDKs. No registration.
 If your framework does not support OpenAPI natively, use the integrations JSON endpoint directly:
 
 ```bash
-curl http://your-node:7044/subnet-dispatcher/integrations
+curl http://your-node:7044/miner-dispatcher/integrations
 ```
 
 Response:
@@ -336,7 +336,7 @@ Response:
   {
     "id": "34",
     "slug": "bittensor-sn34-bitmind",
-    "kind": "subnet",
+    "kind": "miner",
     "protocol": "bittensor",
     "name": "BitMind Deepfake Detector (Bittensor SN34)",
     "description": "...",
@@ -359,7 +359,7 @@ Response:
 Build your provider registry from this response. The full call path for any endpoint is:
 
 ```
-{node_url}/subnet-dispatcher/v1/{id}{endpoint.path}
+{node_url}/miner-dispatcher/v1/{id}{endpoint.path}
 ```
 
 ---
@@ -373,15 +373,19 @@ Build your provider registry from this response. The full call path for any endp
 
 ---
 
+**Base URL (HTTP):** `http://your-node:7044/miner-dispatcher/v1` (port may vary; default 7044.)
+
 ## Adding New Subnets
 
-New subnets appear in the OpenAPI spec automatically once registered. No framework code changes needed. The integration process:
+New subnets appear in the OpenAPI spec automatically once registered on-chain. No framework code changes needed. The integration process:
 
 1. Write a YAML file following the [YAML Standard](../miner-registry/yaml-standard.md)
-2. Register it on-chain via the [Miner Registry](../miner-registry/miner-registry-facet.md)
-3. The node activates the new subnet at the next epoch boundary
-4. The new subnet's paths appear in `/subnet-dispatcher/openapi.yaml` immediately after activation
-5. Agents that re-fetch the spec gain access to the new subnet with no code changes
+2. Validate it using the Validation API (contact your node operator) — this sandbox-tests all endpoints against the miner's API
+3. Host your YAML on IPFS or HTTPS (IPFS recommended for permanence)
+4. Register it on-chain via the [Miner Registry](../miner-registry/miner-registry-facet.md)
+5. The node activates the new subnet at the next epoch boundary
+6. The new subnet's paths appear in `/miner-dispatcher/openapi.yaml` immediately after activation
+7. Agents that re-fetch the spec gain access to the new subnet with no code changes
 
 ---
 
@@ -389,14 +393,14 @@ New subnets appear in the OpenAPI spec automatically once registered. No framewo
 
 ```bash
 # Fetch the live spec from a running node
-curl http://your-node:7044/subnet-dispatcher/openapi.yaml
-curl http://your-node:7044/subnet-dispatcher/openapi.json
+curl http://your-node:7044/miner-dispatcher/openapi.yaml
+curl http://your-node:7044/miner-dispatcher/openapi.json
 
 # List all registered subnets
-curl http://your-node:7044/subnet-dispatcher/integrations
+curl http://your-node:7044/miner-dispatcher/integrations
 
 # Test inference (returns 402 — configure a wallet for actual inference)
-curl -X POST http://your-node:7044/subnet-dispatcher/v1/32/detect \
+curl -X POST http://your-node:7044/miner-dispatcher/v1/32/detect \
   -H "Content-Type: application/json" \
   -d '{"text": "Is this text AI-generated?"}'
 ```

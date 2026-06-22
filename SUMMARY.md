@@ -42,6 +42,7 @@
   * [Gas Deposit](examples-and-tutorials/evm-chains/gas-deposit.md)
   * [Cross-Chain Message Example](examples-and-tutorials/evm-chains/cross-chain-message-example.md)
   * [Subnet Inference Example](examples-and-tutorials/evm-chains/subnet-inference-example.md)
+  * [ERC-8183 Job Example](examples-and-tutorials/evm-chains/erc8183-job-example.md)
   * [Hello World!](examples-and-tutorials/evm-chains/hello-world.md)
   * [ERC20 Transfers](examples-and-tutorials/evm-chains/erc20-transfers.md)
   * [Securing Your Smart Contract](examples-and-tutorials/evm-chains/securing-your-smart-contract.md)
@@ -62,7 +63,7 @@
 * [Overview](miner-registry/README.md)
 * [Miner Registry Contract & Listener](miner-registry/miner-registry-facet.md)
 * [YAML Standard](miner-registry/yaml-standard.md)
-* [x402 Payment](miner-registry/x402-payment.md)
+* [x402 Payment & Dynamic Pricing](miner-registry/x402-payment.md)
 
 ## LLM Integration
 

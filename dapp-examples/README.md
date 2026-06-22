@@ -19,7 +19,7 @@ This section explains **how to connect your dApp or smart contracts** to Telegra
 
 ## Architecture in one sentence
 
-You talk to **one Diamond (Port) address per chain**. Cross-chain: call `outboundMessage` on the origin chain; the network relays; on the destination chain the Diamond calls your contract’s `portMessage`. Subnet: call `outboundSubnetMessage` on one chain; the network calls the subnet API and then calls your contract’s `subnetMessage` with the result. Gas for the node is paid from user balances via `depositGas` on the Diamond.
+You talk to **one Diamond (Port) address per chain**. Cross-chain: call `outboundMessage` on the origin chain; the network relays; on the destination chain the Diamond calls your contract’s `portMessage`. Subnet: call `outboundSubnetMessage` on one chain; the network calls the subnet API and then calls your contract’s `subnetMessage` with the result. ERC-8183 Jobs: call `createJob` with miners, budgets, and intents; the network auto-resolves on-chain with an output hash and the raw response is retrievable from any node. Gas for the node is paid from user balances via `depositGas` on the Diamond.
 
 ---
 
@@ -78,6 +78,27 @@ Both flows use the same payload shape (e.g. in `OnChainData.sol`):
 
 Encode your message in these arrays when calling the Diamond; decode them in `portMessage` or `subnetMessage`.
 
+### 4. ERC-8183 Job (agent-initiated)
+
+For agents that want a simpler flow without deploying a callback contract, use the JobFacet's `createJob`:
+
+```solidity
+uint256 jobId = IDiamond(diamond).createJob(
+    miners,       // address[] — eligible miner operator addresses
+    budgets,      // uint256[] — max USDC per miner (6-decimal)
+    intents,      // string[] — canonical intent strings
+    supportsBatchedResponses  // bool[] — use false for single jobs
+);
+```
+
+All arrays must have equal length. The node auto-resolves the job on-chain: it dispatches the request, receives the response, and calls `transitionToTerminal` with the output hash. No callback contract is needed.
+
+Retrieve results:
+- On-chain: `getJob(jobId)` returns job state, budget, intent, output hash
+- Off-chain: `GET /v1/job/{jobId}/result` returns the raw miner response
+
+See [ERC-8183 Job Example](../examples-and-tutorials/evm-chains/erc8183-job-example.md) for a step-by-step tutorial.
+
 ---
 
 ## Connection idea: cross-chain
@@ -118,6 +139,8 @@ The node spends gas on-chain; it is reimbursed from a **per-user balance** on th
 | Receive cross-chain | Destination chain | Implement `IDestinationContract.portMessage(sender, data, _startChain)`. Deploy on destination; restrict to Diamond. |
 | Request subnet | One chain | User has gas on same chain; call `outboundSubnetMessage(subnetId, endpoint, parameters, callbackContract)`. |
 | Handle subnet result | Same chain | Implement `ISubnetReceiverContract.subnetMessage(id, success, response, errorMessage)`. Restrict to Diamond. |
+| Create ERC-8183 job | One chain | Call `createJob(miners, budgets, intents, supportsBatchedResponses)` on the Diamond. No callback contract needed. |
+| Retrieve job result | Any node | Call `getJob(jobId)` on-chain for state + output hash; `GET /v1/job/{id}/result` off-chain for raw response. |
 | Pay for node gas | Per chain | User calls `depositGas(amount)` with `msg.value == amount` on the chain where the node executes. |
 
 ---
@@ -126,5 +149,5 @@ The node spends gas on-chain; it is reimbursed from a **per-user balance** on th
 
 * **Diamond (Port) addresses:** [Telegraph Port Addresses](../contract-documentation/telegraph-port-addresses.md).  
 * **Contract architecture (facets, events):** [Port Contract](../contract-documentation/port-contract.md).  
-* **Literal examples (chunk-sized):** [EVM Chains](../examples-and-tutorials/evm-chains/README.md) — Gas Deposit, Cross-Chain Message Example, Subnet Inference Example.  
+* **Literal examples (chunk-sized):** [EVM Chains](../examples-and-tutorials/evm-chains/README.md) — Gas Deposit, Cross-Chain Message Example, Subnet Inference Example, ERC-8183 Job Example.  
 * **Repo:** Interfaces in `contracts/evm/interfaces/` (e.g. `IDestinationContract.sol`, `ISubnetReceiverContract.sol`, `OnChainData.sol`); example apps in test contracts (e.g. `BridgeReceiverTestApp`, `SubnetTestApp`). Test scripts: `bridge-test.sh`, `subnet-inference-test.sh`.

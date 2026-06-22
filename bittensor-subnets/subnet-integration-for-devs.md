@@ -620,3 +620,6 @@ port.outboundSubnetMessage(18, "/subnet/18/predict", parameters, callbackContrac
 - Endpoint strings must match the node’s expected value; canonical form is `/subnet/<id>/<path>`.
 - Some response arrays (e.g. Bitmind detect-video) can have more than 5 numeric fields; the node packs them into the `numbers` array up to the contract limit; check node mapping if you need every field.
 - For subnets not listed here (e.g. 20, 22, 42), the same pattern applies: request = fill OnChainData by index; response = read by index per that endpoint’s spec from the node or codebase.
+
+- **ERC-8183 Jobs:** As an alternative to the subnet callback pattern, you can use `createJob(miners, budgets, intents, supportsBatchedResponses)` on the Diamond's JobFacet. The node auto-resolves the job on-chain and the raw response is retrievable from any node at `GET /v1/job/{id}/result`. See [ERC-8183 Job Example](../examples-and-tutorials/evm-chains/erc8183-job-example.md) for a tutorial.
+- **Validation API:** Before deploying contracts, miners can sandbox-test their YAML configuration and API key using the Validation API. Contact your node operator to verify your integration endpoints pass successfully before registering on-chain.

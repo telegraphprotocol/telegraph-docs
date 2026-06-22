@@ -37,7 +37,7 @@ Build the request parameters and call the Diamond. Use the correct `subnetId` an
 
 ```solidity
 // Diamond on this chain
-address diamond = 0x95DAB2159770d2877493Bd13A25BBf2701e989fE;
+address diamond = 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a;
 
 uint256 subnetId = 34;  // e.g. Bitmind
 string memory endpoint = "/v1/bitmind/detect-image";  // 1–64 bytes
@@ -117,5 +117,7 @@ contract MySubnetCallback is ISubnetReceiverContract {
 | 1 | User has gas on this chain (see [Gas Deposit](gas-deposit.md)). |
 | 2 | Call `outboundSubnetMessage(subnetId, endpoint, parameters, callbackContract)` on the Diamond; save returned `id` if needed. |
 | 3 | Deploy a contract that implements `subnetMessage(id, success, response, errorMessage)` and restrict to the Diamond. |
+
+For a simpler flow that doesn't require a callback contract, see the [ERC-8183 Job Example](erc8183-job-example.md) — create a job, let the node auto-resolve it, and retrieve results from any Telegraph node.
 
 For interfaces and repo references, see [Dapp Examples](../../dapp-examples/README.md).

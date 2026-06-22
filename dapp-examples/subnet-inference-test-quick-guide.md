@@ -4,7 +4,7 @@ description: "One-page guide to run Bitmind and Zeus subnet tests using SubnetSe
 
 # Subnet Inference Test – Quick Guide
 
-One-page guide to run **Bitmind** and **Zeus** subnet tests using the deployed SubnetSender, SubnetCallback, and Telegraph Diamond on Fuji.
+One-page guide to run **Bitmind** and **Zeus** subnet tests using the deployed SubnetSender, SubnetCallback, and Telegraph Diamond on Fuji. **Note:** For current testing, use [Base Sepolia with ERC-8183 jobs](../../examples-and-tutorials/evm-chains/erc8183-job-example.md).
 
 ---
 
@@ -12,7 +12,7 @@ One-page guide to run **Bitmind** and **Zeus** subnet tests using the deployed S
 
 | Role | Address |
 |------|---------|
-| **Diamond (Port)** | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
+| **Diamond (Port)** | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 | **SubnetSender** | `0xEbAA0cBc332dd9025b885D9f319FFbef55b55fd4` |
 | **SubnetCallback (Receiver)** | `0x5f08a33e0Fa7aa27673a8DbfEc0A89B11b59062e` |
 
@@ -35,7 +35,7 @@ All are on **Avalanche Fuji**. You need Fuji AVAX for gas and **value** (e.g. 0.
 
 | Parameter | Value |
 |-----------|--------|
-| **diamond** | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
+| **diamond** | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 | **subnetId** | `34` |
 | **endpoint** | `/v1/bitmind/detect-image` |
 | **paramString** | `https://images.pexels.com/photos/28957752/pexels-photo-28957752/free-photo-of-young-woman-enjoys-summer-with-fresh-oranges.jpeg?auto=compress&cs=tinysrgb&w=800&lazy=load` |
@@ -47,7 +47,7 @@ All are on **Avalanche Fuji**. You need Fuji AVAX for gas and **value** (e.g. 0.
 1. Compile **SubnetSender.sol** (contracts/remix/SubnetSender.sol).
 2. Deploy tab → "At Address" → paste `0xEbAA0cBc332dd9025b885D9f319FFbef55b55fd4` → ensure "Environment" is **Injected Provider** and network is **Avalanche Fuji**.
 3. In the deployed instance, open **send**.
-4. Fill: diamond `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2`, subnetId `34`, endpoint `/v1/bitmind/detect-image`, paramString (full image URL above), callbackContract `0x5f08a33e0Fa7aa27673a8DbfEc0A89B11b59062e`.
+4. Fill: diamond `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6`, subnetId `34`, endpoint `/v1/bitmind/detect-image`, paramString (full image URL above), callbackContract `0x5f08a33e0Fa7aa27673a8DbfEc0A89B11b59062e`.
 5. In the "Value" field enter `10000000000000000` (0.01 ether).
 6. Transact and sign with a Fuji-funded wallet.
 
@@ -59,7 +59,7 @@ All are on **Avalanche Fuji**. You need Fuji AVAX for gas and **value** (e.g. 0.
 
 | Parameter | Value |
 |-----------|--------|
-| **diamond** | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
+| **diamond** | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 | **subnetId** | `18` |
 | **endpoint** | `/v1/18/predict` |
 | **paramStrings** | 5 strings (see below) |
@@ -89,7 +89,7 @@ Copy the output. In Remix, for **paramStrings** do **not** paste that as one str
 1. Same as Bitmind: compile **SubnetSender.sol**, "At Address" `0xEbAA0cBc332dd9025b885D9f319FFbef55b55fd4`, Fuji.
 2. Run the bash command above to get the JSON array; copy the **4th and 5th** strings (start and end datetime) from the output.
 3. Open **sendWithStrings** (not `send`).
-4. Fill: diamond `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2`, subnetId `18`, endpoint `/v1/18/predict`, callbackContract `0x5f08a33e0Fa7aa27673a8DbfEc0A89B11b59062e`.
+4. Fill: diamond `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6`, subnetId `18`, endpoint `/v1/18/predict`, callbackContract `0x5f08a33e0Fa7aa27673a8DbfEc0A89B11b59062e`.
 5. For **paramStrings**: Remix shows an array. Add **5** elements:
    * `40.76`
    * `-73.86`
