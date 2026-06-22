@@ -15,7 +15,7 @@ Telegraph runs validator nodes that listen to Diamond contracts on multiple chai
 - **Cross-chain:** Call `outboundMessage` on the origin chain; the node relays the payload; on the destination chain the Diamond calls your **destination contract**’s `portMessage`.
 - **Subnet inference:** Call `outboundSubnetMessage` on one chain; the node calls the subnet API and submits the result on-chain; your **callback contract**’s `subnetMessage` is invoked with the response.
 
-In both flows, **gas for the node’s execution** is paid from a balance you deposit on the Diamond via `depositGas`. No TAO or other tokens are required in the current release.
+In both flows, **gas for the node’s execution** is paid from a balance you deposit on the Diamond via `depositGas`. No additional tokens are required in the current release.
 
 ---
 

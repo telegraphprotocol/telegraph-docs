@@ -37,7 +37,7 @@ Build the request parameters and call the Diamond. Use the correct `subnetId` an
 
 ```solidity
 // Diamond on this chain
-address diamond = 0x95DAB2159770d2877493Bd13A25BBf2701e989fE;
+address diamond = 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a;
 
 uint256 subnetId = 34;  // e.g. Bitmind
 string memory endpoint = "/v1/bitmind/detect-image";  // 1–64 bytes

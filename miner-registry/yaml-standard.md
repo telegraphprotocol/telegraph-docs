@@ -14,7 +14,7 @@ The schema is versioned as `"1"` in the `version` field, which is the current an
 
 ```yaml
 version: "1"
-kind: subnet
+kind: miner
 id: 18
 slug: bittensor-sn18-zeus
 protocol: bittensor
@@ -49,9 +49,9 @@ semantics:
 ### Complete Reference
 
 ```yaml
-version: "1"                     # Required. Must be "2" .
-kind: subnet                     # "subnet" (on-demand) or "validator" (polled)
-id: 34                           # Required. Numeric subnet ID used in URL paths (/v1/34/...)
+version: "1"                     # Required. Must be "1" .
+kind: miner                      # "miner" (on-demand) or "validator" (polled)
+id: 34                           # Required. Numeric ID used in URL paths (/v1/34/...)
 slug: bittensor-sn34-bitmind     # Required. kebab-case identifier
 protocol: bittensor              # "bittensor" or "generic". Default: bittensor
 name: BitMind AI/Human Media Detector  # Required. Human-readable display name
@@ -169,7 +169,7 @@ on_chain:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `version` | string | yes | `"1"` |
-| `kind` | string | yes | `"subnet"` or `"validator"` |
+| `kind` | string | yes | `"miner"` or `"validator"` |
 | `id` | integer | yes | Subnet ID used in URL paths (`/v1/{id}/...`) |
 | `slug` | string | yes | kebab-case identifier (e.g., `bittensor-sn18-zeus`) |
 | `protocol` | string | no | `"bittensor"` (default) or `"generic"` |

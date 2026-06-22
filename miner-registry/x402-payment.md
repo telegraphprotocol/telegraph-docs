@@ -39,13 +39,13 @@ Payment verification is handled by the facilitator — the node never manages on
       "scheme": "exact",
       "price": "$0.01",
       "network": "eip155:84532",
-      "payTo": "0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e"
+      "payTo": "0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8"
     },
     {
       "scheme": "exact",
       "price": "$0.01",
       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-      "payTo": "7BUgACDYC5wenaSp6K97mmd2nEkZufoaYR9HrZPzYqsb"
+      "payTo": "8mVxpTSb8F3SGmiJUc8tkpiL6DxCTtNR6eTCQQ9FxwfW"
     }
   ]
 }
@@ -89,12 +89,12 @@ The client receives the full list of accepted networks in the 402 response and c
 
 The following endpoints are always accessible without payment:
 
-- `GET /subnet-dispatcher/healthz`
-- `GET /subnet-dispatcher/integrations`
-- `GET /subnet-dispatcher/openapi.yaml`
-- `GET /subnet-dispatcher/openapi.json`
+- `GET /miner-dispatcher/healthz`
+- `GET /miner-dispatcher/integrations`
+- `GET /miner-dispatcher/openapi.yaml`
+- `GET /miner-dispatcher/openapi.json`
 
-Only subnet inference calls (under `/v1/`) require payment.
+Only inference calls (under `/v1/`) require payment.
 
 ---
 
@@ -106,8 +106,8 @@ Add to your `.env`:
 
 ```bash
 FACILITATOR_URL=https://facilitator.payai.network
-BASE_RECEIVING_ADDRESS=0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e
-SOLANA_RECEIVING_ADDRESS=7BUgACDYC5wenaSp6K97mmd2nEkZufoaYR9HrZPzYqsb
+BASE_RECEIVING_ADDRESS=0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8
+SOLANA_RECEIVING_ADDRESS=8mVxpTSb8F3SGmiJUc8tkpiL6DxCTtNR6eTCQQ9FxwfW
 POLYGON_RECEIVING_ADDRESS=0x...   # Optional
 ```
 

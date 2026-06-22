@@ -8,8 +8,8 @@ The Telegraph Port is implemented as a **Diamond (EIP-2535)** proxy: one contrac
 
 | Facet | Role |
 | ----- | ----- |
-| **CrossChainFacet** | Outbound/inbound cross-chain messages, TAO fees, gas reimbursement. |
-| **SubnetFacet** | Same-chain subnet requests and responses, TAO/subnet token fees, callbacks. |
+| **CrossChainFacet** | Outbound/inbound cross-chain messages, protocol fees, gas reimbursement. |
+| **SubnetFacet** | Same-chain subnet requests and responses, protocol fees, callbacks. |
 | **JobFacet** | ERC-8183 job creation, resolution, and output verification. Agents create jobs specifying miners, budget, and intents; nodes resolve them on-chain with output hashes. |
 | **SettlementFacet** | Epoch-based miner settlement. Aggregates resolved jobs per epoch, calculates miner payouts, executes Uniswap V3 swaps (USDC → MACHINA), and distributes MACHINA to miners. |
 | **PricingFacet** | Demand-tier dynamic pricing. Operators configure threshold-based multipliers (e.g., 100 requests/24h → 1.5x price). Volume counts are pushed on-chain to adjust per-intent pricing automatically. |
@@ -63,4 +63,4 @@ Various `setX()`: Setters (like `setEntryFees()`, `setChainId()`, `setDistributi
 
 Overall, the Port (Diamond) allows the creation of a complex yet secure relay network between Ethereum-compatible blockchains, governing transactions while performing a series of checks and guards. It also incorporates an incentive mechanism for signers to ensure the contract's appropriate operation.
 
-**Key events (Diamond):** Cross-chain: `BridgeSwapOutData`, `BridgeSwapInData`; subnet: `SubnetRequestOut`, `SubnetResponseIn`; gas: `GasDeposited`, `GasReimbursed`; rewards: `TAORewardDistributed`, `TAORewardClaimed`; signers: `NewSigner`, `SignerRemoved`. Listen for these on the Diamond address when integrating.
+**Key events (Diamond):** Cross-chain: `BridgeSwapOutData`, `BridgeSwapInData`; subnet: `SubnetRequestOut`, `SubnetResponseIn`; gas: `GasDeposited`, `GasReimbursed`; rewards: `RewardDistributed`, `RewardClaimed`; signers: `NewSigner`, `SignerRemoved`. Listen for these on the Diamond address when integrating.

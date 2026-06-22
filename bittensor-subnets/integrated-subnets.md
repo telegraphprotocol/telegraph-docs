@@ -49,7 +49,7 @@ Both paths access the same underlying providers; the difference is whether you c
 
 | Use case           | Method                                                                     | Best for                                                                          |
 | ------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **HTTP**           | Subnet-Dispatcher `POST/GET` to `/subnet-dispatcher/v1/{subnet_id}/{path}` | Backends, scripts, non-blockchain clients, high throughput.                       |
+| **HTTP**           | Subnet-Dispatcher `POST/GET` to `/miner-dispatcher/v1/{subnet_id}/{path}` | Backends, scripts, non-blockchain clients, high throughput.                       |
 | **Smart contract** | Diamond `outboundSubnetMessage` + callback `subnetMessage`                 | On-chain logic, user-paid gas, trustless execution, composability with DeFi/NFTs. |
 
 ***
@@ -109,7 +109,7 @@ Below is the **request/response specification** for each integrated subnet. Use 
 * Call the **HTTP API** (Subnet-Dispatcher) with the correct method, path, and body/query.
 * Build **OnChainData** for `outboundSubnetMessage` and decode **OnChainData** in `subnetMessage`.
 
-**Base URL (HTTP):** `http://localhost:7044/subnet-dispatcher/v1` (port may vary; default 7044.)
+**Base URL (HTTP):** `http://localhost:7044/miner-dispatcher/v1` (port may vary; default 7044.)
 
 **Contract endpoint string:** Use the path without the dispatcher prefix, e.g. `/v1/bitmind/detect-image`, `/v1/18/predict`, so the node can route correctly.
 
@@ -171,7 +171,7 @@ Below is the **request/response specification** for each integrated subnet. Use 
 **Example (HTTP):**
 
 ```
-GET /subnet-dispatcher/v1/18/predict?lat=40.76&lon=-73.86&start_timestamp=<unix>&predict_hours=3&variable=2m_temperature
+GET /miner-dispatcher/v1/18/predict?lat=40.76&lon=-73.86&start_timestamp=<unix>&predict_hours=3&variable=2m_temperature
 ```
 
 **Contract (OnChainData):** Use **5 strings** in order: `lat`, `lon`, `variable`, `start_datetime` (e.g. ISO), `end_datetime`. Example: `["40.76", "-73.86", "2m_temperature", "2026-03-04T09:57:04", "2026-03-04T12:57:04"]`. Decode forecast from `response.strings` (e.g. variable data/unit) or from the node’s mapping of Zeus JSON into OnChainData.
@@ -429,7 +429,7 @@ Common errors: `"subnet not found"`, `"request validation failed"`, `"circuit br
 ## Health check (HTTP)
 
 ```bash
-curl http://localhost:7044/subnet-dispatcher/healthz
+curl http://localhost:7044/miner-dispatcher/healthz
 ```
 
 Expected: `{"status":"ok"}`.

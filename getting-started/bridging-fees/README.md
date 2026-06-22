@@ -1,14 +1,10 @@
 # Bridging Fees
 
-> **Note:** This section covers fees for **cross-chain messaging** (the Telegraph Rail). For miner earnings from **agent intelligence requests**, see [Agentic Framework Integration — How Your USDC Gets to Miners](../../llm-integration/agentic-framework-integration.md). Intelligence requests pay in USDC → Machina; miners earn Machina tokens directly from real on-demand agent usage.
+Cross-chain messages on Telegraph require gas fees for validator nodes that submit transactions on the destination chain. Users deposit gas (in the chain's native token) via `depositGas` on the Diamond before sending cross-chain messages. The node is reimbursed from this per-user gas balance when executing the delivery transaction.
 
-A central tenet in Telegraph's mission is to make the process of bridging extremely affordable for any developer and their community. As a result, the cost of sending transactions between chains will always be priced with current network transaction volume in mind. All fees must be paid in the native coin of the chain where the message initiated. The fee is sent alongside the request to the chain's local port contract. As a general goal, Telegraph strives to make cross-chain as affordable as possible and will seek to keep transaction fees as competitive as possible with low cost to the end user top of mind.
+> **Note:** The fee model described below predates the current protocol. Cross-chain gas fees are now paid in the destination chain's native token (ETH, AVAX, etc.), not wTAO. See [Gas Deposit](../../examples-and-tutorials/evm-chains/gas-deposit.md) for the current gas deposit flow.
 
-#### **How are gas fees determine** <a href="#how-are-gas-fees-determined" id="how-are-gas-fees-determined"></a>
-
-Gas is determined and set within the port contracts on a chain-by-chain basis by an offchain messaging protocol managed by the Telegraph core team. This gas fee will be in **wTAO.** This will ensure that fees on any particular chain is set appropriately to prevent transaction over/under-spending. A voting based system contained within each Telegraph node may be introduced in the future, deprecating the use of the initial messaging protocol.
-
-When initiating a transaction, the sender is responsible for covering the Starting Chain Gas fee, a charge determined by the originating blockchain network's conditions. In addition to this, a Telegraph Fee and an Ending Chain Gas Fee are applied. These two fees and the native coin to submit the transaction the form total transaction cost, which includes the Starting Chain Gas, Telegraph Fee, and Ending Chain Gas Fee. All two fees ( Starting Chain and Ending Chain will be in the form of wTAO)
+For intelligence/inference requests, the protocol applies a flat **2% fee (200 bps)** on USDC payments, deducted before the MACHINA swap. See [x402 Payment & Dynamic Pricing](../../miner-registry/x402-payment.md) for details.
 
 Regarding fee distribution, the Telegraph Corporation receives 50% of the sum of the Telegraph and Ending Chain Gas Fees. The network nodes, critical in the transaction's confirmation and validation, share the remaining 50%. The confirming node, which plays a pivotal role in the transaction's processing, is allocated 42% of this amount. The other nodes, which assist but do not confirm the transaction, collectively receive the final 8%.
 

@@ -4,7 +4,7 @@ description: "One-page guide to run a Fuji to Sepolia bridge test using BridgeSe
 
 # Bridge TX Test – Quick Guide
 
-One-page guide to run a **Fuji → Sepolia** bridge test using the deployed BridgeSender, BridgeReceiver, and Telegraph Diamonds.
+One-page guide to run a **Fuji → Sepolia** bridge test using the deployed BridgeSender, BridgeReceiver, and Telegraph Diamonds. **Note:** For current testing, use [Base Sepolia with ERC-8183 jobs](../../examples-and-tutorials/evm-chains/erc8183-job-example.md).
 
 ---
 
@@ -12,8 +12,8 @@ One-page guide to run a **Fuji → Sepolia** bridge test using the deployed Brid
 
 | Role | Chain | Address |
 |------|--------|---------|
-| **Diamond (Port)** | Avalanche Fuji | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
-| **Diamond (Port)** | Sepolia | `0x95DAB2159770d2877493Bd13A25BBf2701e989fE` |
+| **Diamond (Port)** | Avalanche Fuji | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
+| **Diamond (Port)** | Sepolia (legacy) | `0x95DAB2159770d2877493Bd13A25BBf2701e989fE` |
 | **BridgeSender** | Fuji | [0xcf82c14780A440D39181FF726FcEC02A1cEeFDA2](https://testnet.snowscan.xyz/address/0xcf82c14780A440D39181FF726FcEC02A1cEeFDA2#code) |
 | **BridgeReceiver** | Sepolia | `0x168efee2310EA1D83B5B0DfdDedC7dEa1c0D94D3` |
 
@@ -36,7 +36,7 @@ One-page guide to run a **Fuji → Sepolia** bridge test using the deployed Brid
 1. Open the Receiver on Sepolia in the block explorer (or Remix with "At Address").
 2. Go to **Write** / **Contract** tab.
 3. Call **`depositGasOnDiamond`**:
-   * **diamond (address):** `0x95DAB2159770d2877493Bd13A25BBf2701e989fE` (Sepolia Diamond)
+   * **diamond (address):** `0x95DAB2159770d2877493Bd13A25BBf2701e989fE` (Sepolia Diamond — legacy testnet; use Base Sepolia `0x45b0...` for current testing)
    * **payableAmount:** e.g. `0.01` ether (or 10000000000000000 wei)
 4. Send the transaction (wallet must have Sepolia ETH).
 
@@ -52,7 +52,7 @@ One-page guide to run a **Fuji → Sepolia** bridge test using the deployed Brid
 
 1. Open the Sender on Fuji in the block explorer or Remix.
 2. Call **`send`** with:
-   * **diamond:** `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` (Fuji Diamond)
+   * **diamond:** `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` (Fuji Diamond)
    * **destination:** `0x168efee2310EA1D83B5B0DfdDedC7dEa1c0D94D3` (BridgeReceiver on Sepolia)
    * **message:** e.g. `HiFromTelegraph`
    * **endChain:** `Sepolia-ETH` (exact string)
@@ -62,7 +62,7 @@ One-page guide to run a **Fuji → Sepolia** bridge test using the deployed Brid
 
 | Parameter | Value |
 |-----------|--------|
-| **diamond** | `0xFB06c12A6FB8f057D6cbEA5817A3D2C0649040A2` |
+| **diamond** | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 | **destination** | `0x168efee2310EA1D83B5B0DfdDedC7dEa1c0D94D3` |
 | **message** | `HiFromTelegraph` |
 | **endChain** | `Sepolia-ETH` |
