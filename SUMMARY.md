@@ -17,6 +17,7 @@
 * [Direct Ask from Engine](using/engine-ask.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
 * [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)
+* [MCP Server](using/mcp-server.md)
 
 ## Running a Miner
 
