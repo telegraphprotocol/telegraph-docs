@@ -1,0 +1,152 @@
+---
+description: Pay per call for AI inference using the x402 HTTP payment standard — no API key, no account, just USDC.
+---
+
+# Direct x402 Inference
+
+x402 is an HTTP-native payment protocol: your client makes a request, receives a payment challenge if it hasn't paid, completes the payment, and retries. The server verifies the payment proof before forwarding to the miner. The entire exchange happens within a normal HTTP request cycle — no separate payment flow, no account, no API key.
+
+## What You Need
+
+- A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`) or **Solana Devnet**.
+- An x402-compatible client (the [PayAI SDK](https://github.com/pay-ai/) handles signing automatically, or you can construct the payment manually).
+- The URL of a Telegraph miner dispatcher node.
+
+**Live testnet node:** `http://13.237.89.59:7044/miner-dispatcher`
+
+## Step 1: Discover Available Subnets
+
+Before sending a request, check which subnets are active and what their schemas look like:
+
+```
+GET /miner-dispatcher/integrations
+```
+
+This returns a JSON array of all registered miners with their endpoints, input/output schemas, supported Intents, and minimum prices. Here are the currently active subnets on testnet:
+
+| Subnet ID | Slug | Capability | Min Price |
+|---|---|---|---|
+| 1 | bittensor-sn1-apex | Text generation (Bittensor SN1) | $0.03 |
+| 18 | bittensor-sn18-zeus | Weather forecasting (Bittensor SN18) | $0.01 |
+| 32 | itsai-text-detector | AI text detection | $0.01 |
+| 33 | sapling-ai-detector | AI content detection | — |
+| 34 | bittensor-sn34-bitmind | Deepfake / media authenticity (Bittensor SN34) | $0.02 |
+| 102 | openai | LLM inference (OpenAI GPT-4o-mini) | $0.05 |
+
+## Step 2: Make a Request — Receive the 402
+
+Pick a subnet and make a request to its path. Without a payment header, you'll receive an HTTP 402:
+
+```
+GET /miner-dispatcher/v1/18/predict?lat=25.2&lon=55.3&variable=hourly
+```
+
+**Response (402 Payment Required):**
+```
+HTTP/1.1 402 Payment Required
+Payment-Required: eyJ4NDAyVmVyc2lvbiI6Mi...  ← base64-encoded challenge
+Content-Type: application/json
+```
+
+Decode the `Payment-Required` header (base64 → JSON) to see the payment options:
+
+```json
+{
+  "x402Version": 2,
+  "error": "Payment required",
+  "resource": {
+    "url": "http://13.237.89.59:7044/miner-dispatcher/v1/18/predict",
+    "description": "Payment required for all subnet APIs.",
+    "mimeType": "application/json"
+  },
+  "accepts": [
+    {
+      "scheme": "exact",
+      "network": "eip155:84532",
+      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "amount": "10000",
+      "payTo": "0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8",
+      "maxTimeoutSeconds": 60
+    },
+    {
+      "scheme": "exact",
+      "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+      "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+      "amount": "10000",
+      "payTo": "8mVxpTSb8F3SGmiJUc8tkpiL6DxCTtNR6eTCQQ9FxwfW",
+      "maxTimeoutSeconds": 60
+    }
+  ]
+}
+```
+
+The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different subnets may require different amounts (e.g., OpenAI charges `50000` = $0.05).
+
+## Step 3: Complete the Payment
+
+Using the PayAI x402 SDK, provide the decoded challenge and your wallet. The SDK handles constructing and signing the USDC transfer on the selected network.
+
+```go
+// Using the x402 Go client
+payment, err := x402client.Pay(challenge, wallet)
+// payment is a base64-encoded PaymentPayload containing the signed tx proof
+```
+
+Or construct it manually: sign an ERC-20 transfer of the required `amount` of the `asset` token to the `payTo` address, encode the proof as base64 JSON per the x402 spec.
+
+## Step 4: Retry with Payment Header
+
+Retry the exact same request with the `PAYMENT-SIGNATURE` header containing the base64-encoded payment proof:
+
+```
+GET /miner-dispatcher/v1/18/predict?lat=25.2&lon=55.3&variable=hourly
+PAYMENT-SIGNATURE: <base64-encoded-payment-payload>
+```
+
+The server forwards the payment proof to the PayAI facilitator (`https://facilitator.payai.network`) for verification. On success, the request is forwarded to the miner.
+
+## Step 5: Receive the Response
+
+If the payment verifies correctly, you receive the miner's response directly:
+
+```json
+{
+  "hourly": {
+    "time": ["2026-06-26T00:00", "2026-06-26T01:00", ...],
+    "temperature_2m": [38.2, 37.9, 37.5, ...],
+    "wind_speed_10m": [12.1, 11.8, ...]
+  },
+  "latitude": 25.2,
+  "longitude": 55.3
+}
+```
+
+The response also includes a settlement header:
+```
+x-payment-settle-response: <settlement-proof>
+```
+
+Keep this header if you need to audit or dispute the payment later.
+
+## Payment Networks
+
+| Network | CAIP-2 Identifier | USDC Contract |
+|---|---|---|
+| Base Sepolia (testnet) | `eip155:84532` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` |
+
+Choose the network based on where you hold USDC. The payment amount is the same regardless of network.
+
+## Dynamic Pricing
+
+The price you pay per request is not fixed — it's the miner's declared floor price multiplied by a demand multiplier based on 24-hour request volume for that Intent. A miner with a $0.01 floor that sees 2,000 requests per day would charge $0.015 at the 1.5× tier.
+
+You can always see the current price for a specific subnet in the `/miner-dispatcher/integrations` response under `on_chain.min_price_usdc`. The actual charged amount is shown in the `amount` field of the 402 challenge.
+
+## Subnets That Don't Require Payment
+
+Two routes bypass the payment gate:
+- `GET /miner-dispatcher/integrations` — always accessible, no payment needed.
+- `GET /miner-dispatcher/v1/x402-test` — a test endpoint that verifies the 402 flow without hitting a real subnet.
+
+Any request to `/miner-dispatcher/v1/{subnet}/*` requires payment when `BASE_RECEIVING_ADDRESS` is configured on the node.
