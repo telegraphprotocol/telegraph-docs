@@ -27,7 +27,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   )
 }
 
-export function SearchModal({ onClose }: { onClose: () => void }) {
+export function SearchModal({ onClose, showLegacy = false }: { onClose: () => void; showLegacy?: boolean }) {
   const [query,    setQuery]    = useState('')
   const [results,  setResults]  = useState<SearchResult[]>([])
   const [selected, setSelected] = useState(0)
@@ -44,14 +44,14 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
     const t = setTimeout(async () => {
       try {
         const res  = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-        const data = await res.json()
-        setResults(data)
+        const data: SearchResult[] = await res.json()
+        setResults(showLegacy ? data : data.filter((r) => !r.href.includes('_archive')))
         setSelected(0)
       } catch {}
       setLoading(false)
     }, 200)
     return () => clearTimeout(t)
-  }, [query])
+  }, [query, showLegacy])
 
   const navigate = useCallback((href: string) => {
     router.push(href)

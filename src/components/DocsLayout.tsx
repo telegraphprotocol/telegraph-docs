@@ -26,8 +26,9 @@ interface DocsLayoutProps {
 export function DocsLayout({
   nav, slug, headings, prevHref, nextHref, children,
 }: DocsLayoutProps) {
-  const [menuOpen,   setMenuOpen]   = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
+  const [menuOpen,    setMenuOpen]    = useState(false)
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const [showLegacy,  setShowLegacy]  = useState(false)
   const router = useRouter()
 
   // Open sidebar by default on desktop, keep closed on mobile
@@ -77,10 +78,10 @@ export function DocsLayout({
       />
 
       {/* Sidebar */}
-      <Sidebar nav={nav} isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sidebar nav={nav} isOpen={menuOpen} onClose={() => setMenuOpen(false)} showLegacy={showLegacy} onLegacyToggle={setShowLegacy} />
 
       {/* Search modal */}
-      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} showLegacy={showLegacy} />}
 
 
       {/* Page body */}

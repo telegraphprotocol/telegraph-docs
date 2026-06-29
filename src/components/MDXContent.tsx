@@ -43,6 +43,41 @@ marked.use({
     },
 
     table(header: string, body: string): string {
+      // Detect "I want to… / Go here" nav-card tables
+      if (/<th[^>]*>\s*I want to/i.test(header)) {
+        const rowMatches = [...body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)]
+        const ICONS: [RegExp, string][] = [
+          [/protocol mechanic|how it works/i,   '⚙️'],
+          [/tokenomics|machina/i,                '🪙'],
+          [/address|parameter/i,                 '📋'],
+          [/http|x402|pay per call/i,            '🌐'],
+          [/engine/i,                            '🤖'],
+          [/websocket|signal feed/i,             '📡'],
+          [/smart contract|on-chain|erc/i,       '🔗'],
+          [/miner|earn/i,                        '⛏️'],
+          [/validator|node/i,                    '🛡️'],
+          [/role/i,                              '👥'],
+        ]
+        const cards = rowMatches.map((m) => {
+          const cells = [...m[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
+          const label = cells[0]?.[1].replace(/<[^>]+>/g, '').trim() ?? ''
+          const dest  = cells[1]?.[1] ?? ''
+          const href  = dest.match(/href="([^"]+)"/)?.[1] ?? '#'
+          const title = dest.replace(/<[^>]+>/g, '').trim()
+          const icon  = ICONS.find(([re]) => re.test(label + title))?.[1] ?? '📄'
+          return (
+            `<a href="${href}" class="tg-nav-card">` +
+            `<span class="tg-nav-card-icon">${icon}</span>` +
+            `<span class="tg-nav-card-body">` +
+            `<span class="tg-nav-card-title">${title}</span>` +
+            `<span class="tg-nav-card-label">${label}</span>` +
+            `</span>` +
+            `<span class="tg-nav-card-arrow">→</span>` +
+            `</a>`
+          )
+        }).join('')
+        return `<div class="tg-nav-cards">${cards}</div>\n`
+      }
       return (
         `<div class="tg-table-wrap">` +
         `<table><thead>${header}</thead><tbody>${body}</tbody></table>` +

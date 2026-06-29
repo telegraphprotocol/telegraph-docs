@@ -101,8 +101,12 @@ export function getNavigation(): NavSection[] {
 // ── Slug → file path resolution ───────────────────────────────────────────────
 export function slugToFilePath(slug: string[]): string | null {
   if (slug.length === 0) {
-    const p = path.join(DOCS_ROOT, 'README.md')
-    return fs.existsSync(p) ? 'README.md' : null
+    // Try README first, fall back to introduction.md
+    const readme = path.join(DOCS_ROOT, 'README.md')
+    if (fs.existsSync(readme)) return 'README.md'
+    const intro = path.join(DOCS_ROOT, 'introduction.md')
+    if (fs.existsSync(intro)) return 'introduction.md'
+    return null
   }
 
   const joined = slug.join('/')

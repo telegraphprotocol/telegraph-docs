@@ -76,9 +76,23 @@ interface SidebarProps {
   nav: NavSection[]
   isOpen: boolean
   onClose: () => void
+  showLegacy: boolean
+  onLegacyToggle: (v: boolean) => void
 }
 
-export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ nav, isOpen, onClose, showLegacy, onLegacyToggle }: SidebarProps) {
+  const pathname = usePathname()
+  const legacySections = nav.filter((s) => s.title.toLowerCase().includes('legacy'))
+  const normalSections = nav.filter((s) => !s.title.toLowerCase().includes('legacy'))
+
+  const anyLegacyActive = legacySections.some((s) =>
+    s.items.some((i) => pathname === i.href || i.children?.some((c) => pathname === c.href))
+  )
+
+  useEffect(() => {
+    if (anyLegacyActive) onLegacyToggle(true)
+  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleNavigate = () => {
     if (window.innerWidth < 1024) onClose()
   }
@@ -120,9 +134,8 @@ export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
             <kbd className="flex items-center gap-0.5 text-[10px] font-brand border border-[var(--tg-line)] rounded px-1.5 py-0.5 bg-[var(--tg-bg-subtle)]">⌘K</kbd>
           </button>
 
-          {nav.map((section, si) => (
+          {normalSections.map((section, si) => (
             <div key={section.title} className={cn('mb-4', si > 0 && 'mt-5')}>
-              {/* Section label */}
               <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tg-fg-faint)] font-brand select-none">
                 {section.title}
               </p>
@@ -133,6 +146,46 @@ export function Sidebar({ nav, isOpen, onClose }: SidebarProps) {
               </div>
             </div>
           ))}
+
+          {/* Legacy toggle */}
+          {legacySections.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-[var(--tg-line)]">
+              <button
+                onClick={() => onLegacyToggle(!showLegacy)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-[var(--tg-line-soft)] transition-colors duration-150 group"
+              >
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tg-fg-faint)] font-brand select-none group-hover:text-[var(--tg-fg-dim)]">
+                  Legacy Docs
+                </span>
+                <div className={cn(
+                  'relative w-7 h-4 rounded-full transition-colors duration-200 flex-shrink-0',
+                  showLegacy ? 'bg-amber-500/70' : 'bg-[var(--tg-line-strong)]'
+                )}>
+                  <div className={cn(
+                    'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200',
+                    showLegacy ? 'translate-x-3.5' : 'translate-x-0.5'
+                  )} />
+                </div>
+              </button>
+
+              {showLegacy && (
+                <div className="mt-3 space-y-4">
+                  {legacySections.map((section) => (
+                    <div key={section.title}>
+                      <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tg-fg-faint)] font-brand select-none">
+                        {section.title.replace(/\s*\(Legacy\)/i, '')}
+                      </p>
+                      <div className="space-y-px">
+                        {section.items.map((item) => (
+                          <NavItemRow key={item.href} item={item} onNavigate={handleNavigate} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
       </aside>
     </>
