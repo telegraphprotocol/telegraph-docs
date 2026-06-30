@@ -61,9 +61,7 @@ The actual price an agent pays can be higher, depending on demand for that Inten
 
 **Signal price = min_price_usdc × demand_multiplier**
 
-A miner with a $0.01 floor that handles a popular Intent generating 5,000 requests per day would charge $0.015 per call at the 1.5× tier. This aligns miner earnings with the market value of their service.
-
-Note: demand tier multipliers are currently unconfigured on testnet (all tiers return 1.0×). They will be configured at mainnet launch.
+A miner with a $0.01 floor that handles a popular Intent generating 5,000 requests per day charges $0.015 per call at the 1.5× tier. This aligns miner earnings with the market value of their service. The multipliers are driven by a rolling 24-hour volume count per Intent.
 
 ## Protocol Fee
 

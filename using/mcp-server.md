@@ -4,7 +4,7 @@ description: Connect any MCP-compatible AI agent to Telegraph for decentralized 
 
 # Telegraph MCP Server
 
-The Telegraph MCP Server is a local Node.js process that exposes the full Telegraph inference network as [Model Context Protocol](https://modelcontextprotocol.io) tools. Any agent runtime that speaks MCP — Claude Desktop, Cursor, ElizaOS, LangChain, OpenClaw, Goose, VS Code / Continue — gains access to Bittensor subnets, the Daemon signal feed, and on-demand Engine inference without writing a single line of payment or blockchain code.
+The Telegraph MCP Server is a local Node.js process that exposes the full Telegraph inference network as [Model Context Protocol](https://modelcontextprotocol.io) tools. Any agent runtime that speaks MCP — Claude Desktop, Cursor, ElizaOS, LangChain, OpenClaw, Goose, VS Code / Continue — gains access to Telegraph's miners, the Daemon signal feed, and on-demand Engine inference without writing a single line of payment or blockchain code.
 
 **x402 payments are handled entirely inside the MCP server process.** The agent calls a tool, the server pays, the agent gets the result.
 
@@ -28,8 +28,8 @@ Your Agent (Claude / Cursor / ElizaOS / LangChain / etc.)
 │  └────────────┘  └────────────┘  └──────────────────┘  │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │  Dynamic subnet tools (auto-discovered, x402)   │   │
-│  │  Zeus SN18 · BitMind SN34 · OpenAI SN102 · …   │   │
+│  │  Dynamic miner tools (auto-discovered, x402)    │   │
+│  │  Zeus 18 · BitMind 34 · Groq 101 · OpenAI 102  │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  x402 payment layer (transparent):                      │
@@ -110,7 +110,7 @@ npm run inspect
 | `TELEGRAPH_SOLANA_PRIVATE_KEY` | No* | — | Solana private key (base58) |
 | `EVM_NETWORK` | No | `eip155:*` | CAIP-2 network for EVM payments |
 | `SVM_NETWORK` | No | `solana:*` | CAIP-2 network for SVM payments |
-| `REFRESH_INTERVAL_MS` | No | `300000` | Dynamic subnet refresh interval. `0` to disable. |
+| `REFRESH_INTERVAL_MS` | No | `300000` | Dynamic miner-tool refresh interval. `0` to disable. |
 
 *At least one private key must be set.
 
@@ -123,20 +123,20 @@ npm run inspect
 | Tool | Endpoint | Description |
 |---|---|---|
 | `tg_node_status` | `GET /status` | Node identity, public key, chain connection info |
-| `tg_node_subnets_health` | `GET /api/subnets/health` | Health check for all loaded subnet integrations |
-| `tg_node_list_subnets` | `GET /miner-dispatcher/integrations` | Full subnet catalog: IDs, schemas, endpoints, signal mappings |
+| `tg_node_subnets_health` | `GET /api/subnets/health` | Health check for all loaded miner integrations |
+| `tg_node_list_subnets` | `GET /miner-dispatcher/integrations` | Full miner catalog: IDs, schemas, endpoints, signal mappings |
 
 ### Engine Tools
 
 | Tool | Payment | Description |
 |---|---|---|
-| `tg_engine_list_subnets` | Free | List available inference subnets from the Engine |
-| `tg_engine_ask` | x402 ~$0.01 | Auto-routed inference — Engine LLM selects the best subnet for your query |
-| `tg_engine_ask_subnet` | x402 ~$0.01 | Direct inference through a specific subnet by ID |
+| `tg_engine_list_subnets` | Free | List the miners the Engine can route to |
+| `tg_engine_ask` | x402 ~$0.01 | Auto-routed inference — Engine LLM selects the best miner for your query |
+| `tg_engine_ask_subnet` | x402 ~$0.01 | Direct inference through a specific miner by ID |
 
 `tg_engine_ask` accepts a single `query` string. The Engine's internal LLM router classifies it and routes to the most appropriate miner automatically.
 
-`tg_engine_ask_subnet` accepts `subnet_id`, `method`, `endpoint`, and `payload` — use `tg_engine_list_subnets` to discover valid subnet IDs and endpoint shapes.
+`tg_engine_ask_subnet` accepts `subnet_id`, `method`, `endpoint`, and `payload` — use `tg_engine_list_subnets` to discover valid miner IDs and endpoint shapes. (The `subnet` in these tool and parameter names is legacy naming for a miner.)
 
 ### Daemon Tools — no payment required
 
@@ -158,19 +158,20 @@ npm run inspect
 | `limit` | number | Max results (default: 10) |
 | `offset` | number | Pagination offset |
 
-### Dynamic Subnet Tools — auto-discovered, x402 payment
+### Dynamic Miner Tools — auto-discovered, x402 payment
 
-These tools are not hardcoded. On startup and every 5 minutes, the MCP server fetches the live integration registry from the Telegraph node, diffs against registered tools, and adds or removes tools as subnets change on-chain. Connected clients receive a `notifications/tools/list_changed` notification automatically.
+These tools are not hardcoded. On startup and every 5 minutes, the MCP server fetches the live integration registry from the Telegraph node, diffs against registered tools, and adds or removes tools as miners change on-chain. Connected clients receive a `notifications/tools/list_changed` notification automatically.
 
-Current subnets on testnet:
+Miners live on testnet at the time of writing:
 
-| Subnet | Auto-generated tools |
+| Miner | Auto-generated tools |
 |---|---|
-| **Zeus SN18** (Weather forecasting) | `tg_zeus_predict` |
-| **BitMind SN34** (Deepfake detection) | `tg_bitmind_detect_image`, `tg_bitmind_detect_video`, `tg_bitmind_preprocess_video`, `tg_bitmind_get_video_upload_url` |
-| **OpenAI SN102** (LLM / Images) | `tg_openai_chat`, `tg_openai_responses`, `tg_openai_embed`, `tg_openai_images_generate`, `tg_openai_moderate` |
+| **Zeus (18)** — Weather forecasting | `tg_zeus_predict` |
+| **BitMind (34)** — Deepfake detection | `tg_bitmind_detect_image`, `tg_bitmind_detect_video`, `tg_bitmind_preprocess_video`, `tg_bitmind_get_video_upload_url` |
+| **Groq Compound (101)** — Web search | `tg_groq_compound_*` |
+| **OpenAI (102)** — LLM / images | `tg_openai_chat`, `tg_openai_responses`, `tg_openai_embed`, `tg_openai_images_generate`, `tg_openai_moderate` |
 
-New subnets registered on-chain appear as tools within 5 minutes. No MCP server restart needed.
+The live set changes on-chain — newly registered miners appear as tools within 5 minutes, with no MCP server restart. Treat this table as a snapshot, not the source of truth.
 
 ---
 

@@ -14,7 +14,8 @@
 ## Using Telegraph
 
 * [Direct x402 Inference](using/x402-inference.md)
-* [Direct Ask from Engine](using/engine-ask.md)
+* [Engine Inference](using/engine-ask.md)
+* [Daemon Signal Feed](using/daemon-signals.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
 * [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)
 * [MCP Server](using/mcp-server.md)

@@ -4,9 +4,9 @@ description: What miners are, how they earn, how routing works, and what the lea
 
 # What Miners Do
 
-Miners are the supply side of the Telegraph protocol. They expose AI capabilities — a Bittensor subnet, an open-source model, a proprietary API — through a standardized interface and earn MACHINA whenever their responses are selected and used.
+Miners are the supply side of the Telegraph protocol. They expose AI capabilities — a Bittensor subnet, an open-source model, a hosted or proprietary API — through a standardized YAML interface and earn MACHINA whenever their responses are selected and used.
 
-Becoming a miner doesn't require permission, a whitelist, or a relationship with the Telegraph team. Any operator with an AI API and 100 MACHINA to bond can register.
+Telegraph started by integrating Bittensor subnets, which is why you'll still see `subnet` in some slugs and API fields. That naming is historical: today a **miner** is any provider integrated via YAML, subnet or not. Becoming one doesn't require permission, a whitelist, or a relationship with the Telegraph team — any operator with an AI API and 100 MACHINA to bond can register.
 
 ## How Miners Earn
 
@@ -86,18 +86,20 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 
 ## Current Active Miners (Testnet)
 
-The testnet currently has 12 registered miners, 5 of which are deregistered. Active miners include:
+The live miner set changes as operators register and deregister on-chain, so the authoritative list is always the discovery endpoint and the interface — not this page. At the time of writing, the active testnet miners are:
 
-| Subnet | Capability | Floor Price |
-|---|---|---|
-| SN1 Apex | Bittensor text generation | $0.03 |
-| SN18 Zeus | Weather forecasting | $0.01 |
-| SN32 ItsAI | AI text detection | $0.01 |
-| SN33 Sapling | AI content detection | — |
-| SN34 BitMind | Deepfake / media authenticity | $0.02 |
-| OpenAI | LLM inference (GPT-4o-mini) | $0.05 |
+| ID | Miner | Capability | Floor Price |
+|---|---|---|---|
+| 18 | Zeus (SN18) | Weather forecasting | $0.01 |
+| 34 | BitMind (SN34) | Deepfake / media authenticity | $0.02 |
+| 101 | Groq Compound | Web search / current events | $0.05 |
+| 102 | OpenAI | LLM, images, embeddings | $0.05 |
+
+**See the live set two ways:**
+- **Interface:** the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal) shows active miners and the signals they produce.
+- **API:** `GET http://13.237.89.59:7044/miner-dispatcher/integrations` returns the current catalog with schemas and prices.
 
 ## Next Steps
 
-- **[YAML Configuration](yaml-config.md)** — how to write your miner's configuration file
-- **[Registering as a Miner](miner-registration.md)** — how to register on-chain and go live
+- **[YAML Configuration](yaml-config.md)** — how to write your miner's configuration file.
+- **[Registering as a Miner](miner-registration.md)** — how to register on-chain and go live.

@@ -80,9 +80,9 @@ Available actions on the WebSocket connection:
 | `subscribe` | Yes | Start receiving Daemon signals for specified intents |
 | `unsubscribe` | Yes | Stop receiving signals for a subscription |
 | `list_subscriptions` | Yes | See your current active subscriptions |
-| `list_subnets` | No | See loaded subnet/miner catalog |
+| `list_subnets` | No | See the loaded miner catalog |
 | `ask` | No | Request live on-demand inference (routed automatically) |
-| `ask_direct` | No | Route directly to a specific subnet by ID |
+| `ask_direct` | No | Route directly to a specific miner by ID |
 | `ping` | No | Keep the connection alive |
 
 The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer. These are live calls, not reads from the cached history.
@@ -124,9 +124,7 @@ Signals don't arrive continuously — they arrive in batches when the Daemon com
 3. Questions are routed to the appropriate miners via the miner dispatcher.
 4. Miner responses are received, stored, and published to WebSocket subscribers.
 
-If you connect and nothing arrives within minutes, that's expected — the next Daemon cycle will deliver signals when it runs. You can query the Daemon's existing results immediately via `GET /daemon/api/questions` while waiting for new signals.
-
-**Currently active signal categories on testnet:** PHARMA (72 results), TECHNOLOGY (15), CLIMATE (5), HEALTH (4), ECONOMICS (4), GEOPOLITICS (2), SCIENCE (1).
+If you connect and nothing arrives within minutes, that's expected — the next Daemon cycle will deliver signals when it runs. To read what the Daemon has already produced (instead of waiting for the next push), use the [Daemon Signal Feed](daemon-signals.md) API.
 
 ## How Delivery is Settled
 

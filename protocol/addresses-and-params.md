@@ -12,11 +12,17 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 |---|---|
 | **Diamond (Port)** | `0x45b0A6e07E2e15D203f3B5285945c549221f5b0a` |
 | **MACHINA Token** | `0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7` |
-| **USDC (for x402 payments)** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| **USDC — x402 micropayments** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| **USDC — Diamond escrow & jobs** | `0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18` |
 | **Treasury** | `0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9` |
 | **x402 Payment Receiver** | `0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8` |
 
-> **Note on USDC:** Two USDC-compatible tokens exist on Base Sepolia. The x402 payment gate uses `0x036CbD5...` (the canonical Base Sepolia bridged USDC). The Diamond's internal escrow references `0xfFC3a7e0...` (a test token). Use `0x036CbD5...` when paying for inference via x402.
+> **Why there are two USDC addresses.** The protocol uses two distinct USDC tokens on testnet, by design:
+>
+> - **`0x036CbD5...`** is Circle's canonical Base Sepolia USDC. The **x402 payment gate** uses it because pay-per-call inference settles through the PayAI facilitator, which works in the standard testnet USDC that wallets and faucets already issue. Use this token when paying for inference via x402.
+> - **`0xfFC3a7e0...`** is the protocol's own test USDC, configured on the Diamond via `setUSDCToken`. The **on-chain escrow, ERC-8183 jobs, and settlement** facets use it — it's freely mintable for testing so you can fund jobs and WebSocket escrow without competing for faucet USDC.
+>
+> On mainnet both roles collapse onto a single canonical USDC. The split exists only because testnet separates "real" faucet USDC (for x402) from a mintable test token (for on-chain escrow).
 
 ### Network Configuration
 
@@ -112,7 +118,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | 100,000 – 999,999 | 5.0× |
 | 1,000,000+ | 10.0× |
 
-> Demand tiers are not yet configured on testnet. All requests currently price at 1.0× the miner's floor price.
+The charged price for any call is `min_price_usdc × multiplier`, where the multiplier is selected from the rolling 24-hour request volume for that Intent. These tiers are live on testnet — a miner's effective price rises automatically with demand and returns to the floor when demand subsides.
 
 ### Gas & Escrow
 

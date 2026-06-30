@@ -10,7 +10,7 @@ Every YAML you register is public. Agents and validators can read it to understa
 
 ## Minimal Example
 
-This is the simplest valid miner YAML — a weather forecasting subnet:
+This is the simplest valid miner YAML — a weather forecasting miner:
 
 ```yaml
 version: "1"
@@ -52,7 +52,7 @@ semantics:
 |---|---|---|
 | `version` | Yes | Always `"1"` |
 | `kind` | Yes | `"miner"` for on-demand inference, `"validator"` for polled data |
-| `id` | Yes | Numeric subnet ID used in API paths (`/miner-dispatcher/v1/{id}/...`) |
+| `id` | Yes | Numeric miner ID used in API paths (`/miner-dispatcher/v1/{id}/...`) |
 | `slug` | Yes | kebab-case identifier, must be unique (e.g., `bittensor-sn18-zeus`) |
 | `protocol` | No | `"bittensor"` (default) or `"generic"` |
 | `name` | Yes | Human-readable display name |

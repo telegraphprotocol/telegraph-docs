@@ -114,11 +114,11 @@ This emits a `JobCreated` event with:
 | `minerPayment` | 98% of budget → miner (via TWAP) |
 | `protocolFee` | 2% of budget → Treasury |
 
-All 61 live jobs on testnet show the same split: budget=10000 (0.01 USDC) → minerPayment=9800 + protocolFee=200.
+The split is always 98% / 2%. For a $0.01 budget (`10000`), that's `minerPayment=9800` + `protocolFee=200`.
 
 ## Step 4: Implement the Callback
 
-Your callback contract must implement `subnetMessage`. This function is called by the protocol after BFT finalization:
+Your callback contract must implement `subnetMessage` (the name is legacy — it delivers a miner's result). It is called by the protocol after BFT finalization:
 
 ```solidity
 function subnetMessage(
@@ -173,9 +173,9 @@ Only the original `agent` can cancel. Cancelled jobs return the USDC budget to y
 
 ## Budget and Pricing
 
-The minimum job budget is set by the target miner's floor price × the current demand multiplier. At genesis on testnet with unconfigured demand tiers, all jobs cost 0.01 USDC (10,000 in 6-decimal units).
+The minimum job budget is the target miner's floor price × the current [demand multiplier](../protocol/addresses-and-params.md#demand-multiplier-tiers) for its Intent. A miner at the $0.01 floor with no demand pressure costs 0.01 USDC (`10000` in 6-decimal units); the same miner under load costs more.
 
-Check the current price before creating a job by reading the miner's `minPriceUsdc` from the Diamond:
+Check the floor price before creating a job by reading the miner's `minPriceUsdc` from the Diamond:
 
 ```bash
 cast call 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a \

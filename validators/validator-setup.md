@@ -42,7 +42,7 @@ sudo mv telegraph-linux-amd64 /usr/local/bin/telegraph
 Or build from source:
 
 ```bash
-git clone https://github.com/telegraph-network/Telegraph.git
+git clone https://github.com/telegraphprotocol/Telegraph.git
 cd Telegraph
 go build -o telegraph .
 sudo mv telegraph /usr/local/bin/telegraph
@@ -100,7 +100,7 @@ FACILITATOR_URL=https://facilitator.payai.network
 BASE_RECEIVING_ADDRESS=0x<your-evm-address>
 SOLANA_RECEIVING_ADDRESS=<your-solana-address>
 
-# ─── Subnet API Keys ──────────────────────────────────────────────────────────
+# ─── Miner API Keys (upstream provider credentials) ─────────────────────────────
 ZEUS_API_KEY=boreas_...
 BITMIND_API_KEY=bitmind-...
 GROQ_API_KEY=gsk_...
@@ -126,7 +126,7 @@ OPERATOR_KEY=0x...                 # Optional separate operator key
 | 7044 | Main HTTP API (miner dispatcher, engine, daemon, admin) |
 | 4001 | P2P libp2p (QUIC) — peer discovery and communication |
 | 8080 | Engine sub-process (internal; Engine routes through 7044) |
-| 3000 | Next.js frontend (if the Signal Agora UI is running) |
+| 3000 | Next.js frontend (if the Intelligence Terminal UI is running) |
 
 Open port **7044** and **4001** in your firewall. Keep 8080 internal (localhost only) and 3000 optional.
 

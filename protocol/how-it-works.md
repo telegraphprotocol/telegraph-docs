@@ -61,17 +61,17 @@ Once a request is finalized:
 - For **WebSocket subscribers**: the finalized signal is pushed to subscribed clients after BFT finalization. Delivery is logged on-chain per subscriber per signal.
 - For **on-chain jobs** (ERC-8183): the Leader executes a callback transaction, calling `subnetMessage()` on the agent's callback contract with the result.
 
-## The Autonomous Engine Loop
+## The Autonomous Daemon Loop
 
-The protocol doesn't wait for agents to ask questions. The Daemon runs on a configurable cycle (every 3 hours in production) and proactively:
+The protocol doesn't wait for agents to ask questions. The **Daemon** — a service separate from the on-demand Engine — runs on a configurable cycle (every 3 hours in production) and proactively:
 
-1. Runs registered **Collectors** — YAML-configured scrapers that pull data from off-chain sources (e.g., weather APIs, clinical trial databases, market feeds).
+1. Runs registered **Collectors** — YAML-configured scrapers that pull data from off-chain sources (e.g., weather APIs, market feeds, news and social feeds).
 2. Uses an LLM router to classify collected data into Intents and formulate inference questions.
-3. Routes those questions through the miner mesh.
-4. Stores finalized results in the database.
-5. Publishes results to WebSocket subscribers.
+3. Routes those questions through the Engine to the miner mesh.
+4. Stores the results in its database.
+5. Serves them read-only over HTTP and pushes new ones to WebSocket subscribers.
 
-This means the network is continuously producing verified intelligence even without active agent demand — building a track record for miners and validators before organic usage scales.
+This means the network is continuously producing verified intelligence even without active agent demand — building a track record for miners and validators before organic usage scales. These autonomously generated signals are what the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal) displays; you can also read them directly via the [Daemon Signal Feed](../using/daemon-signals.md). The Daemon generates its own questions on a schedule; the Engine answers *your* questions on demand — the two are distinct.
 
 ## Off-Chain Execution, On-Chain Security
 
