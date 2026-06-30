@@ -44,14 +44,14 @@ Returns a paginated list of signals. Each item is a stored result:
       "status": "success",
       "created_at": "2026-06-26T18:42:11Z",
       "question": {
-        "text": "Will the NBA Finals 2026 go to a Game 7?",
-        "category": "SPORTS",
+        "text": "Will Riyadh exceed 40°C in the next 24 hours?",
+        "category": "CLIMATE",
         "interest_score": 7.4
       },
       "routing": {
-        "subnet_name": "groq-compound",
-        "reasoning": "Sports / current-events lookup — routed to Groq Compound search.",
-        "intent": "current_events"
+        "subnet_name": "bittensor-sn18-zeus",
+        "reasoning": "Weather risk question — routed to Zeus for meteorological forecasting.",
+        "intent": "weather_forecast"
       },
       "execution": {
         "result": { "...miner output..." },

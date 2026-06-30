@@ -29,7 +29,7 @@ Your Agent (Claude / Cursor / ElizaOS / LangChain / etc.)
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │  Dynamic miner tools (auto-discovered, x402)    │   │
-│  │  Zeus 18 · BitMind 34 · Groq 101 · OpenAI 102  │   │
+│  │  Zeus 18 · ItsAI 32 · BitMind 34 · OpenAI 102  │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  x402 payment layer (transparent):                      │
@@ -167,8 +167,9 @@ Miners live on testnet at the time of writing:
 | Miner | Auto-generated tools |
 |---|---|
 | **Zeus (18)** — Weather forecasting | `tg_zeus_predict` |
+| **ItsAI (32)** — AI text detection | `tg_itsai_text_detector_detect` |
+| **Sapling (33)** — AI content detection | `tg_sapling_ai_detector_detect` |
 | **BitMind (34)** — Deepfake detection | `tg_bitmind_detect_image`, `tg_bitmind_detect_video`, `tg_bitmind_preprocess_video`, `tg_bitmind_get_video_upload_url` |
-| **Groq Compound (101)** — Web search | `tg_groq_compound_*` |
 | **OpenAI (102)** — LLM / images | `tg_openai_chat`, `tg_openai_responses`, `tg_openai_embed`, `tg_openai_images_generate`, `tg_openai_moderate` |
 
 The live set changes on-chain — newly registered miners appear as tools within 5 minutes, with no MCP server restart. Treat this table as a snapshot, not the source of truth.

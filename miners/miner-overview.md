@@ -91,8 +91,9 @@ The live miner set changes as operators register and deregister on-chain, so the
 | ID | Miner | Capability | Floor Price |
 |---|---|---|---|
 | 18 | Zeus (SN18) | Weather forecasting | $0.01 |
+| 32 | ItsAI (SN32) | AI text detection | $0.01 |
+| 33 | Sapling | AI content detection | — |
 | 34 | BitMind (SN34) | Deepfake / media authenticity | $0.02 |
-| 101 | Groq Compound | Web search / current events | $0.05 |
 | 102 | OpenAI | LLM, images, embeddings | $0.05 |
 
 **See the live set two ways:**

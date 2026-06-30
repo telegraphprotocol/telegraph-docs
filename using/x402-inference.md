@@ -27,8 +27,9 @@ This returns a JSON array of all registered miners with their endpoints, input/o
 | ID | Slug | Capability | Min Price |
 |---|---|---|---|
 | 18 | bittensor-sn18-zeus | Weather forecasting | $0.01 |
+| 32 | itsai-text-detector | AI text detection | $0.01 |
+| 33 | sapling-ai-detector | AI content detection | — |
 | 34 | bittensor-sn34-bitmind | Deepfake / media authenticity | $0.02 |
-| 101 | groq-compound | Web search / current events | $0.05 |
 | 102 | openai | LLM, images, embeddings | $0.05 |
 
 You can also browse the live miner set and their output on the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal).
