@@ -40,7 +40,7 @@ Deregistered miners are removed from routing immediately on live nodes, and caug
 
 To register a YAML miner on-chain, call `registerMiner` on the Telegraph Diamond contract deployed on Base Sepolia.
 
-**Diamond address (Base Sepolia):** `0x45b0A6e07E2e15D203f3B5285945c549221f5b0a`
+**Diamond address (Base Sepolia):** `0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3`
 
 ### Computing the YAML Hash
 
@@ -55,7 +55,7 @@ Do NOT use keccak256 — the node verifies using SHA-256.
 ### Registration Example
 
 ```bash
-DIAMOND="0x45b0A6e07E2e15D203f3B5285945c549221f5b0a"
+DIAMOND="0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3"
 RPC="https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7"
 
 YAML_URL="ipfs://bafkreig5nxc..."

@@ -10,7 +10,7 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 
 | Contract | Address |
 |---|---|
-| **Diamond (Port)** | `0x45b0A6e07E2e15D203f3B5285945c549221f5b0a` |
+| **Diamond (Port)** | `0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3` |
 | **MACHINA Token** | `0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7` |
 | **USDC — x402 micropayments** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 | **USDC — Diamond escrow & jobs** | `0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18` |

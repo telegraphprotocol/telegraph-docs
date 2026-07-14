@@ -14,7 +14,7 @@ Below are the **Diamond (Port)** contract addresses used by the Telegraph networ
 
 | Chain            | Name            | Chain ID | Diamond (Port) Address |
 | ---------------- | --------------- | -------- | ---------------------- |
-| Base Sepolia     | Base-Sepolia    | 84532    | `0x45b0A6e07E2e15D203f3B5285945c549221f5b0a` |
+| Base Sepolia     | Base-Sepolia    | 84532    | `0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3` |
 | Avalanche Fuji   | Avalanche-Fuji  | 43113    | `0xB966DC4C3f3Def1256fbaB76C132cab7723dfdC6` |
 
 The Base Sepolia Diamond is a full redeployment with 18 facets including the new JobFacet (ERC-8183 job creation and auto-resolution), SettlementFacet (epoch-based miner payouts), and PricingFacet (demand-tier dynamic pricing).

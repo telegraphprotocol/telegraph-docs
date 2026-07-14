@@ -42,7 +42,7 @@ For HTTPS: `https://your-host.com/miner.yaml`
 Call `registerMiner` on the Diamond contract. Set your environment variables first:
 
 ```bash
-export DIAMOND="0x45b0A6e07E2e15D203f3B5285945c549221f5b0a"
+export DIAMOND="0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3"
 export RPC="https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"
 export YAML_URL="ipfs://bafkreig5nxc..."
 export YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"

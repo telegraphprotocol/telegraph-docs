@@ -68,7 +68,7 @@ EVM_HTTP_URL=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
 EVM_WSS_URL=wss://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
 
 # ─── Contract Addresses ───────────────────────────────────────────────────────
-DIAMOND_ADDRESS=0x45b0A6e07E2e15D203f3B5285945c549221f5b0a
+DIAMOND_ADDRESS=0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3
 USDC_ADDRESS=0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18
 MACHINA_ADDRESS=0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7
 
@@ -188,7 +188,7 @@ Check that the node is loading miners from the on-chain registry by watching sta
 Once your node is running and synced, register your Operator Key as a signer:
 
 ```bash
-cast send 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a \
+cast send 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
   "addSigner(bytes,address,string,string)" \
   <pubkey-bytes> \
   <operator-key-address> \
@@ -201,7 +201,7 @@ cast send 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a \
 After registration, your node's wallet should appear in the signer list:
 
 ```bash
-cast call 0x45b0A6e07E2e15D203f3B5285945c549221f5b0a \
+cast call 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
   "getSigners()" \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
 ```
