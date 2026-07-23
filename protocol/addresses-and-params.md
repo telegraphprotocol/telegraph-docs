@@ -38,11 +38,19 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 
 | Service | URL |
 |---|---|
-| **Miner Dispatcher** | `http://13.237.89.59:7044/miner-dispatcher/` |
-| **Engine** | `http://13.237.89.59:7044/engine/` |
-| **Daemon API** | `http://13.237.89.59:7044/daemon/` |
+| **HTTP API** | `http://13.237.89.59:7044` |
+| **Engine Ask** | `http://13.237.89.59:7044/engine/v1/ask` |
 | **WebSocket** | `ws://13.237.89.59:7044/engine/ws` |
 | **x402 Facilitator** | `https://facilitator.payai.network` |
+
+### Active Miners (Testnet)
+
+| Miner | Intents |
+|---|---|
+| LiteLLM | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, WEB_SEARCH |
+| Telegraph Chatbot | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, TELEGRAPH_KNOWLEDGE |
+| Zeus (Bittensor SN18) | WEATHER_CHECK, WEATHER_FORECAST, STORM_ALERT, WEATHER_RISK_ASSESSMENT |
+| BitMind (Bittensor SN34) | DEEPFAKE_DETECTION, IMAGE_VERIFICATION, VIDEO_VERIFICATION, MEDIA_AUTHENTICITY_CHECK |
 
 ---
 

@@ -59,6 +59,31 @@ semantics:
 | `description` | No | Description for routing context and documentation |
 | `base_url` | Yes | Upstream API base URL (must start with `https://`) |
 
+### Docs (Optional)
+
+| Field | Description |
+|---|---|
+| `docs.website` | Official website URL |
+| `docs.documentation` | API documentation URL |
+| `docs.repository` | Source code repository URL |
+| `docs.twitter` | Twitter/X handle or profile URL |
+| `docs.discord` | Discord server invite URL |
+
+### Limitations (Optional)
+
+Declare known constraints the integration enforces. Machine-enforced codes: `MAX_BODY_SIZE`, `MAX_PARAM_SIZE`, `MAX_PARAM_VALUE`, `MAX_PARAM_COUNT`.
+
+Each entry:
+| Field | Required | Description |
+|---|---|---|
+| `code` | Yes | Machine-readable code (UPPER_SNAKE_CASE) |
+| `message` | Yes | Human-readable description |
+| `param` | No | Request body key this applies to |
+| `property` | No | `size_bytes`, `value`, `length`, or `count` |
+| `value_bytes` | No | Byte threshold |
+| `value_num` | No | Numeric threshold |
+| `operator` | No | `lte`, `gte`, `lt`, `gt`, or `eq` |
+
 ### Auth
 
 | Field | Required | Description |
@@ -66,6 +91,7 @@ semantics:
 | `auth.type` | Yes | `"bearer"`, `"header"`, or `"none"` |
 | `auth.env_var` | If type ≠ none | The **name** of an environment variable holding your API key. Never put the raw key in the YAML. |
 | `auth.header_name` | No | Header to inject the key into. Defaults to `Authorization` for `bearer`. |
+| `auth.value_prefix` | No | Prefix prepended to the key value (e.g., `"APIKey "`, `"Token "`). Defaults to `"Bearer "` for bearer auth. |
 
 The node reads the environment variable at runtime. Your API key is never stored on-chain — only the `env_var` name is.
 
@@ -88,27 +114,16 @@ The `semantics` block defines what your API does and how validators should inter
 
 | Field | Required | Description |
 |---|---|---|
-| `semantics.signal_mapping.type` | Yes | Canonical signal type (see table below) |
 | `semantics.signal_mapping.confidence_field` | No | Response field holding a 0–1 confidence score |
 | `semantics.signal_mapping.label_field` | No | Response field holding the primary decision |
 | `semantics.signal_mapping.reason_field` | No | Response field holding reasoning text |
 | `semantics.supported_intents` | Yes | List of canonical Intent strings this miner can fulfill |
 
-**Canonical signal types:**
-
-| Type | Use case |
-|---|---|
-| `language_response` | LLM completions, chat |
-| `weather_risk` | Weather forecasting and alerts |
-| `media_authenticity` | Deepfake and AI-content detection |
-| `text_authenticity` | AI text detection |
-| `search_relevance` | Web search results |
-| `multimodal_response` | Image generation, vision tasks |
-| `task_completion` | Agent task execution |
+**IMPORTANT:** The `signal_mapping` only accepts `confidence_field`, `label_field`, and `reason_field`. The `type` field is not allowed.
 
 **Canonical Intents (declare at least one):**
 
-`LANGUAGE_GENERATION`, `CHAT_COMPLETION`, `TEXT_GENERATION`, `HIGH_PERFORMANCE_INFERENCE`, `EMBEDDINGS`, `CONTENT_MODERATION`, `WEATHER_CHECK`, `STORM_ALERT`, `WEATHER_FORECAST`, `WEATHER_RISK_ASSESSMENT`, `MULTIMODAL_INFERENCE`, `IMAGE_GENERATION`, `TEXT_TO_IMAGE`, `TASK_COMPLETION`, `AGENT_TASK`, `WEB_SEARCH`, `TWITTER_SEARCH`, `NEWS_SEARCH`, `RESEARCH_SYNTHESIS`, `FACT_CHECK`, `TEXT_AUTHENTICITY_CHECK`, `AI_TEXT_DETECTION`, `CONTENT_VERIFICATION`, `DEEPFAKE_DETECTION`, `MEDIA_AUTHENTICITY_CHECK`, `IMAGE_VERIFICATION`, `VIDEO_VERIFICATION`
+`CHAT_COMPLETION`, `LANGUAGE_GENERATION`, `TASK_COMPLETION`, `AGENT_TASK`, `WEB_SEARCH`, `WEATHER_CHECK`, `WEATHER_FORECAST`, `WEATHER_RISK_ASSESSMENT`, `STORM_ALERT`, `DEEPFAKE_DETECTION`, `IMAGE_VERIFICATION`, `VIDEO_VERIFICATION`, `MEDIA_AUTHENTICITY_CHECK`, `AI_DETECTION`, `TELEGRAPH_KNOWLEDGE`, `TEXT_GENERATION`, `HIGH_PERFORMANCE_INFERENCE`, `CONTENT_MODERATION`, `MULTIMODAL_INFERENCE`, `IMAGE_GENERATION`, `TEXT_TO_IMAGE`, `TWITTER_SEARCH`, `NEWS_SEARCH`, `RESEARCH_SYNTHESIS`, `FACT_CHECK`, `TEXT_AUTHENTICITY_CHECK`, `CONTENT_VERIFICATION`
 
 ### On-Chain Data Transform
 
@@ -180,7 +195,22 @@ on_chain:
         messages: { source: strings.1, format: chat_messages }
 ```
 
-**Source format:** `strings.N`, `numbers.N`, or `bools.N` to read from the respective `OnChainData` array at position N. The `format: chat_messages` shorthand handles alternating role/content pairs for LLM APIs automatically.
+**Source format:** `strings.N`, `numbers.N`, or `bools.N` to read from the respective `OnChainData` array at position N.
+
+The `format: chat_messages` shorthand reads alternating role/content pairs from the source index. For example, with `strings=["telegraph-assistant", "user", "What is 2+2"]` and `source: strings.1`, this produces `messages: [{"role":"user","content":"What is 2+2"}]`. Make sure there are at least 2 elements at the source index (one role + one content). For multiple messages, continue alternating: `role, content, role, content, ...`.
+
+**Available source options:**
+
+| Option | Description |
+|---|---|
+| `source: strings.N` | Value from the `strings[]` array |
+| `source: numbers.N` | Value from the `integers[]` array |
+| `source: bools.N` | Value from the `bools[]` array |
+| `format: chat_messages` | Builds role/content pairs from `strings[idx:]` for OpenAI-compatible APIs |
+| `type: float` | Parses the source string as a float64 |
+| `type: int` | Parses the source string as an int64 |
+| `optional: true` | Omits the field if the source is empty or out of range |
+| `content_type` | Per-request Content-Type override (e.g., `application/json`)
 
 ### Operational Settings (Optional)
 
@@ -275,5 +305,5 @@ This sandbox-tests every declared endpoint against your upstream API and reports
 | `slug` not kebab-case | Use lowercase letters and hyphens only |
 | Invalid `auth.type` | Must be `bearer`, `header`, or `none` |
 | Missing `supported_intents` | Add at least one canonical Intent string |
-| Invalid `signal_mapping.type` | Must be one of the 7 canonical signal types |
+| Invalid `signal_mapping` | Must use only `confidence_field`, `label_field`, and `reason_field` — the `type` field is not allowed |
 | Hash mismatch on registration | YAML content changed after you computed the hash — recompute |

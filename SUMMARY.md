@@ -32,6 +32,11 @@
 * [Key Management](validators/key-management.md)
 * [Node Setup](validators/validator-setup.md)
 
+## Deployment & Troubleshooting
+
+* [Deploying a Node](deployment.md)
+* [Troubleshooting Common Issues](troubleshooting.md)
+
 ## Getting Started (Legacy)
 
 * [Core Concepts](_archive/getting-started/core-concepts/README.md)

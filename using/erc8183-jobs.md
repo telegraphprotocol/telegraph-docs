@@ -88,16 +88,22 @@ struct OnChainData {
 }
 ```
 
-This struct is how you pass parameters to the miner. What goes in each array depends on the Intent — check the miner's YAML `on_chain.request` block for the expected format. For example, an LLM call would put the model name in `strings[0]` and the chat messages in `strings[1]`.
+This struct is how you pass parameters to the miner. What goes in each array depends on the Intent — check the miner's YAML `on_chain.request` block for the expected format. For an LLM chat completion, the `chat_messages` format expects role/content pairs from the source index:
 
-**Example using cast:**
+- `strings[0]` — model name (e.g., `"telegraph-assistant"`)
+- `strings[1]` — role (e.g., `"user"`)
+- `strings[2]` — content (e.g., `"What is 2+2?"`)
+
+For multiple messages, continue alternating role/content.
+
+**Example — Chat completion job:**
 
 ```bash
 cast send 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
-  "createJob(bytes32,(address[],uint256[],string[],bool[]),address)" \
+  "createJob(bytes32,(address[],uint256[],string[],bool[]),address)(uint256)" \
   "0xccd42820467c59d6f703fb6d0fe57d6303fbfaa893759ee493c29293adfdc1f7" \
-  "([],[],[\"gpt-4o-mini\",\"user:What is 2+2?\"],[])" \
-  "0xYourCallbackContract" \
+  '([],[],["telegraph-assistant","user","What is 2+2?"],[false])' \
+  "0x0000000000000000000000000000000000000000" \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY> \
   --private-key <YOUR_KEY>
 ```
