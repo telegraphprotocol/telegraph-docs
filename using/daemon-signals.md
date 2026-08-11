@@ -17,7 +17,7 @@ Every cycle (3 hours in production), the Daemon:
 1. Runs its **Collectors** — scrapers pointed at sources like Polymarket, GDELT, Reddit, Hacker News, and Open-Meteo.
 2. Scores the raw material into **questions**, each with a category and an interest score.
 3. Calls the Engine's `POST /v1/ask` to answer each question (tagged as internal traffic, so these calls fund themselves through the node operator — they are not billed to you).
-4. Writes the answered, scored results to its database (MongoDB).
+4. Writes the answered, scored results to its database (Postgres).
 5. Serves those results read-only over HTTP, and pushes new ones to [WebSocket subscribers](websocket-signals.md).
 
 The result is a continuously growing feed of verified signals that exists whether or not any agent is actively paying for inference.

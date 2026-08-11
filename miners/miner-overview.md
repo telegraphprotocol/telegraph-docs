@@ -86,15 +86,7 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 
 ## Current Active Miners (Testnet)
 
-The live miner set changes as operators register and deregister on-chain, so the authoritative list is always the discovery endpoint and the interface — not this page. At the time of writing, the active testnet miners are:
-
-| ID | Miner | Capability | Floor Price |
-|---|---|---|---|
-| 18 | Zeus (SN18) | Weather forecasting | $0.01 |
-| 32 | ItsAI (SN32) | AI text detection | $0.01 |
-| 33 | Sapling | AI content detection | — |
-| 34 | BitMind (SN34) | Deepfake / media authenticity | $0.02 |
-| 102 | OpenAI | LLM, images, embeddings | $0.05 |
+The live miner set changes as operators register and deregister on-chain, so there is no useful fixed list to publish here.
 
 **See the live set two ways:**
 - **Interface:** the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal) shows active miners and the signals they produce.

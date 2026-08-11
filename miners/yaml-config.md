@@ -52,7 +52,7 @@ semantics:
 |---|---|---|
 | `version` | Yes | Always `"1"` |
 | `kind` | Yes | `"miner"` for on-demand inference, `"validator"` for polled data |
-| `id` | Yes | Numeric miner ID used in API paths (`/miner-dispatcher/v1/{id}/...`) |
+| `id` | Yes | Numeric miner ID used in API paths (`/engine/v1/ask/{id}`) |
 | `slug` | Yes | kebab-case identifier, must be unique (e.g., `bittensor-sn18-zeus`) |
 | `protocol` | No | `"bittensor"` (default) or `"generic"` |
 | `name` | Yes | Human-readable display name |

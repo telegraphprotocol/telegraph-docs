@@ -215,7 +215,7 @@ The protocol penalizes validators for missed rounds. Monitor your node:
 journalctl -u telegraph -f | grep -i "missed\|error\|penalty"
 
 # Check node status
-curl http://localhost:7044/engine/v1/node/status
+curl http://localhost:7044/status
 ```
 
 Key things to monitor:
