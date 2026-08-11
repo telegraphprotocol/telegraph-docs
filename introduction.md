@@ -29,6 +29,7 @@ At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents 
 
 | I want to... | Go here |
 |---|---|
+| Take part in the hackathon | [Hackathon](hackathon.md) |
 | Understand the full protocol mechanics | [How It Works](protocol/how-it-works.md) |
 | Learn about MACHINA tokenomics | [Tokenomics](protocol/tokenomics.md) |
 | See contract addresses and key parameters | [Addresses & Parameters](protocol/addresses-and-params.md) |

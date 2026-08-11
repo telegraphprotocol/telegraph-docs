@@ -3,6 +3,7 @@
 ## What is Telegraph
 
 * [Introduction](introduction.md)
+* [Hackathon](hackathon.md)
 
 ## Protocol Reference
 

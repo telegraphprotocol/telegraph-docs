@@ -122,8 +122,6 @@ module load, so you can ignore this table entirely on a first module.
 | `breakdown_answer` | `(q_ptr, q_len, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> i32` | Returns a pointer to 5 consecutive `f32`s: `[relevance, correctness, lexical, length_quality, composite]`. Used only for debug introspection, never by the validation gates. Safe to omit. |
 | `rank_answer_cached` | `(qVecPtr, gtVecPtr: i32, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> f32` | Same as `rank_answer` but reuses precomputed 384-dim embeddings for the question and ground truth instead of re-embedding them. A speed optimisation for Stage 2 replay only; if absent, Stage 2 calls `rank_answer` per row. No effect on whether you pass. |
 | `embed` | `(ptr, len: i32) -> i32` | Returns a pointer to a 384-dim `f32` vector. Needed together with `rank_answer_cached` — the two are checked independently, so implement both or neither. |
-| `cosine_sim` | `(aPtr, bPtr, dim: i32) -> f32` | Reserved for future use; nothing calls it today. |
-| `bm25_score` | `(q_ptr, q_len, d_ptr, d_len: i32) -> f32` | Reserved for future use; nothing calls it today. |
 
 **Calling convention**: all strings cross the boundary as `(ptr: i32, len: i32)`
 pairs into the module's own linear memory — the host calls your `alloc(size)`
