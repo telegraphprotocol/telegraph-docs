@@ -10,7 +10,7 @@ This is the source repository for [docs.telegraphprotocol.com](https://docs.tele
 | `using/` | How to use Telegraph — x402 inference, engine API, WebSocket signals, ERC-8183 jobs |
 | `miners/` | How to become a miner — YAML config, registration |
 | `validators/` | How to run a validator — key management, node setup |
-| `_archive/` | Legacy documentation (historical reference) |
+| `_archive/` | Legacy documentation. Not published — kept for historical reference only. Do not link to it from live pages |
 | `troubleshooting.md` | Common issues and solutions |
 | `deployment.md` | Step-by-step node deployment |
 

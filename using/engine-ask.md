@@ -37,31 +37,36 @@ Content-Type: application/json
 | `query` | Yes | Natural-language question. The LLM router classifies it into an Intent and picks a miner. |
 | `context` | No | Object merged into the routed request body — use it to pass structured hints the miner understands. |
 
-The endpoint is gated by x402: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Direct x402 Inference](x402-inference.md).
+The endpoint is gated by x402: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Paying with x402](x402-inference.md).
 
 **Response (200):**
 
 ```json
 {
-  "subnet_used": "18",
-  "subnet_name": "zeus",
+  "miner_id": "18",
+  "miner_name": "zeus",
+  "endpoint": "/predict",
   "result": { "...miner's raw output..." },
-  "cost_usd": 0.0021,
+  "cost_usd": 0.01,
   "duration_ms": 412,
   "timestamp": "2026-06-26T19:24:42Z",
   "reasoning": "Weather forecast query — routed to Zeus for meteorological predictions.",
-  "intent": "weather_forecast"
+  "intent": "WEATHER_FORECAST",
+  "signal_hash": "0x7a44569d..."
 }
 ```
 
 | Field | Meaning |
 |---|---|
-| `subnet_used` / `subnet_name` | The miner the Engine selected (numeric ID and slug). |
+| `miner_id` / `miner_name` | The miner that served the request (numeric ID and slug). May be the fallback rather than the router's first pick. |
+| `endpoint` | The upstream path that was called. |
 | `result` | The miner's raw output. Shape varies per miner — always null-check before rendering. |
 | `cost_usd` | What the call cost, in USD (a number). |
 | `duration_ms` | Execution time in milliseconds. |
 | `reasoning` | Why the router chose this miner. Omitted when empty. |
 | `intent` | The Intent the router classified your query as. Omitted when empty. |
+| `signal_hash` | The hash this result was recorded under. Look it up at `GET /engine/v1/signal/{hash}`. Omitted when the ask failed. |
+| `warnings` | Advisory notes, e.g. your body is larger than the miner declared it accepts. The request still ran. Omitted when empty. |
 
 The `reasoning` field is useful for understanding and debugging routing decisions — it tells you, in plain language, why your query landed where it did.
 
@@ -74,6 +79,7 @@ POST /engine/v1/ask/{minerId}
 Content-Type: application/json
 
 {
+  "method": "POST",
   "endpoint": "/chat",
   "payload": {
     "model": "gpt-4o-mini",
@@ -82,22 +88,54 @@ Content-Type: application/json
 }
 ```
 
-Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners) (for example, `102` for OpenAI). The `endpoint` and `payload` must match what that miner's YAML declares.
+| Field | Required | Description |
+|---|---|---|
+| `method` | Yes | One of `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Leaving this out returns `400`. |
+| `endpoint` | Yes | The upstream path, e.g. `/chat`. Must match what the miner's YAML declares. |
+| `payload` | Yes | Sent as the request body, or as query parameters when `method` is `GET`. |
+| `acknowledge_warnings` | No | Run the request even if the node predicts it will fail — see below. |
+
+Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners) (for example, `102` for OpenAI).
 
 **Response (200):**
 
 ```json
 {
-  "subnet_id": "102",
-  "subnet_name": "openai",
+  "miner_id": "102",
+  "miner_name": "openai",
   "result": { "...miner's raw output..." },
-  "cost_usd": 0.0012,
+  "cost_usd": 0.01,
   "duration_ms": 650,
-  "timestamp": "2026-06-26T19:24:42Z"
+  "timestamp": "2026-06-26T19:24:42Z",
+  "signal_hash": "0x7a44569d..."
 }
 ```
 
 The direct path performs no routing, so the response has **no** `reasoning` or `intent` field. It is otherwise identical to the auto-routed response.
+
+### When the Engine expects your request to fail
+
+Before calling the miner, the node checks your request against what the miner said it accepts — body size, parameter limits, and how much of the miner's rate allowance is already used. If it expects a failure, it returns `422` and does **not** call the miner. Nothing is charged, because payment only settles on success.
+
+```json
+{
+  "error": "request is predicted to fail",
+  "warnings": [
+    "miner \"bittensor-sn34-bitmind\" has reached its rate limit — try another miner for this intent, or try again later"
+  ],
+  "proceed_anyway": {
+    "field": "acknowledge_warnings",
+    "value": true,
+    "note": "resend with this field set to run the request regardless; you are charged only if it runs"
+  }
+}
+```
+
+If you'd rather try anyway, resend with `"acknowledge_warnings": true`.
+
+Rate limits are counted per miner across the whole node — every caller draws on the same allowance — so if you hit one, switching to another miner for the same Intent usually works better than retrying.
+
+The auto-routed `/v1/ask` never returns `422`. It has a fallback miner lined up, so it warns instead of stopping.
 
 ## Listing Available Miners
 
@@ -132,7 +170,7 @@ The same `ask` and `ask_direct` operations are available over the Engine's WebSo
 |---|---|
 | You want the best miner picked automatically | Auto-routed `POST /v1/ask` |
 | You know exactly which miner and endpoint you need | Direct `POST /v1/ask/{minerId}` |
-| You want to manage payment and call a miner endpoint yourself | [Direct x402 Inference](x402-inference.md) |
+| You want to understand the payment flow itself | [Paying with x402](x402-inference.md) |
 | You want a live stream of routing events | [WebSocket Signals](websocket-signals.md) |
 | Your smart contract needs the result on-chain | [On-Chain Jobs (ERC-8183)](erc8183-jobs.md) |
 | You want to browse the Daemon's autonomously generated signals | [Daemon Signal Feed](daemon-signals.md) |

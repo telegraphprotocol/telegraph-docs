@@ -162,7 +162,7 @@ npm run inspect
 
 These tools are not hardcoded. On startup and every 5 minutes, the MCP server fetches the live integration registry from the Telegraph node, diffs against registered tools, and adds or removes tools as miners change on-chain. Connected clients receive a `notifications/tools/list_changed` notification automatically.
 
-Miners live on testnet at the time of writing:
+Tool names are derived from the miner's slug and its endpoints. For example:
 
 | Miner | Auto-generated tools |
 |---|---|
