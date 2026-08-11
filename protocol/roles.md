@@ -45,7 +45,7 @@ Miners earn MACHINA, but not from protocol emissions. The earning path is:
 The amount a miner earns per request depends on their declared floor price and the demand multiplier active for that Intent.
 
 **Requirements:**
-- 100 MACHINA stake bond per registration.
+- No bond or stake — registration costs gas and nothing else.
 - A hosted YAML configuration describing your capabilities.
 - An operational API endpoint compatible with the declared Intents.
 - A fee address (EVM wallet) to receive MACHINA payouts.
@@ -86,7 +86,7 @@ Script Authors write the WASM programs that define how miner responses are score
 
 **What Script Authors do:**
 - Write a WASM scoring script that takes a ground truth payload and a miner response and outputs a score between 0 and 1.
-- Post the script on-chain with a 10,000 MACHINA anti-spam bond.
+- Post the script on-chain. There is no bond or fee — submission costs gas only.
 - The script enters the Testing Cohort — a 10% sample of Validator rounds where it runs alongside the Canonical Script.
 - If the script demonstrably outperforms the current Canonical (the Catch-Rate condition), it autonomously becomes the new Canonical after a minimum of 3 test epochs.
 
@@ -94,7 +94,7 @@ Script Authors write the WASM programs that define how miner responses are score
 Script Authors earn **20% of daily MACHINA emissions** via Hash-Math — proportional to how often their script's hash is used as the Canonical across all active Intents. A script that becomes Canonical for a high-volume Intent captures a significant share of this pool.
 
 **Requirements:**
-- 10,000 MACHINA bond per script submission.
+- No bond or fee — submission costs gas only.
 - WASM binary running within protocol sandbox constraints (no filesystem access, no unrestricted network, only whitelisted URLs).
 
 ---

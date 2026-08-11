@@ -109,12 +109,12 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 
 | Parameter | Value |
 |---|---|
-| Minimum stake bond | 100 MACHINA per registration |
+| Registration cost | Gas only — no bond or stake |
 | Grace period duration | 7 days |
 | Grace period routing share | 5% flat (shared among all grace-period miners) |
 | Miner routing (genesis) | 70% top / 20% second / 10% third |
-| Unbonding on deregistration | 7 days |
-| Intent WASM bond | 10,000 MACHINA |
+| Deregistration | Immediate — no unbonding period |
+| Scoring module registration | Gas only — no bond |
 
 ### Demand Multiplier Tiers
 
