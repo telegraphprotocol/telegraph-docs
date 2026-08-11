@@ -28,100 +28,84 @@ which walks through a working example first.
 ## 1. What the WASM module does
 
 For a given `(question, ground_truth, miner_answer)` triple, the module
-computes a single composite quality score in `[0, 1]`. The live/default
-module (`pkg/scoring/scoring.wasm`, compiled from Rust sources under
-`pkg/wasm/code/`) combines four signals:
+computes a single composite quality score in `[0, 1]`, where `0` means "not
+an answer at all" and `1` means "as good as the ground truth".
 
-| Signal | Weight | Meaning |
-|---|---|---|
-| Relevance | 0.25 | cosine similarity(question, miner_answer) |
-| Correctness | 0.50 | cosine similarity(ground_truth, miner_answer) |
-| Lexical | 0.15 | BM25(ground_truth, miner_answer) |
-| Length quality | 0.10 | `sigmoid((byte_length - 50) / 20)` — rewards answers past ~50 bytes, no penalty for being long. Monotonically increasing, not a "too short/too long" curve: a giant wall of text scores near-max on this signal same as a well-sized one. |
+How that score is arrived at is entirely up to the module. The default one
+blends semantic similarity against both the question and the ground truth
+with a lexical overlap measure, but your module owes nothing to that design
+— it just has to return a number in `[0, 1]` and clear the validation gates
+in §5.
 
-This formula lives entirely inside the WASM module — `pkg/scoring` and
-`pkg/wasm/runtime` never reimplement it in Go, they only call into it.
+The formula lives entirely inside the WASM module — the node never
+reimplements it, it only calls into it. That is what makes the scoring
+replaceable: change the module and you change how answers are judged.
 
-The runtime that loads and drives a module is
-[`pkg/wasm/runtime`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/wasm/runtime/runtime.go), built on
-[wazero](https://wazero.io) (a pure-Go WASM runtime — no cgo, no native
-sandboxing dependency). Each module runs sandboxed with only linear memory
-and the exported functions below; it cannot make network calls or touch the
+The node loads and drives modules with [wazero](https://wazero.io), a pure-Go
+WASM runtime. Each module runs sandboxed with only linear memory and the
+exported functions below; it cannot make network calls or touch the
 filesystem.
 
 ## 2. How ranking works end to end
 
-1. Every epoch, `pkg/scoring/epoch_scorer.go`'s `EpochScorer.RunEpoch` loads
-   active miners per intent, fetches each intent's ground truth
-   (`GroundTruthClient`), and fans out concurrent calls to ask each miner the
-   question.
+1. Every epoch, the node loads the active miners for each intent, fetches
+   that intent's ground truth, and asks every miner the question
+   concurrently.
 2. Each `(question, ground_truth, miner_answer)` triple is scored by calling
-   the WASM module's `rank_answer` via a pooled runtime
-   (`pkg/wasm/runtime.Pool` — several module instances so concurrent scoring
-   calls don't serialize on one WASM instance). `rank_answer` is the only
-   scoring export the live path actually calls.
-3. Results are sorted best→worst and pushed into
-   [`pkg/scoring/ranker.go`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/scoring/ranker.go)'s `Ranker.Update`
-   — an in-memory, per-intent leaderboard (`IntentRanking`).
-4. The engine's request router (`pkg/engine/router`) reads
-   `ranker.TopN(intentID, n)` to pick which miner(s) to call for a live
-   `/engine/v1/ask` request.
-5. **Scoring is per-intent, not global.** Each `intentID` can have its own
-   promoted WASM module (`Scorer.currentPool(intentID)`); an intent with no
-   promoted module falls back to the default/genesis module.
+   the WASM module's `rank_answer`. Several module instances run in a pool so
+   concurrent scoring doesn't serialise on one instance. `rank_answer` is the
+   only scoring export the live path calls.
+3. Results are sorted best to worst into a per-intent leaderboard.
+4. The request router reads the top N from that leaderboard to pick which
+   miner serves a live `/engine/v1/ask` request.
+5. **Scoring is per-intent, not global.** Each intent can have its own
+   promoted module; an intent with no promoted module falls back to the
+   default one.
 
 ## 3. How to register your own scoring module
 
-Registration is **on-chain and permissionless**, not a config file or admin
-API. `pkg/register` (despite the name) is unrelated — that package bootstraps
-validator/signer identity, not WASM scorers.
+Registration is **on-chain and permissionless** — not a config file, not an
+admin API, and no approval from anyone.
+
+**There is no bond and no fee.** Registering costs you nothing beyond gas.
+An earlier design pulled a 10,000 MACHINA anti-spam bond; it was removed
+because it had no release path, so every bond posted would have been locked
+permanently. Any doc, article or contract constant suggesting otherwise is
+out of date.
 
 1. **Write the module** so it exports the required functions (§4) and
-   compiles to a freestanding `wasm32-unknown-unknown` binary (or any
-   toolchain that produces the same export surface + linear memory — Rust is
-   what the repo uses, nothing wazero-specific requires it).
-2. **Host the compiled `.wasm` file** somewhere fetchable by URL (IPFS/S3 —
-   whatever the node's outbound fetcher can reach) and compute its
-   `keccak256` hash — this has to match `crypto.Keccak256` from
-   go-ethereum exactly (the same call `processWasmRecord` in
-   `pkg/listener/listener.wasm.go` uses to verify it), since Ethereum's
-   Keccak-256 differs from the standardized NIST SHA3-256 despite the
-   similar name. `scripts/haider_scripts/keccak_file/keccak_file.go` is a
-   small standalone helper that does exactly this (`go run keccak_file.go
-   <path>`) — safer than reaching for `cast keccak` directly, since that
-   command has no file-read mode and blows past shell `ARG_MAX` on anything
-   but small files once you hex-encode it.
-3. **Approve the bond**: `approve(diamondAddress, 10_000e18)` on the MACHINA
-   token. Registration pulls a fixed 10,000 MACHINA anti-spam bond from you
-   (`WASM_BOND` in
-   [`contracts/evm/facets/IntentRegistryFacet.sol`](https://github.com/telegraphprotocol/Telegraph/blob/develop/contracts/evm/facets/IntentRegistryFacet.sol)).
-   There is no slashing today, but the bond is not automatically refunded if
-   your module is rejected — it stays locked.
-4. **Call `registerWasm(wasmHash, wasmUrl, whitelistedUrls)`** on
-   `IntentRegistryFacet`. This mints a fresh `intentId` for you
-   (`keccak256(sender, wasmHash, block.number)`) and emits
-   `IntentRegistered(registrationId, sender, ENTITY_WASM_AUTHOR, intentId, wasmUrl, wasmHash)`.
-5. From here it's automatic. The node's listener
-   ([`pkg/listener/listener.wasm.go`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/listener/listener.wasm.go))
-   picks up the event, fetches your binary, verifies the hash, and runs it
-   through a two-stage gate (§5) before it's allowed to serve live traffic.
-6. **Deregistering**: call `deregisterEntity(registrationId, ENTITY_WASM_AUTHOR)`
-   — only the original registrant can do this for their own WASM record.
+   compiles to a freestanding `wasm32-unknown-unknown` binary. Any toolchain
+   producing the same export surface plus linear memory works — Rust is the
+   easiest, but nothing requires it.
+2. **Host the compiled `.wasm` file** somewhere fetchable by URL (IPFS, S3,
+   any host the node can reach) and compute its `keccak256` hash. This must
+   be Ethereum's Keccak-256, which differs from the standardised NIST
+   SHA3-256 despite the similar name — a SHA3 hash will fail verification.
+   Most Ethereum libraries expose it directly (`ethers.keccak256`,
+   `web3.utils.keccak256`, go-ethereum's `crypto.Keccak256`). Hash the file
+   bytes, not a hex string of them.
+3. **Call `registerWasm(wasmHash, wasmUrl, whitelistedUrls)`** on the
+   protocol's `IntentRegistryFacet`. This mints a fresh `intentId` for you
+   and emits an `IntentRegistered` event.
+4. From here it's automatic. The node picks up the event, fetches your
+   binary, verifies the hash, and runs it through a two-stage gate (§5)
+   before it can serve live traffic.
+5. **Deregistering**: call `deregisterEntity(registrationId, ENTITY_WASM_AUTHOR)`
+   — only the original registrant can do this for their own record.
 
 There is currently no way to attach your module to an *existing* intent —
 `registerWasm` always mints a brand-new `intentId` tied to your submission.
 
 ## 4. The required interface
 
-Defined by what [`wasm/runtime.New`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/wasm/runtime/runtime.go)
-looks up on load. The module must export **linear memory** plus three
+Defined by what the node looks up when it loads your module. The module must export **linear memory** plus three
 required functions:
 
 | Export | Signature | Purpose |
 |---|---|---|
 | `alloc` | `(size: i32) -> i32` | Host asks the module for scratch space; returns a pointer. |
 | `dealloc` | `(ptr: i32, size: i32)` | Host releases scratch space it previously got from `alloc`. |
-| `rank_answer` | `(q_ptr, q_len, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> f32` | Composite score in `[0, 1]`. The only scoring export the live path (`pkg/scoring/scorer.go`'s `ScoreOne`), Stage 1 validation, and Stage 2 evaluation actually call. |
+| `rank_answer` | `(q_ptr, q_len, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> f32` | Composite score in `[0, 1]`. The only scoring export the live path, Stage 1 validation and Stage 2 evaluation actually call. |
 
 `alloc`/`dealloc` aren't scoring logic — they're the memory handshake every
 export needs, since a WASM function signature can only carry numbers, not
@@ -129,17 +113,15 @@ strings. The host writes each input string into memory your module handed
 back from `alloc`, then calls the scoring function with a pointer/length
 pair.
 
-Everything else the runtime looks for is **optional** — `wasmrt.New` sets
-these independently if present, and each has a graceful nil-check in its Go
-wrapper method rather than failing module load:
+Everything else is **optional**. The node checks for each independently and
+degrades gracefully if it's absent — a missing optional export never fails
+module load, so you can ignore this table entirely on a first module.
 
-| Export | Signature | What actually uses it |
+| Export | Signature | What it's for |
 |---|---|---|
-| `breakdown_answer` | `(q_ptr, q_len, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> i32` | Returns a pointer to 5 consecutive `f32`s: `[relevance, correctness, lexical, length_quality, composite]`. Called only by `Scorer.BreakdownOne`, an admin/debug introspection path — not currently wired to any HTTP handler, and never called by Stage 1 or Stage 2. Safe to omit; a module without it just can't serve that debug call. |
-| `rank_answer_cached` | `(qVecPtr, gtVecPtr: i32, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> f32` | Same as `rank_answer` but reuses precomputed 384-dim embeddings for `question`/`ground_truth` instead of re-embedding them. Used only inside Stage 2's replay batch (`candidate_eval.go`'s `scoreRows`) as a speed optimization — if absent, Stage 2 just calls `rank_answer` per row instead (`scoreRowsFlat`). No effect on pass/fail. |
-| `embed` | `(ptr, len: i32) -> i32` | Returns a pointer to a 384-dim `f32` vector (MiniLM-L6-v2 sized). Needed together with `rank_answer_cached` for the cached path — the two are checked independently via `SupportsCachedRanking()`, so implement both or neither. |
-| `cosine_sim` | `(aPtr, bPtr, dim: i32) -> f32` | Exposed on `Pool` but **not currently called anywhere in this codebase** — dead code path today, reserved for future use. |
-| `bm25_score` | `(q_ptr, q_len, d_ptr, d_len: i32) -> f32` | Same as `cosine_sim` — exposed, not currently called anywhere. |
+| `breakdown_answer` | `(q_ptr, q_len, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> i32` | Returns a pointer to 5 consecutive `f32`s: `[relevance, correctness, lexical, length_quality, composite]`. Used only for debug introspection, never by the validation gates. Safe to omit. |
+| `rank_answer_cached` | `(qVecPtr, gtVecPtr: i32, gt_ptr, gt_len, ma_ptr, ma_len: i32) -> f32` | Same as `rank_answer` but reuses precomputed 384-dim embeddings for the question and ground truth instead of re-embedding them. A speed optimisation for Stage 2 replay only; if absent, Stage 2 calls `rank_answer` per row. No effect on whether you pass. |
+| `embed` | `(ptr, len: i32) -> i32` | Returns a pointer to a 384-dim `f32` vector. Needed together with `rank_answer_cached` — the two are checked independently, so implement both or neither. |
 
 **Calling convention**: all strings cross the boundary as `(ptr: i32, len: i32)`
 pairs into the module's own linear memory — the host calls your `alloc(size)`
@@ -150,7 +132,7 @@ never assumes anything about it beyond what `alloc`/`dealloc` give back.
 memory), except `breakdown_answer`, which returns a buffer *pointer* the host
 reads 5 floats from directly via `ReadFloat32Le`.
 
-**Limits enforced by the host** (`pkg/wasm/runtime`), not something your
+**Limits enforced by the host**, not something your
 module needs to check itself: individual text inputs capped at 128 KiB
 (`MaxTextBytes`), vector inputs capped at 16,384 elements (`MaxVecDim`).
 Returned scores are clamped to `[0, 1]` and NaN/Inf collapse to `0` before
@@ -163,48 +145,53 @@ gates before it can serve real ranking traffic for its intent.
 
 ### Stage 1 — structural validation (immediate, per-registration)
 
-Runs the moment the registration event is seen
-([`pkg/listener/listener.wasm.validate.go`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/listener/listener.wasm.validate.go)).
+Runs the moment the registration event is seen.
 Any failure is a hard reject:
 
-1. Module loads in wazero and exports `rank_answer`, `alloc`, `dealloc`
-   (enforced by `wasm/runtime.New` itself).
+1. The module loads and exports `rank_answer`, `alloc` and `dealloc`.
 2. `rank_answer(q, gt, "")` — a genuinely empty answer — returns **exactly**
    `0`.
 3. `rank_answer(q, gt, "   ")` — whitespace-only — also returns exactly `0`.
 4. Self-match beats an unrelated cross-match:
    `rank_answer(q, gt, gt) > rank_answer(q, gt, unrelated_text)`.
-5. No panic/trap on adversarial input — a ~54 KB repeated-text string and a
-   Unicode string (emoji, accents, CJK) must both return without error.
+5. No panic or trap on adversarial input — a very large repeated-text string
+   and a Unicode string (emoji, accents, CJK) must both return without error.
 
-### Stage 2 — historical replay comparison (before promotion)
+These are the requirements you can check yourself before registering; the
+test harness in [Build a Scoring Module](build-a-scoring-module.md) covers
+every one of them.
 
-Only candidates that passed Stage 1 reach this
-([`pkg/scoring/candidate_eval.go`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/scoring/candidate_eval.go)). It
-replays up to 1,000 recent real `(question, ground_truth, answer)` rows
-through the candidate and checks, against the current default thresholds:
+### Stage 2 — comparison against the incumbent (before promotion)
 
-| Check | Bar |
-|---|---|
-| A — not degenerate | Score stdev across replayed rows > `0.05` |
-| B — recognizes exact matches | Verbatim-correct answers score ≥ 75th percentile of the candidate's own distribution |
-| C — sane relative ranking | Per-intent Spearman correlation vs. the incumbent's historical scores ≥ `0.6` (skipped for intents with <2 distinct miners) |
-| D — self-match floor | `rank_answer(q, gt, gt)` ≥ `max(0.75, incumbent's own self-match score)` — a ratchet, never regresses |
-| E — near-miss discrimination | Paraphrase-of-truth answer must outscore an off-topic answer by ≥ `max(0.15, incumbent's own margin)` per curated test case |
+Only candidates that pass Stage 1 reach this stage. The node replays a batch
+of recent real `(question, ground_truth, answer)` records through your module
+and compares its behaviour against the module currently serving that intent.
 
-Passing all checks promotes the candidate to **Active** for its intent,
-demoting whatever was previously Active for that same intent to
-**Superseded** (one generation of rollback history is retained — if the new
-champion is later deregistered, the node falls back to the superseded one
-before falling all the way back to the default module). Failing marks the
-candidate **Rejected**, with the failing reason persisted for that
-registration; nothing happens on-chain (no slashing), and the bond stays
-locked.
+Broadly, a candidate has to show that it discriminates — that it spreads
+scores rather than returning something near-constant, that it recognises a
+correct answer as correct, that it prefers a close paraphrase over an
+off-topic answer, and that it doesn't rank miners in a way that contradicts
+the incumbent without cause.
+
+**The exact checks and thresholds are deliberately not published.** A scoring
+module that is tuned to clear a published bar is not the same thing as a
+scoring module that ranks well, and the historical records used in the replay
+are publicly readable. Build a module that genuinely judges answer quality
+and it will pass; build one that targets a number and you are optimising
+against a moving, unpublished target.
+
+Passing promotes the candidate to **Active** for its intent, demoting the
+previous Active module to **Superseded**. One generation of rollback history
+is kept — if the new module is later deregistered, the node falls back to the
+superseded one before falling all the way back to the default. Failing marks
+the candidate **Rejected** and records the reason. Nothing happens on-chain
+either way: there is no slashing and nothing to lose beyond the gas you spent
+registering.
 
 ## 6. Minimal example module
 
 A real, working minimal module already exists in this repo as the Stage-1
-test double: [`pkg/wasm/test_wasm/src/lib.rs`](https://github.com/telegraphprotocol/Telegraph/blob/develop/pkg/wasm/test_wasm/src/lib.rs).
+test double.
 It implements the 3 required exports plus `breakdown_answer` (optional, but
 implemented here for parity with the real module), using word-overlap
 between the answer and ground truth as a crude-but-real correctness signal
@@ -286,7 +273,7 @@ pub unsafe extern "C" fn rank_answer(
 ```
 
 `Cargo.toml` needs `crate-type = ["cdylib"]` and a release profile tuned for
-size (see `pkg/wasm/test_wasm/Cargo.toml`); build with:
+size; build with:
 
 ```bash
 cargo build --release --target wasm32-unknown-unknown

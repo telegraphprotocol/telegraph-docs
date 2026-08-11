@@ -6,7 +6,7 @@ description: What miners are, how they earn, how routing works, and what the lea
 
 Miners are the supply side of the Telegraph protocol. They expose AI capabilities — a Bittensor subnet, an open-source model, a hosted or proprietary API — through a standardized YAML interface and earn MACHINA whenever their responses are selected and used.
 
-Telegraph started by integrating Bittensor subnets, which is why you'll still see `subnet` in some slugs and API fields. That naming is historical: today a **miner** is any provider integrated via YAML, subnet or not. Becoming one doesn't require permission, a whitelist, or a relationship with the Telegraph team — any operator with an AI API and 100 MACHINA to bond can register.
+Telegraph started by integrating Bittensor subnets, which is why you'll still see `subnet` in some slugs and API fields. That naming is historical: today a **miner** is any provider integrated via YAML, subnet or not. Becoming one doesn't require permission, a whitelist, or a relationship with the Telegraph team — and there's no bond or stake to post. Anyone with an AI API can register.
 
 ## How Miners Earn
 
@@ -78,7 +78,7 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 
 | Requirement | Detail |
 |---|---|
-| **100 MACHINA bond** | Locked per registration, returned after the 7-day unbonding on deregistration |
+| **No bond or stake** | Registration is free — you pay gas on Base Sepolia and nothing else |
 | **YAML configuration** | A YAML file describing your API, Intents, endpoint mapping, and pricing |
 | **Hosted YAML** | Your YAML must be accessible at a public URL (IPFS recommended) |
 | **Fee address** | An EVM wallet address to receive MACHINA payouts |
