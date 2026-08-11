@@ -322,8 +322,10 @@ these, you're in good shape to register it.
    URL (e.g. IPFS or any file host).
 2. You can submit your `.wasm` file via `https://integrate.telegraphprotocol.com/`
 
-Because each attempt costs a bond, it pays to test your module carefully
-(see the testing section above) before you register it for real.
+Registering costs nothing but gas — there is no bond or fee. Still worth
+testing carefully first (see the section above): a module that fails the
+validation gates doesn't serve traffic, and every re-registration is another
+transaction.
 
 ## Tips for building a good scorer
 

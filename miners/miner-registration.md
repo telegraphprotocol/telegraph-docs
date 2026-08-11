@@ -12,10 +12,9 @@ Before registering, make sure you have:
 
 1. **A completed YAML file** — see [YAML Configuration](yaml-config.md) for the full reference.
 2. **A hosted YAML** — the file must be publicly accessible at a stable URL. IPFS is strongly recommended for censorship resistance and permanent hosting. HTTPS is also acceptable.
-3. **100 MACHINA for the bond** — locked per registration, returned after the 7-day unbonding period on deregistration.
-4. **A small amount of ETH on Base Sepolia** — for gas on the registration transaction.
-5. **A fee address** — the EVM wallet where your MACHINA payouts will be sent. Can be the same as your registering wallet or a separate cold address.
-6. **`cast` (Foundry)** — the CLI tool used to send the registration transaction. Install at [getfoundry.sh](https://getfoundry.sh).
+3. **A small amount of ETH on Base Sepolia** — for gas on the registration transaction. There is no bond, stake or fee; gas is the only cost.
+4. **A fee address** — the EVM wallet where your MACHINA payouts will be sent. Can be the same as your registering wallet or a separate cold address.
+5. **`cast` (Foundry)** — the CLI tool used to send the registration transaction. Install at [getfoundry.sh](https://getfoundry.sh).
 
 ## Step 1: Compute the YAML Hash
 
@@ -133,7 +132,7 @@ There is no update function. To change your YAML, floor price, fee address, or I
 2. Update your YAML at the hosting URL (or use a new URL).
 3. Call `registerMiner(...)` with the new URL, new hash, and any new parameters — you receive a new `registrationId`.
 
-The 7-day unbonding period applies to deregistration. Your bond is returned after unbonding completes.
+Deregistering costs nothing beyond gas — there is no bond to release and no unbonding period to wait out.
 
 ```bash
 cast send "$DIAMOND" \
