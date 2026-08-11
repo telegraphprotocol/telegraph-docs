@@ -154,16 +154,15 @@ Returns the miner catalog as `{ "miners": [...], "count": N }` — each entry ha
 
 ## Available Intents
 
-When you use auto-routing, the Engine's LLM router maps your query to one of these canonical Intents and selects a miner that supports it:
+When you use auto-routing, the Engine's LLM router classifies your query into
+a canonical Intent and picks a miner that supports it.
 
-| Category | Intents |
-|---|---|
-| Language | `LANGUAGE_GENERATION`, `CHAT_COMPLETION`, `TEXT_GENERATION`, `HIGH_PERFORMANCE_INFERENCE`, `EMBEDDINGS`, `CONTENT_MODERATION` |
-| Weather | `WEATHER_CHECK`, `STORM_ALERT`, `WEATHER_FORECAST`, `WEATHER_RISK_ASSESSMENT` |
-| Vision | `MULTIMODAL_INFERENCE`, `IMAGE_GENERATION`, `TEXT_TO_IMAGE` |
-| Tasks | `TASK_COMPLETION`, `AGENT_TASK` |
-| Search | `WEB_SEARCH`, `TWITTER_SEARCH`, `NEWS_SEARCH`, `RESEARCH_SYNTHESIS`, `FACT_CHECK` |
-| Authenticity | `TEXT_AUTHENTICITY_CHECK`, `AI_TEXT_DETECTION`, `CONTENT_VERIFICATION`, `DEEPFAKE_DETECTION`, `MEDIA_AUTHENTICITY_CHECK`, `IMAGE_VERIFICATION`, `VIDEO_VERIFICATION` |
+See [Intents](intents.md) for what the network can do and how each one is
+scored, or read the live set straight off the node:
+
+```bash
+curl http://localhost:8080/engine/v1/intents
+```
 
 ## Streaming over WebSocket
 

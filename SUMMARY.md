@@ -14,6 +14,7 @@
 ## Using Telegraph
 
 * [Engine Inference](using/engine-ask.md)
+* [Intents](using/intents.md)
 * [Paying with x402](using/x402-inference.md)
 * [Daemon Signal Feed](using/daemon-signals.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
@@ -25,6 +26,11 @@
 * [What Miners Do](miners/miner-overview.md)
 * [YAML Configuration](miners/yaml-config.md)
 * [Registering as a Miner](miners/miner-registration.md)
+
+## Building a Scoring Module
+
+* [Build a Scoring Module](scoring/build-a-scoring-module.md)
+* [Scoring Reference](scoring/scoring-reference.md)
 
 ## Running a Validator
 
