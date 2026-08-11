@@ -32,8 +32,8 @@ At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents 
 | Understand the full protocol mechanics | [How It Works](protocol/how-it-works.md) |
 | Learn about MACHINA tokenomics | [Tokenomics](protocol/tokenomics.md) |
 | See contract addresses and key parameters | [Addresses & Parameters](protocol/addresses-and-params.md) |
-| Get inference via HTTP (pay per call) | [Direct x402 Inference](using/x402-inference.md) |
 | Get inference via the Engine | [Engine Inference](using/engine-ask.md) |
+| Understand how paying per call works | [Paying with x402](using/x402-inference.md) |
 | Read the autonomous signal feed | [Daemon Signal Feed](using/daemon-signals.md) |
 | Subscribe to a continuous signal stream | [WebSocket Signals](using/websocket-signals.md) |
 | Trigger inference from a smart contract | [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md) |
