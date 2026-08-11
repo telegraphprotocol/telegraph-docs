@@ -82,7 +82,6 @@ Content-Type: application/json
   "method": "POST",
   "endpoint": "/chat",
   "payload": {
-    "model": "gpt-4o-mini",
     "messages": [{ "role": "user", "content": "Explain Bitcoin in one sentence." }]
   }
 }
@@ -95,14 +94,14 @@ Content-Type: application/json
 | `payload` | Yes | Sent as the request body, or as query parameters when `method` is `GET`. |
 | `acknowledge_warnings` | No | Run the request even if the node predicts it will fail — see below. |
 
-Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners) (for example, `102` for OpenAI).
+Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners), and use one of the `endpoints` that miner lists there. Miner IDs are not stable across time — always take them from discovery rather than from an example.
 
 **Response (200):**
 
 ```json
 {
-  "miner_id": "102",
-  "miner_name": "openai",
+  "miner_id": "104",
+  "miner_name": "litellm",
   "result": { "...miner's raw output..." },
   "cost_usd": 0.01,
   "duration_ms": 650,
@@ -135,7 +134,13 @@ If you'd rather try anyway, resend with `"acknowledge_warnings": true`.
 
 Rate limits are counted per miner across the whole node — every caller draws on the same allowance — so if you hit one, switching to another miner for the same Intent usually works better than retrying.
 
-The auto-routed `/v1/ask` never returns `422`. It has a fallback miner lined up, so it warns instead of stopping.
+The auto-routed `/engine/v1/ask` never returns `422`. It has a fallback miner lined up, so it warns instead of stopping.
+
+### The payment gate runs first
+
+Payment is checked before your request is validated. An unregistered miner ID or a malformed body still comes back as `402`, not `404` or `400` — you only see the real error after the payment clears. You are not charged for it, since payment settles only on success, but you also can't probe an endpoint's shape for free.
+
+So check your miner ID and endpoint against `/miner-dispatcher/integrations` before you build the request.
 
 ## Listing Available Miners
 
@@ -145,7 +150,7 @@ To see what the Engine can route to:
 GET /engine/v1/subnets
 ```
 
-Returns the miner catalog (`subnets`, `count`) — each entry has the numeric ID you pass to a direct ask, the slug, name, and capability metadata. The authoritative live list is always the [miner dispatcher discovery endpoint](x402-inference.md#step-1-discover-available-miners).
+Returns the miner catalog as `{ "miners": [...], "count": N }` — each entry has the numeric ID you pass to a direct ask, the slug, name, and capability metadata. The authoritative live list is always the [miner dispatcher discovery endpoint](x402-inference.md#step-1-discover-available-miners), which also gives you each miner's endpoints and schemas.
 
 ## Available Intents
 
@@ -168,8 +173,8 @@ The same `ask` and `ask_direct` operations are available over the Engine's WebSo
 
 | Scenario | Use |
 |---|---|
-| You want the best miner picked automatically | Auto-routed `POST /v1/ask` |
-| You know exactly which miner and endpoint you need | Direct `POST /v1/ask/{minerId}` |
+| You want the best miner picked automatically | Auto-routed `POST /engine/v1/ask` |
+| You know exactly which miner and endpoint you need | Direct `POST /engine/v1/ask/{minerId}` |
 | You want to understand the payment flow itself | [Paying with x402](x402-inference.md) |
 | You want a live stream of routing events | [WebSocket Signals](websocket-signals.md) |
 | Your smart contract needs the result on-chain | [On-Chain Jobs (ERC-8183)](erc8183-jobs.md) |

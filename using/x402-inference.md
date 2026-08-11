@@ -59,7 +59,7 @@ Decode the `Payment-Required` header (base64 → JSON) to see the payment option
   "x402Version": 2,
   "error": "Payment required",
   "resource": {
-    "url": "http://13.237.89.59:7044/engine/v1/ask/18",
+    "url": "http://13.237.89.59:7044/v1/ask/18",
     "description": "Payment required for direct subnet inference.",
     "mimeType": "application/json"
   },
@@ -87,6 +87,8 @@ Decode the `Payment-Required` header (base64 → JSON) to see the payment option
 The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts.
 
 Always read `payTo` from the challenge you received. Never hardcode a receiving address — it is set per node and changes.
+
+> Note that `resource.url` reports the path *inside* the engine (`/v1/ask/18`), without the `/engine` prefix you called. Keep using the URL you requested; don't rebuild it from this field.
 
 ## Step 3: Complete the Payment
 
@@ -177,7 +179,7 @@ Choose based on where you hold USDC. The amount is the same either way. The `acc
 
 The price per request isn't fixed. It's the miner's declared floor price multiplied by a demand multiplier based on 24-hour request volume for that Intent. A miner with a $0.01 floor seeing 2,000 requests per day charges $0.015 at the 1.5× tier. See the full [demand multiplier tiers](../protocol/addresses-and-params.md#demand-multiplier-tiers).
 
-A miner's floor price is in the `/miner-dispatcher/integrations` response under `on_chain.min_price_usdc`. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
+A miner's floor price is the `min_price_usdc` field of its `/miner-dispatcher/integrations` entry, in the same 6-decimal units as the challenge — `10000` means $0.01. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
 
 ## Endpoints That Don't Require Payment (Discovery)
 

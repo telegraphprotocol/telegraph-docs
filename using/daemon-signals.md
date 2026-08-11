@@ -16,11 +16,13 @@ Every cycle (3 hours in production), the Daemon:
 
 1. Runs its **Collectors** — scrapers pointed at sources like Polymarket, GDELT, Reddit, Hacker News, and Open-Meteo.
 2. Scores the raw material into **questions**, each with a category and an interest score.
-3. Calls the Engine's `POST /v1/ask` to answer each question (tagged as internal traffic, so these calls fund themselves through the node operator — they are not billed to you).
+3. Calls the Engine's `POST /engine/v1/ask` to answer each question (tagged as internal traffic, so these calls fund themselves through the node operator — they are not billed to you).
 4. Writes the answered, scored results to its database (Postgres).
 5. Serves those results read-only over HTTP, and pushes new ones to [WebSocket subscribers](websocket-signals.md).
 
 The result is a continuously growing feed of verified signals that exists whether or not any agent is actively paying for inference.
+
+Each entry carries a `signal_hash`. Pass it to `GET /engine/v1/signal/{hash}` to fetch the signal, the payload it was hashed over, and a verification block you can re-derive yourself.
 
 ## Reading the Feed
 
@@ -38,20 +40,23 @@ Returns a paginated list of signals. Each item is a stored result:
 {
   "results": [
     {
-      "id": "67307b94c2a4f7c8e1f10a23",
+      "id": "ffe6880d-92f1-4d06-b6e0-e5216daf4d18",
       "type": "daemon",
       "source": "reddit",
       "status": "success",
       "created_at": "2026-06-26T18:42:11Z",
+      "signal_hash": "0x403644cc0dc53d5cc2ea097075c4a74445de8147a6368952200e8025fabb6525",
       "question": {
         "text": "Will Riyadh exceed 40°C in the next 24 hours?",
         "category": "CLIMATE",
         "interest_score": 7.4
       },
       "routing": {
+        "subnet_id": "18",
         "subnet_name": "bittensor-sn18-zeus",
+        "miner_slug": "bittensor-sn18-zeus",
         "reasoning": "Weather risk question — routed to Zeus for meteorological forecasting.",
-        "intent": "weather_forecast"
+        "intent": "WEATHER_FORECAST"
       },
       "execution": {
         "result": { "...miner output..." },
