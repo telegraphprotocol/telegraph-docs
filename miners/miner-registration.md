@@ -113,7 +113,7 @@ cast call "$DIAMOND" \
 
 ## Step 5: Wait for Nodes to Activate You
 
-Activation takes a few minutes on the testnet — around five in a recent check. Every Telegraph node that detects the `MinerRegistered` event will:
+Activation takes a few minutes. Every Telegraph node that detects the `MinerRegistered` event will:
 1. Fetch your YAML from the declared URL.
 2. Verify the SHA-256 hash matches the on-chain commitment.
 3. Validate the YAML against the schema.
