@@ -90,7 +90,7 @@ The live miner set changes as operators register and deregister on-chain, so the
 
 **See the live set two ways:**
 - **Interface:** the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal) shows active miners and the signals they produce.
-- **API:** `GET http://13.237.89.59:7044/miner-dispatcher/integrations` returns the current catalog with schemas and prices.
+- **API:** `GET https://devnode.telegraphprotocol.com/api/miners` returns the current catalog with schemas and prices.
 
 ## Next Steps
 

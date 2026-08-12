@@ -38,10 +38,11 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 
 | Service | URL |
 |---|---|
-| **HTTP API** | `http://13.237.89.59:7044` |
-| **Engine Ask** | `http://13.237.89.59:7044/engine/v1/ask` |
-| **WebSocket** | `ws://13.237.89.59:7044/engine/ws` |
+| **HTTP API** | `https://devnode.telegraphprotocol.com` |
+| **WebSocket** | `wss://devnode.telegraphprotocol.com/engine/ws` |
 | **x402 Facilitator** | `https://facilitator.payai.network` |
+
+Engine and Daemon are the same node, reached via `/engine` and `/daemon` path prefixes on the HTTP API base above (e.g. `https://devnode.telegraphprotocol.com/engine/v1/ask`) — not separate services.
 
 ### Active Miners (Testnet)
 

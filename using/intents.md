@@ -18,7 +18,7 @@ The canonical set lives on-chain and the contract is the source of truth. To
 read the live list, including intents not listed on this page:
 
 ```bash
-curl http://13.237.89.59:7044/engine/v1/intents
+curl https://devnode.telegraphprotocol.com/engine/v1/intents
 ```
 
 That returns every canonical intent with a description and how many miners
@@ -123,7 +123,7 @@ one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
 Most of the time you don't name one — you just ask:
 
 ```bash
-curl -X POST http://13.237.89.59:7044/engine/v1/ask \
+curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
   -d '{"query": "What is the current price of Bitcoin?"}'
@@ -146,7 +146,7 @@ served it:
 To see which miners serve a given intent before you spend anything:
 
 ```bash
-curl http://13.237.89.59:7044/engine/v1/intents/CRYPTO_PRICE/miners
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/CRYPTO_PRICE/miners
 ```
 
 ## A note on coverage

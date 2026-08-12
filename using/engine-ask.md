@@ -15,7 +15,7 @@ Both are paid per call via x402. Both run **fresh, on-demand inference** — the
 
 > The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard — see [Daemon Signal Feed](daemon-signals.md). If you want a live answer to your own question, you want the Engine.
 
-**Engine base URL (testnet):** `http://13.237.89.59:7044/engine`
+**Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
 > **A note on naming:** the Engine API still uses `subnet` in some paths and field names (`/v1/subnets`, `subnet_id`, `subnet_name`). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner** — read `subnet` as "miner" throughout the API.
 
@@ -138,7 +138,7 @@ See [Intents](intents.md) for what the network can do and how each one is
 scored, or read the live set straight off the node:
 
 ```bash
-curl http://localhost:8080/engine/v1/intents
+curl https://devnode.telegraphprotocol.com/engine/v1/intents
 ```
 
 ## Streaming over WebSocket

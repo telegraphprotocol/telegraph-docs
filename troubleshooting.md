@@ -106,7 +106,7 @@ The ask endpoint is at `/engine/v1/ask`, not `/v1/ask`. The engine routes are mo
 The engine classifies your query to an intent, then routes to the best-scored miner for that intent. If no miner supports the classified intent, the result may be empty. Check available intents:
 
 ```bash
-curl http://<node>:7044/miner-dispatcher/integrations
+curl http://<node>:7044/api/miners
 ```
 
 ## Contract Interactions

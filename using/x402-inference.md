@@ -14,7 +14,7 @@ This page covers the payment mechanics. For what to actually send and get back, 
 - An x402-compatible client (the [PayAI SDK](https://github.com/pay-ai/) handles signing automatically, or you can construct the payment manually).
 - The URL of a Telegraph node.
 
-**Live testnet node:** `http://13.237.89.59:7044`
+**Live testnet node:** `https://devnode.telegraphprotocol.com`
 
 ## Step 1: Discover Available Miners
 
@@ -61,7 +61,7 @@ Decode the `Payment-Required` header (base64 → JSON) to see the payment option
   "x402Version": 2,
   "error": "Payment required",
   "resource": {
-    "url": "http://13.237.89.59:7044/v1/ask/18",
+    "url": "http://devnode.telegraphprotocol.com/v1/ask/18",
     "description": "Payment required for direct subnet inference.",
     "mimeType": "application/json"
   },
