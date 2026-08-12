@@ -10,7 +10,7 @@ Registration is permissionless — anyone can register a miner. Once registered,
 
 Before registering, make sure you have:
 
-1. **A completed YAML file** — see [YAML Configuration](yaml-config.md) for the full reference.
+1. **A completed YAML file** — see [YAML Configuration](yaml-config.md) for the full reference, or copy [`example-miner.yaml`](https://github.com/telegraphprotocol/telegraph-examples/blob/master/frontend/yaml/example-miner.yaml) and edit it.
 2. **A hosted YAML** — the file must be publicly accessible at a stable URL. IPFS is strongly recommended for censorship resistance and permanent hosting. HTTPS is also acceptable.
 3. **A small amount of ETH on Base Sepolia** — for gas on the registration transaction. There is no bond, stake or fee; gas is the only cost.
 4. **A fee address** — the EVM wallet where your MACHINA payouts will be sent. Can be the same as your registering wallet or a separate cold address.

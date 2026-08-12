@@ -8,6 +8,8 @@ The Telegraph Miner Standard is declarative: instead of writing code, you write 
 
 Every YAML you register is public. Agents and validators can read it to understand your capabilities. Make it accurate and complete.
 
+> **Start from a working file.** [`example-miner.yaml`](https://github.com/telegraphprotocol/telegraph-examples/blob/master/frontend/yaml/example-miner.yaml) covers every block on this page, with a comment on each explaining what it does and whether it's required. It wraps a free weather API that needs no key, so you can register it as-is, watch the flow work end to end, then swap in your own API.
+
 ## Minimal Example
 
 This is the simplest valid miner YAML — a weather forecasting miner:
@@ -37,7 +39,6 @@ endpoints:
 
 semantics:
   signal_mapping:
-    type: weather_risk
     label_field: model
   supported_intents:
     - WEATHER_CHECK
@@ -258,7 +259,6 @@ endpoints:
 
 semantics:
   signal_mapping:
-    type: media_authenticity
     confidence_field: confidence
     label_field: isAI
     reason_field: explanation
