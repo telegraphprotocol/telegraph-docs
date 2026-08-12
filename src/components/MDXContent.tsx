@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import hljs from 'highlight.js'
+import path from 'path'
 import { slugify } from '@/lib/docs'
 
 // ── Custom marked renderer (legacy function-signature API) ────────────────────
@@ -127,6 +128,18 @@ marked.use({
   },
 })
 
+// ── Relative .md link resolver ───────────────────────────────────────────────
+function resolveRelativeLinks(content: string, filePath: string): string {
+  const baseDir = filePath.replace(/\/[^/]*$/, '')
+  return content.replace(
+    /\[([^\]]*)\]\(((?!https?:\/\/)(?!\/|#|mailto:)[^)]+\.md)\)/g,
+    (_match, text, href) => {
+      const resolved = path.normalize(path.join(baseDir, href)).replace(/\\/g, '/')
+      return `[${text}](${resolved})`
+    }
+  )
+}
+
 // ── LaTeX / GitBook preprocessor ─────────────────────────────────────────────
 const LATEX_SYMBOLS: [RegExp, string][] = [
   [/\\leftrightarrow/g,  '↔'],
@@ -183,10 +196,12 @@ function preprocessContent(src: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 interface MDXContentProps {
   source: string
+  filePath: string
 }
 
-export function MDXContent({ source }: MDXContentProps) {
-  const html = marked.parse(preprocessContent(source), { async: false }) as string
+export function MDXContent({ source, filePath }: MDXContentProps) {
+  const processed = resolveRelativeLinks(preprocessContent(source), filePath)
+  const html = marked.parse(processed, { async: false }) as string
 
   return (
     <div

@@ -89,7 +89,7 @@ export default function DocsPage({ params }: Props) {
       </div>
 
       {/* Content */}
-      <MDXContent source={doc.content} />
+      <MDXContent source={doc.content} filePath={doc.filePath} />
 
       {/* Feedback */}
       <div className="mt-10 pt-6 border-t border-[var(--tg-line)]">
