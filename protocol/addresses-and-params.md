@@ -10,12 +10,17 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 
 | Contract | Address |
 |---|---|
-| **Diamond (Port)** | `0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3` |
+| **Diamond (Port)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` |
 | **MACHINA Token** | `0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7` |
 | **USDC — x402 micropayments** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 | **USDC — Diamond escrow & jobs** | `0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18` |
 | **Treasury** | `0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9` |
-| **x402 Payment Receiver** | `0x43Eb1B49a079a4587E0D7e8dA81035dc791c91F8` |
+| **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
+| **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
+
+> The Diamond is where x402 payments land. You don't need to hardcode it: every
+> `402` response carries the address to pay in `accepts[].payTo`, and that is
+> the value your client should use.
 
 > **Why there are two USDC addresses.** The protocol uses two distinct USDC tokens on testnet, by design:
 >

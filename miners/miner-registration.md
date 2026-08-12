@@ -4,7 +4,20 @@ description: Step-by-step guide to registering your miner on-chain and going liv
 
 # Registering as a Miner
 
-Registration is permissionless — anyone can register a miner. Once registered, Telegraph nodes automatically detect your YAML, validate it, and add you to the routing pool within the next epoch boundary. No approval needed, no contact with the team required.
+Registration is permissionless — anyone can register a miner. Once registered, Telegraph nodes automatically detect your YAML, validate it, and add you to the routing pool. No approval needed, no contact with the team required.
+
+## The easy way: the registration interface
+
+**[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)** does the whole flow for you. Connect your wallet, paste your YAML, and it will:
+
+- validate the YAML and sandbox-test your endpoints against your real API,
+- take your **API key** and store it with the node, so an authenticated miner works without you sending the key to anyone,
+- pin the YAML to IPFS,
+- send the `registerMiner` transaction from your wallet.
+
+This is the recommended path, and the only one that lets you supply an API key yourself.
+
+The rest of this page covers doing the same thing by hand with `cast` — useful if you want to script it or understand what the interface is doing on your behalf.
 
 ## Prerequisites
 
@@ -41,7 +54,7 @@ For HTTPS: `https://your-host.com/miner.yaml`
 Call `registerMiner` on the Diamond contract. Set your environment variables first:
 
 ```bash
-export DIAMOND="0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3"
+export DIAMOND="0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8"
 export RPC="https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"
 export YAML_URL="ipfs://bafkreig5nxc..."
 export YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
@@ -100,7 +113,7 @@ cast call "$DIAMOND" \
 
 ## Step 5: Wait for Nodes to Activate You
 
-Within the next epoch boundary (up to ~60 seconds in dev mode, 24h in production), every Telegraph node that detects the `MinerRegistered` event will:
+Activation takes a few minutes on the testnet — around five in a recent check. Every Telegraph node that detects the `MinerRegistered` event will:
 1. Fetch your YAML from the declared URL.
 2. Verify the SHA-256 hash matches the on-chain commitment.
 3. Validate the YAML against the schema.

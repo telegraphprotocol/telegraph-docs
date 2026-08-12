@@ -286,16 +286,11 @@ on_chain:
 
 ## Validation Before Registration
 
-Before registering on-chain, validate your YAML against a running node using the Validation API:
+Registration is on-chain and cannot be edited, so validate your YAML first.
 
-```bash
-curl -X POST http://13.237.89.59:7044/miner-dispatcher/validate \
-  -H "Content-Type: application/json" \
-  -H "X-Internal-Secret: <node-secret>" \
-  -d '{"yaml": "<your-yaml-content>"}'
-```
+Use **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass/fail for each. It then pins the YAML and registers it for you.
 
-This sandbox-tests every declared endpoint against your upstream API and reports pass/fail per endpoint. The `X-Internal-Secret` header must match the `INTERNAL_SECRET` set in the node's environment — ask the node operator for access. A successful validation response shows which endpoints passed and confirms the YAML is schema-valid.
+Validation catches the mistakes that are expensive to fix later: a schema violation, an endpoint that doesn't respond, or an auth setup that doesn't actually authenticate.
 
 ## Common Validation Failures
 
