@@ -30,7 +30,6 @@
 ## Building a Scoring Module
 
 * [Build a Scoring Module](scoring/build-a-scoring-module.md)
-* [Scoring Reference](scoring/scoring-reference.md)
 
 ## Running a Validator
 

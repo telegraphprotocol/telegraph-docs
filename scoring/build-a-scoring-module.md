@@ -10,9 +10,6 @@ decides its ranking. If you're building a *miner* (something that answers
 questions), see the [YAML Configuration](../miners/yaml-config.md) guide
 instead: this page is about the judge, not the contestant.
 
-For the exact function contract, the scoring formula and the validation
-gates, see the [Scoring Reference](scoring-reference.md).
-
 ## What is a scoring module?
 
 When someone asks the network a question, several miners may answer it. The
@@ -88,9 +85,19 @@ means "perfect answer." An empty or blank miner answer should always score
 
 ## A simple starting example (Rust)
 
-This is a bare-bones module that satisfies the required interface. It scores
-based on how many words a miner's answer shares with the correct answer,
-simple, but a legitimate starting point you can build on.
+The full, buildable project below lives in
+[telegraph-examples/wasm-scoring-module](https://github.com/telegraphprotocol/telegraph-examples/tree/main/wasm-scoring-module) —
+clone it, `cd wasm-scoring-module/rust-module`, and run
+`cargo build --release --target wasm32-unknown-unknown` to get a working
+`.wasm` immediately. It scores based on how many words a miner's answer
+shares with the correct answer: simple, but a legitimate starting point you
+can build on. Here's what each piece does.
+
+**No standard library.** The module can't link against Rust's standard
+library, there's no OS underneath it to provide one, so it opts out with
+`#![no_std]`. That means panics have no default handler either: one has to
+be supplied explicitly, and since there's nowhere to unwind to, it just
+traps.
 
 ```rust
 #![no_std]
@@ -100,7 +107,16 @@ use core::panic::PanicInfo;
 fn panic(_info: &PanicInfo) -> ! {
     core::arch::wasm32::unreachable()
 }
+```
 
+**Memory: a bump allocator.** WASM functions can only pass numbers, not
+strings, so the node needs somewhere in your module's own memory to write
+the question/answer text before calling you. `alloc` hands out slices of a
+fixed 1 MB static buffer by just moving an offset forward; `dealloc` is a
+no-op because nothing here needs to free anything mid-call, every call gets
+fresh memory anyway.
+
+```rust
 const HEAP_SIZE: usize = 1 * 1024 * 1024;
 static mut HEAP: [u8; HEAP_SIZE] = [0u8; HEAP_SIZE];
 static mut HEAP_OFFSET: usize = 0;
@@ -123,14 +139,27 @@ pub unsafe extern "C" fn alloc(size: i32) -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dealloc(_ptr: i32, _size: i32) {}
+```
 
+**Reading the input back out.** The host writes UTF-8 bytes at the pointer
+your `alloc` returned; this turns a raw `(ptr, len)` pair back into a Rust
+`&str` so the rest of the module can work with normal string operations.
+
+```rust
 unsafe fn read_str<'a>(ptr: i32, len: i32) -> &'a str {
     unsafe {
         let slice = core::slice::from_raw_parts(ptr as *const u8, len.max(0) as usize);
         core::str::from_utf8_unchecked(slice)
     }
 }
+```
 
+**The actual scoring logic.** `word_overlap` counts what fraction of the
+miner's answer's words also appear in the ground truth, case-insensitively.
+`score` short-circuits to a perfect `1.0` for a verbatim match, otherwise
+falls back to that overlap fraction.
+
+```rust
 fn word_overlap(answer: &str, ground_truth: &str) -> f32 {
     let mut total = 0u32;
     let mut matched = 0u32;
@@ -156,7 +185,15 @@ fn score(ground_truth: &str, miner_answer: &str) -> f32 {
     }
     word_overlap(miner_answer, ground_truth)
 }
+```
 
+**The required export.** This is the only function the node actually calls.
+It reads the ground truth and miner answer out of memory, rejects a blank
+answer outright (per the required interface above), and otherwise defers to
+`score`. Note the question (`_q_ptr`/`_q_len`) is received but unused here,
+this simple example doesn't need it, but the node always passes it.
+
+```rust
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rank_answer(
     _q_ptr: i32,
@@ -186,7 +223,6 @@ crate-type = ["cdylib"]
 Build it with:
 
 ```bash
-
 rustup target add wasm32-unknown-unknown
 cargo build --release --target wasm32-unknown-unknown
 ```
@@ -202,100 +238,16 @@ Don't wait until you've registered on-chain to find out if your module
 works. You don't need any of Telegraph's own code for this, just
 [wazero](https://wazero.io), the same open-source WASM runtime library the
 node itself uses under the hood, which anyone can pull in independently.
-The tool below loads your `.wasm` file the same way the node does (writing
-your question/ground-truth/answer strings into its memory via `alloc`, then
-calling `rank_answer`) and prints back the score.
 
-Set it up as its own standalone Go module:
-
-```bash
-mkdir wasmtry && cd wasmtry
-go mod init wasmtry
-go get github.com/tetratelabs/wazero
-```
-
-Save this as `main.go`:
-
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"os"
-
-	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/api"
-)
-
-func main() {
-	if len(os.Args) != 5 {
-		fmt.Println("usage: go run . <path-to.wasm> <question> <ground_truth> <miner_answer>")
-		os.Exit(1)
-	}
-	wasmPath, question, groundTruth, answer := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
-
-	wasmBytes, err := os.ReadFile(wasmPath)
-	if err != nil {
-		panic(err)
-	}
-
-	ctx := context.Background()
-	rt := wazero.NewRuntime(ctx)
-	defer rt.Close(ctx)
-
-	mod, err := rt.Instantiate(ctx, wasmBytes)
-	if err != nil {
-		panic(fmt.Sprintf("module failed to load: %v", err))
-	}
-	defer mod.Close(ctx)
-
-	mem := mod.Memory()
-	if mem == nil {
-		panic("module exports no linear memory")
-	}
-
-	alloc := mod.ExportedFunction("alloc")
-	rankAnswer := mod.ExportedFunction("rank_answer")
-	if alloc == nil || rankAnswer == nil {
-		panic("module is missing a required export: alloc or rank_answer")
-	}
-
-	writeStr := func(s string) (ptr, length uint32) {
-		if len(s) == 0 {
-			return 0, 0
-		}
-		res, err := alloc.Call(ctx, uint64(len(s)))
-		if err != nil {
-			panic(fmt.Sprintf("alloc failed: %v", err))
-		}
-		p := uint32(res[0])
-		if !mem.Write(p, []byte(s)) {
-			panic("failed to write into module memory")
-		}
-		return p, uint32(len(s))
-	}
-
-	qPtr, qLen := writeStr(question)
-	gtPtr, gtLen := writeStr(groundTruth)
-	maPtr, maLen := writeStr(answer)
-
-	res, err := rankAnswer.Call(ctx,
-		uint64(qPtr), uint64(qLen),
-		uint64(gtPtr), uint64(gtLen),
-		uint64(maPtr), uint64(maLen),
-	)
-	if err != nil {
-		panic(fmt.Sprintf("rank_answer failed: %v", err))
-	}
-
-	fmt.Printf("score: %.4f\n", api.DecodeF32(res[0]))
-}
-```
-
-Run it like this:
+A ready-to-run CLI that does exactly this — loads your `.wasm` file the same
+way the node does (writing your question/ground-truth/answer strings into
+its memory via `alloc`, then calling `rank_answer`) and prints back the
+score — lives alongside the example module at
+[telegraph-examples/wasm-scoring-module/go-tester](https://github.com/telegraphprotocol/telegraph-examples/tree/main/wasm-scoring-module/go-tester).
+Clone the repo, then:
 
 ```bash
+cd wasm-scoring-module/go-tester
 go run . my_module.wasm \
   "What is the capital of France?" \
   "Paris is the capital of France." \
