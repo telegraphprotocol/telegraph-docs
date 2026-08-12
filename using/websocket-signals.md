@@ -11,14 +11,14 @@ This is the right interface for:
 - Systems that react to specific categories of signals (e.g., only climate data, only medical research summaries).
 - Any workflow where signals should arrive as events rather than being fetched on demand.
 
-**WebSocket URL (testnet):** `ws://13.237.89.59:7044/engine/ws`
+**WebSocket URL (testnet):** `wss://devnode.telegraphprotocol.com/engine/ws`
 
 ## Step 1: Connect and Authenticate
 
 **Anonymous connections** (no wallet) can only use `list_subnets` and `ping` — no authentication needed for either:
 
 ```
-ws://13.237.89.59:7044/engine/ws
+wss://devnode.telegraphprotocol.com/engine/ws
 ```
 
 Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` don't charge your escrow, but the connection they run on still has to be wallet-authenticated.
@@ -26,7 +26,7 @@ Every other action, including `ask` and `ask_direct`, requires a verified wallet
 **Wallet-authenticated connections** unlock `ask`, `ask_direct`, subscriptions, and escrow-based signal delivery. Connect with your EVM address as a query parameter:
 
 ```
-ws://13.237.89.59:7044/engine/ws?wallet_address=0xYourAddress
+wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=0xYourAddress
 ```
 
 After upgrading, the server does NOT immediately send a `connected` message. Instead, it waits for you to complete the wallet challenge-response handshake within 15 seconds:

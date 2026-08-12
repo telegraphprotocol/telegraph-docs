@@ -125,10 +125,9 @@ OPERATOR_KEY=0x...                 # Optional separate operator key
 |---|---|
 | 7044 | Main HTTP API (miner dispatcher, engine, daemon, admin) |
 | 4001 | P2P libp2p (QUIC) — peer discovery and communication |
-| 8080 | Engine sub-process (internal; Engine routes through 7044) |
 | 3000 | Next.js frontend (if the Intelligence Terminal UI is running) |
 
-Open port **7044** and **4001** in your firewall. Keep 8080 internal (localhost only) and 3000 optional.
+Open port **7044** and **4001** in your firewall. 3000 is optional.
 
 ## Step 4: Run the Node
 
@@ -177,7 +176,7 @@ Check the API health:
 curl http://localhost:7044/daemon/health
 # {"status":"ok","time":"2026-06-26T18:25:32Z"}
 
-curl http://localhost:7044/miner-dispatcher/integrations
+curl http://localhost:7044/api/miners
 # Returns JSON array of loaded miner integrations
 ```
 

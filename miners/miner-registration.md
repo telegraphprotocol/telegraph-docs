@@ -122,7 +122,7 @@ Activation takes a few minutes. Every Telegraph node that detects the `MinerRegi
 You can verify you're live by checking the integrations endpoint on any running node:
 
 ```bash
-curl http://13.237.89.59:7044/miner-dispatcher/integrations
+curl https://devnode.telegraphprotocol.com/api/miners
 ```
 
 Your miner's slug should appear in the response JSON.

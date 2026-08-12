@@ -8,7 +8,7 @@ The Daemon is a background service that produces intelligence on its own — wit
 
 > The Daemon is separate from the Engine. The **Engine** answers *your* questions on demand and charges per call (see [Engine Inference](engine-ask.md)). The **Daemon** generates *its own* questions on a schedule and exposes the results read-only. This page is about reading what the Daemon has already produced — it does not run inference for you.
 
-**Daemon API base URL (testnet):** `http://13.237.89.59:7044/daemon`
+**Daemon API base URL (testnet):** `https://devnode.telegraphprotocol.com/daemon`
 
 ## What the Daemon Does
 

@@ -112,7 +112,7 @@ sudo journalctl -u telegraph -f
 curl http://127.0.0.1:7044/daemon/health
 
 # Active miners
-curl http://127.0.0.1:7044/miner-dispatcher/integrations
+curl http://127.0.0.1:7044/api/miners
 
 # On-chain intents
 cast call $DIAMOND "getCanonicalIntents()(string[])" --rpc-url $EVM_HTTP_URL
@@ -144,8 +144,8 @@ A public testnet node is available for testing:
 
 | Service | Endpoint |
 |---|---|
-| HTTP API | `http://13.237.89.59:7044` |
-| WebSocket | `ws://13.237.89.59:7044/engine/ws` |
-| Engine Ask | `http://13.237.89.59:7044/engine/v1/ask` |
+| HTTP API | `https://devnode.telegraphprotocol.com` |
+| WebSocket | `wss://devnode.telegraphprotocol.com/engine/ws` |
+| Engine Ask | `https://devnode.telegraphprotocol.com/engine/v1/ask` |
 
 See [Addresses & Parameters](protocol/addresses-and-params.md) for contract addresses and protocol configuration.
