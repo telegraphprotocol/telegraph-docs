@@ -22,11 +22,11 @@ The Base Sepolia Diamond is a full redeployment with 18 facets including the new
 **RPC endpoints (examples):**
 
 * **Base Sepolia:**
-  * HTTP: `https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
-  * WebSocket: `wss://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
+  * HTTP: `https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>`
+  * WebSocket: `wss://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>`
 * **Avalanche Fuji:**
-  * HTTP: `https://avax-fuji.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
-  * WebSocket: `wss://avax-fuji.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7`
+  * HTTP: `https://avax-fuji.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>`
+  * WebSocket: `wss://avax-fuji.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>`
 
 ### Token Addresses (Base Sepolia)
 
