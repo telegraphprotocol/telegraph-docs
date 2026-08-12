@@ -289,7 +289,7 @@ on_chain:
 Before registering on-chain, validate your YAML against a running node using the Validation API:
 
 ```bash
-curl -X POST http://localhost:7044/miner-dispatcher/validate \
+curl -X POST http://13.237.89.59:7044/miner-dispatcher/validate \
   -H "Content-Type: application/json" \
   -H "X-Internal-Secret: <node-secret>" \
   -d '{"yaml": "<your-yaml-content>"}'

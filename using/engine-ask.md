@@ -161,7 +161,7 @@ See [Intents](intents.md) for what the network can do and how each one is
 scored, or read the live set straight off the node:
 
 ```bash
-curl http://localhost:8080/engine/v1/intents
+curl http://13.237.89.59:7044/engine/v1/intents
 ```
 
 ## Streaming over WebSocket
