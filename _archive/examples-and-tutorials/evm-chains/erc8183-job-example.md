@@ -34,7 +34,7 @@ Each array must have the same length. `miners` declares which miners (by registr
 
 ```bash
 DIAMOND="0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3"
-RPC="https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7"
+RPC="https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"
 
 cast send "$DIAMOND" \
   "createJob(address[],uint256[],string[],bool[])" \

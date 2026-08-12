@@ -56,7 +56,7 @@ Do NOT use keccak256 — the node verifies using SHA-256.
 
 ```bash
 DIAMOND="0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3"
-RPC="https://base-sepolia.g.alchemy.com/v2/aKrIQPvnY5pM8AkdVNDM7"
+RPC="https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"
 
 YAML_URL="ipfs://bafkreig5nxc..."
 YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
