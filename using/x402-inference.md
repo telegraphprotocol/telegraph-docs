@@ -50,11 +50,11 @@ Content-Type: application/json
 **Response (402 Payment Required):**
 ```
 HTTP/1.1 402 Payment Required
-Payment-Required: eyJ4NDAyVmVyc2lvbiI6Mi...  ← base64-encoded challenge
+PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6Mi...  ← base64-encoded challenge
 Content-Type: application/json
 ```
 
-Decode the `Payment-Required` header (base64 → JSON) to see the payment options:
+Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment options:
 
 ```json
 {
