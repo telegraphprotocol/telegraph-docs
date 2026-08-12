@@ -75,7 +75,7 @@ Returns a paginated list of signals. Each item is a stored result:
 
 | Parameter | Notes |
 |---|---|
-| `category` | One of `POLITICS`, `ECONOMICS`, `GEOPOLITICS`, `TECHNOLOGY`, `CLIMATE`, `HEALTH`, `FINANCE`, `CRYPTO`, `SPORTS`, `SCIENCE`, `SOCIAL`, `OTHER` (case-insensitive). |
+| `category` | One of `POLITICS`, `ECONOMICS`, `GEOPOLITICS`, `TECHNOLOGY`, `CLIMATE`, `HEALTH`, `FINANCE`, `CRYPTO`, `SPORTS`, `SCIENCE`, `SOCIAL`, `AI`, `PHARMA`, `LAW`, `OTHER` (case-insensitive). |
 | `source` | Collector name (`reddit`, `gdelt`, `polymarket`, `hackernews`, `openmeteo`, …), or `user` for rows persisted from direct Engine traffic. |
 | `sort` | `recent` (default), `interest`, `affected`, or `audience`. |
 | `order` | `desc` (default) or `asc`. |
