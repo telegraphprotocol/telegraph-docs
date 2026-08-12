@@ -30,7 +30,7 @@ Agent (your contract) → createJob() → [JobCreated event]
                           callback.subnetMessage() called on your contract
 ```
 
-States: `Pending (0)` → `Active (1)` → `Terminal`
+States: `Funded (0)` → `Terminal (1)` (on completion), or `Cancelled (2)` if cancelled before it reaches Terminal.
 
 ## Step 1: Deposit USDC to Escrow
 
@@ -65,7 +65,7 @@ cast call 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
 ```
 
-Or use the intentId from the `/miner-dispatcher/integrations` API response.
+Or use the intentId from the `/api/miners` API response.
 
 A live example intent ID on testnet: `0xccd42820467c59d6f703fb6d0fe57d6303fbfaa893759ee493c29293adfdc1f7`
 

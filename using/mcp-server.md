@@ -151,7 +151,7 @@ npm run inspect
 |---|---|---|
 | `category` | string | Filter by category (e.g., `CRYPTO`, `PHARMA`, `TECHNOLOGY`) |
 | `source` | string | Filter by data source (e.g., `reddit`, `polymarket`, `gdelt`) |
-| `sort` | `interest` \| `timestamp` | Sort order (default: `timestamp`) |
+| `sort` | `recent` \| `interest` \| `affected` \| `audience` | Sort order (default: `recent`) |
 | `since_hours` | number | Only results from the last N hours |
 | `min_interest` | number | Minimum interest score |
 | `limit` | number | Max results (default: 10) |

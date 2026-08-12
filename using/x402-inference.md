@@ -21,10 +21,12 @@ This page covers the payment mechanics. For what to actually send and get back, 
 Before sending a request, check which miners are live and what their schemas look like:
 
 ```
-GET /miner-dispatcher/integrations
+GET /api/miners
 ```
 
 This returns a JSON array of every registered miner with its endpoints, input/output schemas, supported Intents, and minimum prices. The set of live miners changes as operators register and deregister on-chain, so treat this endpoint as the source of truth rather than any list written down elsewhere.
+
+Filter server-side instead of fetching the whole catalog: `GET /api/miners?intent=WEATHER_FORECAST` returns only miners that support that Intent. `status` and `limit` are also supported query params.
 
 You can also browse the live miner set and their output on the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal).
 
@@ -147,7 +149,7 @@ Keep the `signal_hash`. It's how you look the call up afterwards — see [Verify
 
 The response also carries a settlement header:
 ```
-x-payment-settle-response: <settlement-proof>
+PAYMENT-RESPONSE: <settlement-proof>
 ```
 
 Keep this if you need to audit or dispute the payment later.
@@ -179,7 +181,7 @@ Choose based on where you hold USDC. The amount is the same either way. The `acc
 
 The price per request isn't fixed. It's the miner's declared floor price multiplied by a demand multiplier based on 24-hour request volume for that Intent. A miner with a $0.01 floor seeing 2,000 requests per day charges $0.015 at the 1.5× tier. See the full [demand multiplier tiers](../protocol/addresses-and-params.md#demand-multiplier-tiers).
 
-A miner's floor price is the `min_price_usdc` field of its `/miner-dispatcher/integrations` entry, in the same 6-decimal units as the challenge — `10000` means $0.01. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
+A miner's floor price is the `min_price_usdc` field of its `/api/miners` entry, in the same 6-decimal units as the challenge — `10000` means $0.01. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
 
 ## Endpoints That Don't Require Payment (Discovery)
 
@@ -187,8 +189,7 @@ Inference is paid. Discovery and health endpoints are always open:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /miner-dispatcher/integrations` | The live miner catalog with schemas and prices. |
-| `GET /miner-dispatcher/healthz` | Health check. |
+| `GET /api/miners` | The live miner catalog with schemas and prices. Supports `?intent=`, `?status=`, `&limit=` filters. |
 | `GET /miner-dispatcher/openapi.json` | Machine-readable OpenAPI spec of all miner endpoints. |
 | `GET /miner-dispatcher/openapi.yaml` | The same spec in YAML. |
 
