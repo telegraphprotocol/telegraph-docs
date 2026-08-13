@@ -11,7 +11,7 @@ Use this when:
 - You want an auditable on-chain record of the request, the miner that served it, and a hash committing to the result.
 - You want composability — your callback contract can take any action on receipt of the result.
 
-> **Testnet maturity.** On Base Sepolia the job rail is wired end to end but lightly exercised, and BLS signature verification over job resolution is currently disabled (`blsPublicKey[0] == 0`), so resolution is authorised by the settlement oracle rather than a validator quorum. Treat on-chain jobs as functional-but-early on testnet.
+> A job targets an **Intent** and lets the protocol pick the miner, paid for out of your USDC escrow on the Diamond.
 
 ## The Job Lifecycle
 
@@ -125,17 +125,20 @@ The other arrays carry optional generation settings, picked up automatically whe
 | `bools[1]` | `logprobs` |
 | trailing odd `strings[]` entry that parses as a float | `temperature` |
 
-**Example — Chat completion job:**
+> **Your model string has to suit whichever miner wins the routing.** When you target a broad intent like `CHAT_COMPLETION`, ten miners compete for it and you don't choose between them — passing a model name only one of them accepts gets the call rejected upstream and leaves the job unresolved. Either target an intent served by a single miner, or use a model string the likely winners all accept.
+
+**Example — weather forecast job.** `STORM_ALERT` is served only by Zeus, so routing is deterministic and the parameter shape is known:
 
 ```bash
 cast send 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
   "createJob(bytes32,(address[],uint256[],string[],bool[]),address)(uint256)" \
-  "0xccd42820467c59d6f703fb6d0fe57d6303fbfaa893759ee493c29293adfdc1f7" \
-  '([],[],["telegraph-assistant","user","What is 2+2?"],[false])' \
-  "0x0000000000000000000000000000000000000000" \
-  --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY> \
-  --private-key <YOUR_KEY>
+  "$(cast keccak 'STORM_ALERT')" \
+  '([],[],["24.75","67.0","2t","",""],[false])' \
+  "$CALLBACK" \
+  --rpc-url $RPC --private-key $KEY
 ```
+
+Zeus's `on_chain.request` block maps `strings[0..4]` to the `lat`, `lon`, `hourly`, `start_datetime` and `end_datetime` query parameters. Every entry in that block must be present, so pass empty strings for the ones you don't need. `hourly` takes an ERA5 short name such as `2t` — a friendlier alias like `temperature_2m` is rejected by the upstream API.
 
 This emits a `JobCreated` event with exactly four fields:
 
@@ -190,10 +193,24 @@ function subnetMessage(
 }
 ```
 
-Two things about how this is actually invoked matter more than the signature:
+Three things about how this is actually invoked matter more than the signature:
 
 - **`success` is always `true` and `errorMessage` is always `""`.** The callback only fires on a successful resolution — a failed job never reaches Terminal, so it never calls you at all. Don't build an error path here; see [When a job fails](#when-a-job-fails).
-- **Your revert is swallowed.** The protocol calls you inside `try … catch {}`. If your callback reverts, runs out of gas, or misbehaves, the job **still** transitions to Terminal and the miner is **still** paid. You will not get a retry and there is no on-chain signal that delivery failed. Keep the callback minimal — store the result and do heavy work in a separate transaction.
+- **Your revert is swallowed.** The protocol calls you inside `try … catch {}`. If your callback reverts, runs out of gas, or misbehaves, the job **still** transitions to Terminal and the miner is **still** paid. You will not get a retry and there is no on-chain signal that delivery failed.
+- **Your gas budget is small, and running out is silent.** The callback is the last step of `transitionToTerminal`, after the miner payment has been swapped through the DEX, so it receives only what is left of the resolving transaction's gas. A callback that copies the response arrays into storage is enough to exhaust it — the job settles normally and your contract is simply never told.
+
+That last point is the one that bites in practice. **Keep the callback to a single cheap write.** Record the result and do anything expensive in a separate transaction you send yourself:
+
+```solidity
+mapping(uint256 => bytes32) public results;
+
+function subnetMessage(uint256 id, bool, OnChainData calldata response, string calldata) external {
+    require(msg.sender == DIAMOND_ADDRESS, "only protocol");
+    results[id] = keccak256(abi.encode(response));   // one write, then stop
+}
+```
+
+If you need the full response on-chain, read it from the resolving transaction's calldata off-chain rather than copying it into storage inside the callback.
 
 ### Where your result lands
 
@@ -242,6 +259,42 @@ If the miner is unreachable or returns an error, the listener **deliberately doe
 Recovery is `cancelJob(jobId)`, which returns the full budget to your escrow. This is by design — an unresolvable job leaves the money somewhere its owner can still reach, rather than paying a miner that did no work.
 
 So: **a job sitting in `Funded` for more than a minute or two is not still in progress — it has failed, and you should cancel it.**
+
+## A complete run
+
+Every command here was executed against the live Base Sepolia deployment. Set `DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` and point `RPC` at Base Sepolia first.
+
+```bash
+# 1 — deploy a receiver, then fund escrow (jobBasePrice is 1000000 = 1 USDC)
+cast send 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
+  "approve(address,uint256)" $DIAMOND 1000000 --rpc-url $RPC --private-key $KEY
+cast send $DIAMOND "depositUSDC(uint256)" 1000000 --rpc-url $RPC --private-key $KEY
+cast call  $DIAMOND "escrowBalance(address)(uint256)" $YOU --rpc-url $RPC
+# 1000000
+
+# 2 — create the job
+cast send $DIAMOND \
+  "createJob(bytes32,(address[],uint256[],string[],bool[]),address)(uint256)" \
+  "$(cast keccak 'STORM_ALERT')" \
+  '([],[],["24.75","67.0","2t","",""],[false])' \
+  $CALLBACK --rpc-url $RPC --private-key $KEY
+
+# 3 — watch it resolve (a minute or two, depending on the listener's poll)
+cast call $DIAMOND \
+  "getJob(uint256)((address,bytes32,address,uint256,uint256,uint256,uint8,uint256))" \
+  $JOB_ID --rpc-url $RPC
+# (agent, intentId, callback, 1000000, 980000, 20000, 1, createdAt)   ← state 1 = Terminal
+
+cast call $DIAMOND "getJobOutput(uint256)(bytes32)" $JOB_ID --rpc-url $RPC
+# 0xc01ccf73…   ← non-zero once resolved
+```
+
+What lands on chain when it settles, all in the `transitionToTerminal` transaction:
+
+- `20000` USDC (the 2% fee) transferred to the Treasury
+- `980000` USDC swapped through the DEX and delivered to the miner as MACHINA
+- `JobTerminal(jobId, fee, minerPaid)` emitted by the Diamond
+- your callback invoked
 
 ## Cancelling a Job
 

@@ -124,8 +124,8 @@ npm run inspect
 
 | Tool | Endpoint | Description |
 |---|---|---|
-| `tg_node_status` | `GET /status` | Node identity, public key, chain connection info |
-| `tg_node_list_subnets` | `GET /api/miners` | Full miner catalog: IDs, schemas, endpoints, signal mappings |
+| `tg_node_status` | `GET /status` | Node identity — returns the node's `publicKey` |
+| `tg_node_list_subnets` | `GET /api/miners` | Full miner catalog: IDs, schemas, endpoints, signal mappings, and each miner's `activation_status` |
 
 ### Engine Tools
 

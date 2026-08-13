@@ -51,14 +51,25 @@ semantics:
 
 | Field | Required | Description |
 |---|---|---|
+The schema requires exactly six top-level fields: `version`, `kind`, `id`, `slug`, `name`, `base_url`. Everything else is optional, though a miner with no `endpoints` or `semantics` won't be routable.
+
+| Field | Required | Description |
+|---|---|---|
 | `version` | Yes | Always `"1"` |
-| `kind` | Yes | `"miner"` for on-demand inference, `"validator"` for polled data |
+| `kind` | Yes | `"miner"` for on-demand inference, `"validator"` for polled data, `"subnet"` for a Bittensor subnet integration |
 | `id` | Yes | Numeric miner ID used in API paths (`/engine/v1/ask/{id}`) |
-| `slug` | Yes | kebab-case identifier, must be unique (e.g., `bittensor-sn18-zeus`) |
-| `protocol` | No | `"bittensor"` (default) or `"generic"` |
+| `slug` | Yes | kebab-case identifier, must be unique — pattern `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `protocol` | No | `"bittensor"` or `"generic"` |
 | `name` | Yes | Human-readable display name |
 | `description` | No | Description for routing context and documentation |
-| `base_url` | Yes | Upstream API base URL (must start with `https://`) |
+| `base_url` | Yes | Upstream API base URL. Must start with `http://` or `https://` — plain `http` is accepted, and is what node-local miners use. |
+| `input_schema` | No | JSON Schema describing the request body, surfaced to callers via `/api/miners` |
+| `output_schema` | No | JSON Schema describing the response body |
+| `polling` | No | For `kind: validator` — requires `polling.interval_seconds` |
+| `cache_ttl_sec` | No | Response cache lifetime |
+| `rate_limit_per_sec` | No | Client-side rate cap the node applies to your upstream |
+| `circuit_threshold` | No | Consecutive failures before the node trips the circuit breaker |
+| `circuit_cooldown_seconds` | No | How long the breaker stays open |
 
 ### Docs (Optional)
 
@@ -89,10 +100,26 @@ Each entry:
 
 | Field | Required | Description |
 |---|---|---|
-| `auth.type` | Yes | `"bearer"`, `"header"`, or `"none"` |
+The whole `auth` block is optional — omit it for an open API. If you do include it, `auth.type` is required.
+
+| Field | Required | Description |
+|---|---|---|
+| `auth.type` | Yes (within `auth`) | `"bearer"`, `"header"`, or `"none"` |
 | `auth.env_var` | If type ≠ none | The **name** of an environment variable holding your API key. Never put the raw key in the YAML. |
 | `auth.header_name` | No | Header to inject the key into. Defaults to `Authorization` for `bearer`. |
 | `auth.value_prefix` | No | Prefix prepended to the key value (e.g., `"APIKey "`, `"Token "`). Defaults to `"Bearer "` for bearer auth. |
+| `auth.inject` | No | List of extra injection points, for APIs that want the key somewhere other than a header |
+
+Each `auth.inject[]` entry requires `in` and `name`:
+
+| Field | Required | Description |
+|---|---|---|
+| `in` | Yes | `"header"`, `"query"`, `"body"`, or `"multipart"` |
+| `name` | Yes | Parameter or header name to inject under |
+| `env_var` | No | Environment variable holding the value, if different from `auth.env_var` |
+| `value_prefix` | No | Prefix prepended to the injected value |
+
+Use `in: query` for the many APIs that expect `?apikey=...` rather than a header.
 
 The node reads the environment variable at runtime. Your API key is never stored on-chain — only the `env_var` name is.
 
