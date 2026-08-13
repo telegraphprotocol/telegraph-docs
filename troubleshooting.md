@@ -22,29 +22,36 @@ The EIP-712 domain name in the payment signature doesn't match. Base Sepolia USD
 
 ### Job stuck in Funded state — never resolved
 
-Jobs progress through states: Funded → Terminal. If a job stays in Funded:
+Jobs progress through states: Funded (`0`) → Terminal (`1`), or Cancelled (`2`).
 
-1. Check the job exists on-chain:
+**A job that stays Funded has failed, not stalled.** Resolution happens per job, within seconds of the miner answering — it is not batched into an epoch. If the miner is unreachable or returns an error, the listener deliberately does *not* resolve the job: there is no failed terminal state, your callback is never called, and the job sits in Funded indefinitely.
+
+1. Check the job state on-chain. Note the doubled parentheses — `getJob` returns a struct, and without them `cast` fails with `could not decode output`:
 ```bash
-cast call <diamond> "getJob(uint256)(address,bytes32,address,uint256,uint256,uint256,uint8,uint256)" <jobId> --rpc-url <rpc>
+cast call <diamond> "getJob(uint256)((address,bytes32,address,uint256,uint256,uint256,uint8,uint256))" <jobId> --rpc-url <rpc>
+# (agent, intentId, callback, budget, minerPayment, protocolFee, state, createdAt)
 ```
-State `0` = Funded, State `1` = Terminal.
 
 2. Ensure a miner supporting your intent is registered and active.
 3. Verify your job's OnChainData format matches what the miner expects:
    - `strings[0]` = model name (for LLM miners)
-   - `strings[1]` = messages content (formatted as role/content pairs for `chat_messages` format)
-4. Jobs are processed asynchronously — wait for the next listener cycle (~60 seconds).
+   - `strings[1]` onward = alternating role/content pairs for the `chat_messages` format
+4. **Recover your funds with `cancelJob`.** Only the original agent can cancel, and it refunds the full budget to your escrow:
+```bash
+cast send <diamond> "cancelJob(uint256)" <jobId> --rpc-url <rpc> --private-key <key>
+```
 
-### Job dispatched but received empty/error result
+### Job reached Terminal but the result looks wrong
 
-The listener falls back to an error hash if the miner returns a non-200 response. Check the job result on-chain:
+Check the output hash committed on-chain:
 
 ```bash
 cast call <diamond> "getJobOutput(uint256)(bytes32)" <jobId> --rpc-url <rpc>
 ```
 
-A non-zero hash means the job was resolved, even if the miner had an error.
+A non-zero hash means the miner answered and the job resolved. If the *content* isn't what you expected, the usual cause is an `OnChainData` layout mismatch — the response is packed at the indexes the serving miner declares in its YAML `on_chain.fields` block, not in a fixed order. Check that block for the miner that served you.
+
+A reverting callback does not show up here: the protocol calls your callback inside `try … catch {}`, so the job reaches Terminal and the miner is paid even if delivery to your contract failed.
 
 ## Miner Registration
 
@@ -60,17 +67,28 @@ Your YAML file has validation errors. Common causes:
 
 ### "Hash mismatch" error
 
-The SHA-256 of your hosted YAML doesn't match the on-chain hash. Your YAML content changed after you registered. Deregister and re-register with the updated hash:
+The SHA-256 of your hosted YAML doesn't match the on-chain hash. Your YAML content changed after you registered. Recompute the hash and point your registration at it with `updateMiner`, which replaces the entry in a single transaction:
 
 ```bash
-cast send <diamond> "deregisterMiner(uint256)" <registrationId> --rpc-url <rpc> --private-key <key>
 sha256sum my-miner.yaml | awk '{print "0x"$1}'  # recompute
-cast send <diamond> "registerMiner(string,bytes32,address,uint256,string[])" ... --rpc-url <rpc> --private-key <key>
+cast send <diamond> "updateMiner(uint256,string,bytes32,address,uint256,string[])" \
+  <registrationId> "<yamlUrl>" "<newHash>" "<feeAddress>" <minPriceUsdc> '["INTENT"]' \
+  --rpc-url <rpc> --private-key <key>
+```
+
+A common cause is a trailing-newline difference between the file you hashed and the bytes your host actually serves. Hash exactly what the URL returns:
+
+```bash
+curl -s "<yamlUrl>" | sha256sum
 ```
 
 ### Miner stuck in pending state
 
-Nodes activate miners at epoch boundaries. Wait for the next epoch (up to ~60 seconds in dev mode). If still pending after one epoch, check that your YAML is publicly accessible at the declared URL.
+Activation is **not** tied to an epoch boundary — the node activates each registration as it processes that registration's event, usually within a minute. Waiting for an epoch will not help. If you're still pending:
+
+- Confirm your YAML is publicly reachable at the declared URL (the node fetches it directly).
+- Confirm the SHA-256 of what the URL serves matches your on-chain `yamlHash`.
+- Check the node logs for a schema validation error — a rejected YAML stays pending rather than activating.
 
 ## WebSocket Signals
 
@@ -78,22 +96,28 @@ Nodes activate miners at epoch boundaries. Wait for the next epoch (up to ~60 se
 
 Common causes:
 - Invalid EIP-191 signature during wallet challenge
-- Insufficient escrow balance — deposit USDC first:
+- Insufficient escrow balance — approve, then deposit USDC first:
 ```bash
+cast send 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
+  "approve(address,uint256)" <diamond> 1000000 --rpc-url <rpc> --private-key <key>
 cast send <diamond> "depositUSDC(uint256)" 1000000 --rpc-url <rpc> --private-key <key>
+cast call  <diamond> "escrowBalance(address)(uint256)" <yourAddress> --rpc-url <rpc>
 ```
-(`1000000` = 1.0 USDC in 6‑decimal units)
+(`1000000` = 1.0 USDC in 6‑decimal units, which is the WebSocket minimum. Skipping the approval fails with `ERC20: transfer amount exceeds allowance`.)
 
 - Network firewall blocking WebSocket connections
 
+### "wallet verification required for ask"
+
+`ask` and `ask_direct` are **not** anonymous over WebSocket. Only `list_subnets` and `ping` work without a wallet. Reconnect with `?wallet_address=0x...` and complete the `auth_wallet` → `wallet_verify` handshake first.
+
 ### No signals received after subscribing
 
-1. Verify your subscription is active:
-```bash
-curl http://<node>:7044/engine/v1/subscription/<id>/signals
-```
+1. Verify your subscription with the `list_subscriptions` action on the same WebSocket connection — there is no HTTP endpoint for this.
 
-2. Signals are generated by the daemon cycle and by user-initiated ask requests. The daemon runs on a configurable interval (default 30 minutes in production).
+2. Check you haven't hit your session `spend_limit_usdc`. When you do, the server sends a `limit_reached` message, cancels the subscription and closes the connection; you have to reconnect and resubscribe with a new limit.
+
+3. Signals are generated by the daemon cycle and by user-initiated ask requests. The daemon runs on a configurable interval (default 30 minutes in production).
 
 ## Engine Ask Endpoint
 

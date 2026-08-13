@@ -105,7 +105,7 @@ npm run inspect
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `TELEGRAPH_NODE_URL` | Yes | `https://devnode.telegraphprotocol.com` | Telegraph node base URL — used bare (e.g. `/status`, `/miner-dispatcher/integrations`) |
+| `TELEGRAPH_NODE_URL` | Yes | `https://devnode.telegraphprotocol.com` | Telegraph node base URL — used bare (e.g. `/status`, `/api/miners`) |
 | `TELEGRAPH_ENGINE_URL` | Yes | `https://devnode.telegraphprotocol.com/engine` | Same node, `/engine` prefix — used bare after this (e.g. `/v1/ask`) |
 | `TELEGRAPH_DAEMON_URL` | Yes | `https://devnode.telegraphprotocol.com/daemon` | Same node, `/daemon` prefix — used bare after this (e.g. `/health`) |
 | `TELEGRAPH_EVM_PRIVATE_KEY` | Yes* | — | EVM private key (`0x`-prefixed hex) |
@@ -125,7 +125,7 @@ npm run inspect
 | Tool | Endpoint | Description |
 |---|---|---|
 | `tg_node_status` | `GET /status` | Node identity, public key, chain connection info |
-| `tg_node_list_subnets` | `GET /miner-dispatcher/integrations` | Full miner catalog: IDs, schemas, endpoints, signal mappings |
+| `tg_node_list_subnets` | `GET /api/miners` | Full miner catalog: IDs, schemas, endpoints, signal mappings |
 
 ### Engine Tools
 
@@ -414,7 +414,9 @@ Agent runtimes that support the `.agents/skills/` convention (OpenClaw, Hermes, 
 
 A Skill descriptor tells the runtime *when* to automatically activate Telegraph — it's the activation policy the agent uses to decide whether to reach for these tools without being explicitly asked. The `description` field defines the trigger conditions:
 
-> "Use Telegraph Protocol for AI inference on Bittensor subnets. Activate when asked for weather forecasts, deepfake detection, LLM inference, image generation, content moderation, signal monitoring (CRYPTO, POLITICS, PHARMA, LAW), or whenever the user wants to route AI tasks through the decentralized Telegraph network."
+> "Use Telegraph Protocol for decentralized AI inference through its miner network. Activate when asked for weather forecasts, crypto and stock prices, on-chain analytics, web and news search, deepfake or AI-text detection, LLM inference, signal monitoring (CRYPTO, POLITICS, PHARMA, LAW), or whenever the user wants to route AI tasks through the decentralized Telegraph network."
+
+Adjust the capability list to match the intents the network actually serves today — check `/engine/v1/intents` before pasting, since an activation policy that advertises a capability no miner provides will send your agent down a dead end.
 
 The body of the Skill file contains a tool quick-reference table and usage examples the LLM can consult at call time.
 

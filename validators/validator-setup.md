@@ -30,16 +30,9 @@ The node creates all required tables on first startup — no manual schema migra
 
 ## Step 2: Get the Node Binary
 
-Either download the pre-built binary or build from source:
+> **Access required.** The node source repository is currently private and there is no public release download yet. Contact the Telegraph team for repository access or a pre-built binary before starting this step.
 
-```bash
-# Download pre-built (replace URL with the current release)
-curl -O https://releases.telegraph.network/telegraph-linux-amd64
-chmod +x telegraph-linux-amd64
-sudo mv telegraph-linux-amd64 /usr/local/bin/telegraph
-```
-
-Or build from source:
+Once you have access, build from source:
 
 ```bash
 git clone https://github.com/telegraphprotocol/Telegraph.git

@@ -84,36 +84,48 @@ cast send "$DIAMOND" \
 | `yamlUrl` | IPFS or HTTPS URL where your YAML is hosted |
 | `yamlHash` | SHA-256 of raw YAML bytes, prefixed with `0x` |
 | `feeAddress` | EVM address for MACHINA payouts (must be non-zero) |
-| `minPriceUsdc` | Floor price in 6-decimal USDC (minimum: `10000` = $0.01). **Immutable after registration.** |
+| `minPriceUsdc` | Floor price in 6-decimal USDC (minimum: `10000` = $0.01). Changeable later via `updateMiner`. |
 | `supportedIntents` | JSON array of at least one canonical Intent string |
 
-The intent strings in the `supportedIntents` array must match the canonical list (e.g., `"WEATHER_FORECAST"` not `"weather_forecast"`). Declaring Intents outside the canonical list is accepted but won't receive autonomous routing.
+**Every intent you declare must be canonical, or the transaction reverts.** The contract checks each string against the on-chain canonical set and fails the whole registration with `MinerRegistryFacet: unsupported intent` if any one of them isn't recognised. Matching is exact and case-sensitive — `"WEATHER_FORECAST"`, not `"weather_forecast"`.
+
+Check before you send:
+
+```bash
+cast call "$DIAMOND" "isCanonicalIntent(string)(bool)" "WEATHER_FORECAST" --rpc-url "$RPC"
+cast call "$DIAMOND" "getCanonicalIntents()(string[])" --rpc-url "$RPC"   # the full live set
+```
+
+The canonical set changes over time — intents get added and removed. Read the live list rather than copying one out of a document.
 
 ## Step 4: Confirm the Registration
 
-The transaction emits a `MinerRegistered` event with:
+The transaction emits a `MinerRegistered` event with seven fields:
 
 | Field | Description |
 |---|---|
-| `registrationId` | Unique sequential ID for this registration |
-| `miner` | Your registering address |
-| `intentId` | Derived: `keccak256(miner || yamlHash || blockNumber)` |
+| `registrationId` | Unique sequential ID for this registration (indexed) |
+| `miner` | Your registering address (indexed) |
 | `yamlUrl` | The URL you provided |
 | `yamlHash` | The hash you committed |
 | `feeAddress` | Your payout address |
 | `minPriceUsdc` | Your declared floor price |
+| `supportedIntents` | The intents you declared |
 
-You can query the registration by its ID to confirm it was recorded:
+Your registration also gets an `intentId`, derived as `keccak256(miner ‖ yamlHash ‖ registrationBlock)`. It is **not** in the event — read it back from `getMiner`, where it is the fifth return value:
 
 ```bash
 cast call "$DIAMOND" \
-  "getMiner(uint256)" <registrationId> \
-  --rpc-url "$RPC"
+  "getMiner(uint256)(address,string,bytes32,bool,bytes32,address,uint256,string[])" \
+  <registrationId> --rpc-url "$RPC"
+
+# → field 4 (bool)    active
+# → field 5 (bytes32) intentId  — agents pass this to createJob to target you specifically
 ```
 
 ## Step 5: Wait for Nodes to Activate You
 
-Activation takes a few minutes. Every Telegraph node that detects the `MinerRegistered` event will:
+Activation is driven by your registration event, not by any schedule — each node activates you as it processes that event, usually within a minute. There is no epoch boundary to wait for. Every Telegraph node that detects the `MinerRegistered` event will:
 1. Fetch your YAML from the declared URL.
 2. Verify the SHA-256 hash matches the on-chain commitment.
 3. Validate the YAML against the schema.
@@ -127,7 +139,7 @@ curl https://devnode.telegraphprotocol.com/api/miners
 
 Your miner's slug should appear in the response JSON.
 
-If your YAML fails validation (hash mismatch, missing required fields, invalid schema), the node stores your registration as rejected. You must deregister and re-register with a corrected YAML.
+If your YAML fails validation (hash mismatch, missing required fields, invalid schema), the node stores your registration as rejected. Fix the YAML and call `updateMiner` with the corrected URL and hash — see [Updating Your Miner](#updating-your-miner).
 
 ## Step 6: The Grace Period
 
@@ -139,13 +151,31 @@ After 7 days, your score from the grace period determines your starting leaderbo
 
 ## Updating Your Miner
 
-There is no update function. To change your YAML, floor price, fee address, or Intents:
+Use `updateMiner` to change your YAML, floor price, fee address, or Intents in a single transaction. Update the hosted YAML first, then:
 
-1. Call `deregisterMiner(registrationId)` — this deactivates your current entry.
-2. Update your YAML at the hosting URL (or use a new URL).
-3. Call `registerMiner(...)` with the new URL, new hash, and any new parameters — you receive a new `registrationId`.
+```bash
+cast send "$DIAMOND" \
+  "updateMiner(uint256,string,bytes32,address,uint256,string[])" \
+  <oldRegistrationId> \
+  "$YAML_URL" \
+  "$YAML_HASH" \
+  "$FEE_ADDRESS" \
+  "$MIN_PRICE" \
+  '["WEATHER_FORECAST","WEATHER_CHECK"]' \
+  --rpc-url "$RPC" \
+  --private-key "$MINER_PRIVATE_KEY"
+```
 
-Deregistering costs nothing beyond gas — there is no bond to release and no unbonding period to wait out.
+`updateMiner` deregisters the old entry and registers the new one atomically. Two consequences worth knowing:
+
+- **You get a new `registrationId` and a new `intentId`.** Anything holding your old intentId — an agent targeting you with `createJob`, for instance — will need the new one.
+- **The same canonical-intent rule applies.** If any intent in the new list isn't canonical, the whole update reverts and your original registration is left untouched.
+
+Only the address that registered a miner can update or deregister it; there is no admin override.
+
+### Deregistering
+
+To leave the network entirely:
 
 ```bash
 cast send "$DIAMOND" \
@@ -155,12 +185,15 @@ cast send "$DIAMOND" \
   --private-key "$MINER_PRIVATE_KEY"
 ```
 
+Deregistering costs nothing beyond gas — there is no bond to release and no unbonding period to wait out.
+
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| Miner stuck in pending state | No epoch boundary has passed yet | Wait for the next epoch |
-| "Hash mismatch" in node logs | YAML content changed after computing the hash | Deregister, recompute hash, re-register |
+| `MinerRegistryFacet: unsupported intent` | One of your `supportedIntents` isn't canonical | Check each with `isCanonicalIntent(string)` and re-send |
+| Miner stuck in pending state | YAML unreachable, or hash/schema check failed — activation is not epoch-gated | Verify the URL serves publicly and `curl -s <url> \| sha256sum` matches your on-chain hash |
+| "Hash mismatch" in node logs | The bytes served differ from what you hashed (often a trailing newline) | Recompute from `curl -s <url>`, then `updateMiner` |
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) field reference |
-| Not appearing in `/integrations` | Node hasn't processed the epoch boundary yet | Wait one epoch, check node logs |
+| Not appearing in `/api/miners` | Registration rejected, or the node hasn't seen the event | Check node logs; re-point with `updateMiner` once the YAML is fixed |
 | Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |

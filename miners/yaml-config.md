@@ -124,7 +124,17 @@ The `semantics` block defines what your API does and how validators should inter
 
 **Canonical Intents (declare at least one):**
 
-`CHAT_COMPLETION`, `LANGUAGE_GENERATION`, `TASK_COMPLETION`, `AGENT_TASK`, `WEB_SEARCH`, `WEATHER_CHECK`, `WEATHER_FORECAST`, `WEATHER_RISK_ASSESSMENT`, `STORM_ALERT`, `DEEPFAKE_DETECTION`, `IMAGE_VERIFICATION`, `VIDEO_VERIFICATION`, `MEDIA_AUTHENTICITY_CHECK`, `AI_DETECTION`, `TELEGRAPH_KNOWLEDGE`, `TEXT_GENERATION`, `HIGH_PERFORMANCE_INFERENCE`, `CONTENT_MODERATION`, `MULTIMODAL_INFERENCE`, `IMAGE_GENERATION`, `TEXT_TO_IMAGE`, `TWITTER_SEARCH`, `NEWS_SEARCH`, `RESEARCH_SYNTHESIS`, `FACT_CHECK`, `TEXT_AUTHENTICITY_CHECK`, `CONTENT_VERIFICATION`
+The canonical set lives on-chain and changes over time — intents are added and removed. Declaring one that isn't canonical makes your `registerMiner` transaction **revert**, so read the live set rather than copying a list:
+
+```bash
+# the authoritative source
+cast call "$DIAMOND" "getCanonicalIntents()(string[])" --rpc-url "$RPC"
+
+# or, with descriptions and how many miners serve each
+curl https://devnode.telegraphprotocol.com/engine/v1/intents
+```
+
+See [Intents](../using/intents.md) for what each one means and how it's scored.
 
 ### On-Chain Data Transform
 
