@@ -214,7 +214,9 @@ on_chain:
 
 ### On-Chain Request Mapping
 
-When a request arrives from an ERC-8183 job, the node receives raw `OnChainData` arrays and must construct the right HTTP call to your API. Declare this mapping in `on_chain.request`:
+When a request arrives from an ERC-8183 job or an [on-chain miner request](../using/onchain-miner-requests.md), the node receives raw `OnChainData` arrays and must construct the right HTTP call to your API. Declare this mapping in `on_chain.request`:
+
+Without this block your miner can still serve HTTP and WebSocket traffic, but it cannot be targeted by an on-chain miner request at all — the node has no way to build the call.
 
 ```yaml
 on_chain:

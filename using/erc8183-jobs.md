@@ -11,7 +11,7 @@ Use this when:
 - You want an auditable on-chain record of the request, the miner that served it, and a hash committing to the result.
 - You want composability — your callback contract can take any action on receipt of the result.
 
-> A job targets an **Intent** and lets the protocol pick the miner, paid for out of your USDC escrow on the Diamond.
+> A job targets an **Intent** and lets the protocol pick the miner, paid for out of your USDC escrow on the Diamond. If you already know exactly which miner and endpoint you want and would rather pay only gas, use an [on-chain miner request](onchain-miner-requests.md) instead — it is a separate rail with a mandatory callback and no escrow.
 
 ## The Job Lifecycle
 
