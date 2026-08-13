@@ -11,7 +11,8 @@ This page covers the payment mechanics. For what to actually send and get back, 
 ## What You Need
 
 - A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`) or **Solana Devnet**.
-- An x402-compatible client (the [PayAI SDK](https://github.com/pay-ai/) handles signing automatically, or you can construct the payment manually).
+- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`, and `@x402/svm` for Solana) are what the [Telegraph MCP server](mcp-server.md) uses.
+- **Node.js 20 or newer** if you're using those packages. They sign with the WebCrypto API, which Node 18 doesn't expose — on Node 18 payments fail with `Failed to create payment payload: Crypto API not available`.
 - The URL of a Telegraph node.
 
 **Live testnet node:** `https://devnode.telegraphprotocol.com`
@@ -120,15 +121,24 @@ Always read `payTo` from the challenge you received. Never hardcode a receiving 
 
 ## Step 3: Complete the Payment
 
-Using the PayAI x402 SDK, provide the decoded challenge and your wallet. The SDK constructs and signs the USDC transfer on the network you pick.
+Hand the decoded challenge and your wallet to an x402 client. It picks a network from `accepts[]`, signs a transfer of `amount` of the `asset` token to `payTo`, and returns the base64 payload for the retry header.
 
-```go
-// Using the x402 Go client
-payment, err := x402client.Pay(challenge, wallet)
-// payment is a base64-encoded PaymentPayload containing the signed tx proof
+```js
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { createSigner } from "@x402/evm";
+
+const signer = createSigner(process.env.EVM_PRIVATE_KEY);
+const fetchWithPayment = wrapFetchWithPayment(fetch, signer);
+
+// Handles the 402, signs, and retries — you just make the call.
+const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ query: "What is the current price of Bitcoin?" }),
+});
 ```
 
-Or construct it manually: sign an ERC-20 transfer of the required `amount` of the `asset` token to the `payTo` address, then encode the proof as base64 JSON per the x402 spec.
+Use a library rather than hand-rolling the payload. The signature is EIP-712 typed data over the token's own domain, not a plain `transfer` call, and the node rejects a malformed payload with a bare `402` — indistinguishable from having sent no payment at all. The quickest working setup is the [MCP server](mcp-server.md), which bundles this client and pays for you.
 
 ## Step 4: Retry with Payment Header
 

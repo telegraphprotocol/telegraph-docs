@@ -49,7 +49,16 @@ Node, Engine, and Daemon are not separate services — they're one Telegraph pro
 
 ### 1. Install and build
 
+**Node.js 20 or newer is required.** Check with `node -v` before you start. The bundled x402 client signs payments using the WebCrypto API, which Node 18 does not expose — the server still starts and the free tools still work, but every paid call fails with:
+
+```
+Failed to create payment payload: Crypto API not available
+```
+
+The error names neither Node nor your version, so it is worth ruling out first. Node 18 is still the default on some distributions, including Ubuntu 24.04.
+
 ```bash
+node -v          # must be v20 or higher
 git clone https://github.com/telegraphprotocol/Telegraph-MCP
 cd Telegraph-MCP
 npm install && npm run build
