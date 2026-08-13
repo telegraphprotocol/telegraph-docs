@@ -4,11 +4,11 @@ description: The Daemon autonomously generates intelligence signals on a schedul
 
 # Daemon Signal Feed
 
-The Daemon is a background service that produces intelligence on its own — without anyone asking. On a fixed cycle it scrapes real-world data sources, turns what it finds into scored questions, has the Engine answer them, and stores the results. Those stored results are what you see on the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal), and you can read them directly through the Daemon's HTTP API.
+The Daemon is a background service that produces intelligence on its own — without anyone asking. On a fixed cycle it scrapes real-world data sources, turns what it finds into scored questions, has the Engine answer them, and stores the results. Those stored results are what you see on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/), and you can read them directly through the Daemon's HTTP API.
 
 > The Daemon is separate from the Engine. The **Engine** answers *your* questions on demand and charges per call (see [Engine Inference](engine-ask.md)). The **Daemon** generates *its own* questions on a schedule and exposes the results read-only. This page is about reading what the Daemon has already produced — it does not run inference for you.
 
-**Daemon API base URL (testnet):** `http://13.237.89.59:7044/daemon`
+**Daemon API base URL (testnet):** `https://devnode.telegraphprotocol.com/daemon`
 
 ## What the Daemon Does
 
@@ -75,7 +75,7 @@ Returns a paginated list of signals. Each item is a stored result:
 
 | Parameter | Notes |
 |---|---|
-| `category` | One of `POLITICS`, `ECONOMICS`, `GEOPOLITICS`, `TECHNOLOGY`, `CLIMATE`, `HEALTH`, `FINANCE`, `CRYPTO`, `SPORTS`, `SCIENCE`, `SOCIAL`, `OTHER` (case-insensitive). |
+| `category` | One of `POLITICS`, `ECONOMICS`, `GEOPOLITICS`, `TECHNOLOGY`, `CLIMATE`, `HEALTH`, `FINANCE`, `CRYPTO`, `SPORTS`, `SCIENCE`, `SOCIAL`, `AI`, `PHARMA`, `LAW`, `OTHER` (case-insensitive). |
 | `source` | Collector name (`reddit`, `gdelt`, `polymarket`, `hackernews`, `openmeteo`, …), or `user` for rows persisted from direct Engine traffic. |
 | `sort` | `recent` (default), `interest`, `affected`, or `audience`. |
 | `order` | `desc` (default) or `asc`. |

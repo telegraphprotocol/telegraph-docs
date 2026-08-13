@@ -15,7 +15,7 @@ Both are paid per call via x402. Both run **fresh, on-demand inference** — the
 
 > The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard — see [Daemon Signal Feed](daemon-signals.md). If you want a live answer to your own question, you want the Engine.
 
-**Engine base URL (testnet):** `http://13.237.89.59:7044/engine`
+**Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
 > **A note on naming:** the Engine API still uses `subnet` in some paths and field names (`/v1/subnets`, `subnet_id`, `subnet_name`). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner** — read `subnet` as "miner" throughout the API.
 
@@ -92,7 +92,6 @@ Content-Type: application/json
 | `method` | Yes | One of `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Leaving this out returns `400`. |
 | `endpoint` | Yes | The upstream path, e.g. `/chat`. Must match what the miner's YAML declares. |
 | `payload` | Yes | Sent as the request body, or as query parameters when `method` is `GET`. |
-| `acknowledge_warnings` | No | Run the request even if the node predicts it will fail — see below. |
 
 Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners), and use one of the `endpoints` that miner lists there. Miner IDs are not stable across time — always take them from discovery rather than from an example.
 
@@ -112,35 +111,13 @@ Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-i
 
 The direct path performs no routing, so the response has **no** `reasoning` or `intent` field. It is otherwise identical to the auto-routed response.
 
-### When the Engine expects your request to fail
-
-Before calling the miner, the node checks your request against what the miner said it accepts — body size, parameter limits, and how much of the miner's rate allowance is already used. If it expects a failure, it returns `422` and does **not** call the miner. Nothing is charged, because payment only settles on success.
-
-```json
-{
-  "error": "request is predicted to fail",
-  "warnings": [
-    "miner \"bittensor-sn34-bitmind\" has reached its rate limit — try another miner for this intent, or try again later"
-  ],
-  "proceed_anyway": {
-    "field": "acknowledge_warnings",
-    "value": true,
-    "note": "resend with this field set to run the request regardless; you are charged only if it runs"
-  }
-}
-```
-
-If you'd rather try anyway, resend with `"acknowledge_warnings": true`.
-
-Rate limits are counted per miner across the whole node — every caller draws on the same allowance — so if you hit one, switching to another miner for the same Intent usually works better than retrying.
-
-The auto-routed `/engine/v1/ask` never returns `422`. It has a fallback miner lined up, so it warns instead of stopping.
+Rate limits are counted per miner across the whole node — every caller draws on the same allowance — so a `warnings` entry about a rate limit usually means switching to another miner for the same Intent works better than retrying the same one.
 
 ### The payment gate runs first
 
 Payment is checked before your request is validated. An unregistered miner ID or a malformed body still comes back as `402`, not `404` or `400` — you only see the real error after the payment clears. You are not charged for it, since payment settles only on success, but you also can't probe an endpoint's shape for free.
 
-So check your miner ID and endpoint against `/miner-dispatcher/integrations` before you build the request.
+So check your miner ID and endpoint against `/api/miners` before you build the request.
 
 ## Listing Available Miners
 
@@ -161,7 +138,7 @@ See [Intents](intents.md) for what the network can do and how each one is
 scored, or read the live set straight off the node:
 
 ```bash
-curl http://13.237.89.59:7044/engine/v1/intents
+curl https://devnode.telegraphprotocol.com/engine/v1/intents
 ```
 
 ## Streaming over WebSocket

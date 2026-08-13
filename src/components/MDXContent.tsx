@@ -1,6 +1,35 @@
+import path from 'node:path'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import { slugify } from '@/lib/docs'
+
+// currentDocDir is the directory (slash-joined, no leading/trailing slash,
+// '' for docs root) of the page currently being parsed — set synchronously
+// by MDXContent right before calling marked.parse({ async: false }), and
+// read by the link() renderer below. marked.use() configures one renderer
+// shared across every page, so there's no per-render closure to hold this;
+// a module-level variable is safe here only because the parse itself is
+// synchronous (no await between the set and the read), so no other
+// request's render can interleave on Node's single JS thread.
+let currentDocDir = ''
+
+// resolveDocHref turns a relative .md link (possibly with ../, ./, or a
+// leading / for root-relative) written inside currentDocDir into an
+// absolute /docs/... route, the same way a filesystem path would resolve.
+// Delegates '.'/'..' collapsing to path.posix (already used the same way in
+// src/lib/docs.ts) instead of hand-rolling it — the hand-rolled version
+// missed the root-path special case filePathToHref has (producing '/docs/'
+// instead of '/docs' for a link that resolves to root) and silently
+// swallowed excess '../' instead of leaving it visible.
+function resolveDocHref(dir: string, relHref: string): string {
+  const withoutExt = relHref.replace(/\.md$/, '')
+  const isRootRelative = withoutExt.startsWith('/')
+  const joined = path.posix
+    .join(isRootRelative ? '' : dir, withoutExt)
+    .replace(/\/?(README|index)$/i, '')
+    .replace(/^\/+/, '')
+  return joined === '' || joined === '.' ? '/docs' : `/docs/${joined}`
+}
 
 // ── Custom marked renderer (legacy function-signature API) ────────────────────
 marked.use({
@@ -112,14 +141,16 @@ marked.use({
       const isExternal = href.startsWith('http://') || href.startsWith('https://')
       const attrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : ''
 
-      // Resolve relative .md links → /docs/...
+      // Resolve relative .md links → /docs/... (also handles a #fragment
+      // suffix, e.g. x402-inference.md#step-1-discover-available-miners —
+      // href.endsWith('.md') alone misses these, leaving the raw filename
+      // in the rendered link).
       let resolvedHref = href
-      if (!isExternal && href.endsWith('.md')) {
-        resolvedHref =
-          '/docs/' +
-          href
-            .replace(/\.md$/, '')
-            .replace(/\/?(README|index)$/i, '')
+      if (!isExternal && /\.md(#.*)?$/.test(href)) {
+        const hashIndex = href.indexOf('#')
+        const fragment  = hashIndex === -1 ? '' : href.slice(hashIndex)
+        const mdPart    = hashIndex === -1 ? href : href.slice(0, hashIndex)
+        resolvedHref = resolveDocHref(currentDocDir, mdPart) + fragment
       }
 
       return `<a href="${resolvedHref}"${attrs}>${text}</a>`
@@ -183,9 +214,18 @@ function preprocessContent(src: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 interface MDXContentProps {
   source: string
+  // filePath is the doc's real path relative to DOCS_ROOT (e.g.
+  // 'using/engine-ask.md' or 'scoring/README.md') — from getDocContent's
+  // DocContent.filePath. Deriving currentDocDir from this instead of the
+  // URL slug matters for directory-index pages: slug ['scoring'] alone
+  // can't tell whether that's scoring.md (dir '') or scoring/README.md
+  // (dir 'scoring') — filePath already disambiguates it correctly.
+  filePath?: string
 }
 
-export function MDXContent({ source }: MDXContentProps) {
+export function MDXContent({ source, filePath = '' }: MDXContentProps) {
+  const dir = path.posix.dirname(filePath)
+  currentDocDir = dir === '.' ? '' : dir
   const html = marked.parse(preprocessContent(source), { async: false }) as string
 
   return (

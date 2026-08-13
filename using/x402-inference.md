@@ -14,19 +14,21 @@ This page covers the payment mechanics. For what to actually send and get back, 
 - An x402-compatible client (the [PayAI SDK](https://github.com/pay-ai/) handles signing automatically, or you can construct the payment manually).
 - The URL of a Telegraph node.
 
-**Live testnet node:** `http://13.237.89.59:7044`
+**Live testnet node:** `https://devnode.telegraphprotocol.com`
 
 ## Step 1: Discover Available Miners
 
 Before sending a request, check which miners are live and what their schemas look like:
 
 ```
-GET /miner-dispatcher/integrations
+GET /api/miners
 ```
 
 This returns a JSON array of every registered miner with its endpoints, input/output schemas, supported Intents, and minimum prices. The set of live miners changes as operators register and deregister on-chain, so treat this endpoint as the source of truth rather than any list written down elsewhere.
 
-You can also browse the live miner set and their output on the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal).
+Filter server-side instead of fetching the whole catalog: `GET /api/miners?intent=WEATHER_FORECAST` returns only miners that support that Intent. `status` and `limit` are also supported query params.
+
+You can also browse the live miner set and their output on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/).
 
 > Each miner has a numeric `id` — that's the value you put in the request path. The `bittensor-` prefix on some slugs is historical — every provider is a **miner**, whether it's a Bittensor subnet, a hosted model, or a private API.
 
@@ -48,18 +50,18 @@ Content-Type: application/json
 **Response (402 Payment Required):**
 ```
 HTTP/1.1 402 Payment Required
-Payment-Required: eyJ4NDAyVmVyc2lvbiI6Mi...  ← base64-encoded challenge
+PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6Mi...  ← base64-encoded challenge
 Content-Type: application/json
 ```
 
-Decode the `Payment-Required` header (base64 → JSON) to see the payment options:
+Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment options:
 
 ```json
 {
   "x402Version": 2,
   "error": "Payment required",
   "resource": {
-    "url": "http://13.237.89.59:7044/v1/ask/18",
+    "url": "http://devnode.telegraphprotocol.com/v1/ask/18",
     "description": "Payment required for direct subnet inference.",
     "mimeType": "application/json"
   },
@@ -147,7 +149,7 @@ Keep the `signal_hash`. It's how you look the call up afterwards — see [Verify
 
 The response also carries a settlement header:
 ```
-x-payment-settle-response: <settlement-proof>
+PAYMENT-RESPONSE: <settlement-proof>
 ```
 
 Keep this if you need to audit or dispute the payment later.
@@ -179,7 +181,7 @@ Choose based on where you hold USDC. The amount is the same either way. The `acc
 
 The price per request isn't fixed. It's the miner's declared floor price multiplied by a demand multiplier based on 24-hour request volume for that Intent. A miner with a $0.01 floor seeing 2,000 requests per day charges $0.015 at the 1.5× tier. See the full [demand multiplier tiers](../protocol/addresses-and-params.md#demand-multiplier-tiers).
 
-A miner's floor price is the `min_price_usdc` field of its `/miner-dispatcher/integrations` entry, in the same 6-decimal units as the challenge — `10000` means $0.01. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
+A miner's floor price is the `min_price_usdc` field of its `/api/miners` entry, in the same 6-decimal units as the challenge — `10000` means $0.01. The amount actually charged — floor × current multiplier — is the `amount` field of the 402 challenge.
 
 ## Endpoints That Don't Require Payment (Discovery)
 
@@ -187,8 +189,7 @@ Inference is paid. Discovery and health endpoints are always open:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /miner-dispatcher/integrations` | The live miner catalog with schemas and prices. |
-| `GET /miner-dispatcher/healthz` | Health check. |
+| `GET /api/miners` | The live miner catalog with schemas and prices. Supports `?intent=`, `?status=`, `&limit=` filters. |
 | `GET /miner-dispatcher/openapi.json` | Machine-readable OpenAPI spec of all miner endpoints. |
 | `GET /miner-dispatcher/openapi.yaml` | The same spec in YAML. |
 

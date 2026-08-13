@@ -41,7 +41,7 @@ State `0` = Funded, State `1` = Terminal.
 The listener falls back to an error hash if the miner returns a non-200 response. Check the job result on-chain:
 
 ```bash
-cast call <diamond> "getJobResult(uint256)(bytes32)" <jobId> --rpc-url <rpc>
+cast call <diamond> "getJobOutput(uint256)(bytes32)" <jobId> --rpc-url <rpc>
 ```
 
 A non-zero hash means the job was resolved, even if the miner had an error.
@@ -106,7 +106,7 @@ The ask endpoint is at `/engine/v1/ask`, not `/v1/ask`. The engine routes are mo
 The engine classifies your query to an intent, then routes to the best-scored miner for that intent. If no miner supports the classified intent, the result may be empty. Check available intents:
 
 ```bash
-curl http://<node>:7044/miner-dispatcher/integrations
+curl http://<node>:7044/api/miners
 ```
 
 ## Contract Interactions

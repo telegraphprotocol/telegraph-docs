@@ -11,20 +11,22 @@ This is the right interface for:
 - Systems that react to specific categories of signals (e.g., only climate data, only medical research summaries).
 - Any workflow where signals should arrive as events rather than being fetched on demand.
 
-**WebSocket URL (testnet):** `ws://13.237.89.59:7044/engine/ws`
+**WebSocket URL (testnet):** `wss://devnode.telegraphprotocol.com/engine/ws`
 
 ## Step 1: Connect and Authenticate
 
-**Anonymous connections** (no wallet) can connect and use `ask`, `ask_direct`, and `list_subnets` without any authentication:
+**Anonymous connections** (no wallet) can only use `list_subnets` and `ping` — no authentication needed for either:
 
 ```
-ws://13.237.89.59:7044/engine/ws
+wss://devnode.telegraphprotocol.com/engine/ws
 ```
 
-**Wallet-authenticated connections** unlock subscriptions and escrow-based signal delivery. Connect with your EVM address as a query parameter:
+Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` don't charge your escrow, but the connection they run on still has to be wallet-authenticated.
+
+**Wallet-authenticated connections** unlock `ask`, `ask_direct`, subscriptions, and escrow-based signal delivery. Connect with your EVM address as a query parameter:
 
 ```
-ws://13.237.89.59:7044/engine/ws?wallet_address=0xYourAddress
+wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=0xYourAddress
 ```
 
 After upgrading, the server does NOT immediately send a `connected` message. Instead, it waits for you to complete the wallet challenge-response handshake within 15 seconds:
@@ -64,54 +66,71 @@ Then the `connected` confirmation arrives. If escrow is insufficient, the connec
 
 ## Step 2: Subscribe to Intents
 
-Subscription requires wallet authentication (Step 1). Once verified, send a subscribe message specifying which Intents you want to receive signals for:
+Subscription requires wallet authentication (Step 1). Once verified, send a subscribe message specifying which Intents you want to receive signals for, along with a required per-session USDC spend cap:
 
 ```json
 {
   "action": "subscribe",
-  "intents": ["WEATHER_FORECAST", "CLIMATE"]
+  "intents": ["WEATHER_FORECAST", "CLIMATE"],
+  "spend_limit_usdc": 500000
 }
 ```
+
+- **`spend_limit_usdc` is required and must be greater than 0.** It's a per-session USDC budget in raw μUSDC (6 decimals — `500000` = $0.50) capping how much this connection can spend on pushed signals. It resets to zero spent every time you subscribe (including resubscribing) or reconnect; it is not carried over between sessions. See "How Delivery is Settled" below for what happens when you hit it.
+- **Optional filters:** `category` (restrict to one signal category), `min_interest` (only receive signals at or above this interest score), `max_per_hour` (rate cap on how often you're pushed to; defaults to 60 if omitted).
+
+**A wallet has at most one subscription.** Sending `subscribe` again replaces your existing intents, filters, and spend limit — it does not create a second, parallel subscription.
 
 Available actions on the WebSocket connection:
 
 | Action | Requires wallet auth? | Purpose |
 |---|---|---|
-| `subscribe` | Yes | Start receiving Daemon signals for specified intents |
+| `subscribe` | Yes | Start receiving Daemon signals for the given intents (replaces any existing subscription) |
 | `unsubscribe` | Yes | Stop receiving signals for a subscription |
-| `list_subscriptions` | Yes | See your current active subscriptions |
+| `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
-| `ask` | No | Request live on-demand inference (routed automatically) |
-| `ask_direct` | No | Route directly to a specific miner by ID |
+| `ask` | Yes | Request live on-demand inference (routed automatically) |
+| `ask_direct` | Yes | Route directly to a specific miner by ID |
 | `ping` | No | Keep the connection alive |
 
-The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer. These are live calls, not reads from the cached history.
+The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer, and neither counts against your subscription's spend limit. These are live calls, not reads from the cached history.
 
 ## Step 3: Receive Signals
 
-When the Daemon produces a result matching your subscribed Intents, it is pushed to your connection:
+When the Daemon produces a result matching your subscribed Intents, it's pushed to your connection wrapped in the standard message envelope:
 
 ```json
 {
-  "id": "9ba8569b-60bb-4df2-bced-186b8ce07fb4",
-  "type": "daemon",
-  "source": "collector-openmeteo-weather:extreme_heat",
-  "status": "success",
-  "question": {
-    "text": "Will Riyadh experience temperatures above 40°C?",
+  "type": "result",
+  "data": {
+    "subscription_id": "8f2c1a4e-3b6d-4a1f-9c7e-2d5b8a9f0e1c",
+    "intent": "WEATHER_FORECAST",
     "category": "CLIMATE",
-    "interest_score": 6
+    "question": "Will Riyadh experience temperatures above 40°C?",
+    "routing": {
+      "subnet_id": "18",
+      "subnet_name": "bittensor-sn18-zeus",
+      "miner_slug": "zeus",
+      "reasoning": "Routed to SN18 Zeus for weather forecasting",
+      "intent": "WEATHER_FORECAST"
+    },
+    "execution": {
+      "result": {
+        "hourly": {
+          "time": ["2026-06-26T00:00", "2026-06-26T01:00"],
+          "temperature_2m": [38.2, 37.9],
+          "wind_speed_10m": [12.1, 11.8]
+        },
+        "latitude": 24.7,
+        "longitude": 46.7
+      },
+      "cost_usd": 0.01,
+      "duration_ms": 1088,
+      "timestamp": "2026-06-26T19:24:42Z"
+    },
+    "fired_at": "2026-06-26T19:24:42Z"
   },
-  "routing": {
-    "subnet_name": "bittensor-sn18-zeus",
-    "reasoning": "Routed to SN18 Zeus for weather forecasting",
-    "intent": "WEATHER_FORECAST"
-  },
-  "execution": {
-    "result": { ... },
-    "cost_usd": 0.01,
-    "duration_ms": 1088
-  }
+  "timestamp": "2026-06-26T19:24:42Z"
 }
 ```
 
@@ -128,16 +147,29 @@ If you connect and nothing arrives within minutes, that's expected — the next 
 
 ## How Delivery is Settled
 
-**Subscriptions are not free.** When the Daemon pushes a signal to your subscription, the delivery is recorded and settled against your on-chain USDC escrow. Each delivered signal costs the signal price for its Intent (miner floor price × demand multiplier).
+**Subscriptions are not free**, and two independent limits gate each pushed signal.
+
+**1. On-chain escrow.** When the Daemon pushes a signal to your subscription, the delivery is recorded and settled against your on-chain USDC escrow. Each delivered signal costs the signal price for its Intent (miner floor price × demand multiplier).
 
 Before connecting with wallet auth, you must have at least **1.00 USDC** deposited in the escrow contract. The KnockGate checks this balance at connection time — if it's insufficient, the connection is immediately rejected with an error.
 
 - Deposit USDC to your escrow via `EscrowFacet.depositUSDC()` on the Diamond contract before connecting.
 - Each pushed signal is logged with your wallet address, intent ID, receipt hash, and a node signature.
 - At each epoch boundary, the Validator batch-settles all logged deliveries, deducting USDC from your escrow.
-- If your escrow runs dry mid-epoch, WebSocket delivery is suspended until you replenish it.
+- If your escrow runs dry mid-epoch, WebSocket delivery is suspended — each matching signal is silently skipped rather than queued — until you replenish it.
 
-**`ask` and `ask_direct` actions do not deduct from your escrow.** Only subscription-pushed signals are settled.
+**2. Session spend limit (`spend_limit_usdc`).** Independent of escrow, your subscription's spend limit (set in Step 2) is charged for each pushed signal. Unlike escrow depletion, hitting this limit is terminal for the session: the signal that would cross it is **not delivered**, your subscription is **cancelled**, and the server sends a `limit_reached` message and **closes the connection**:
+
+```json
+{
+  "type": "limit_reached",
+  "data": {"message": "spend limit reached: charged 480000 of 500000 μUSDC this session — subscription cancelled, reconnect and resubscribe with a new spend_limit_usdc to continue"}
+}
+```
+
+To keep receiving signals after this, reconnect and send `subscribe` again with a new `spend_limit_usdc`.
+
+**`ask` and `ask_direct` actions do not deduct from your escrow or your session spend limit.** Only subscription-pushed signals are settled.
 
 ## Keeping the Connection Alive
 

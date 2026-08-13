@@ -69,8 +69,8 @@ EVM_WSS_URL=wss://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
 
 # ─── Contract Addresses ───────────────────────────────────────────────────────
 DIAMOND_ADDRESS=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
-USDC_ADDRESS=0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18
-MACHINA_ADDRESS=0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7
+USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+MACHINA_ADDRESS=0x7b9Bd0e5f9a4D0A01db18823De1D8442C84993b7
 
 # ─── Node Identity ────────────────────────────────────────────────────────────
 ID=my-telegraph-node
@@ -125,10 +125,9 @@ OPERATOR_KEY=0x...                 # Optional separate operator key
 |---|---|
 | 7044 | Main HTTP API (miner dispatcher, engine, daemon, admin) |
 | 4001 | P2P libp2p (QUIC) — peer discovery and communication |
-| 8080 | Engine sub-process (internal; Engine routes through 7044) |
 | 3000 | Next.js frontend (if the Intelligence Terminal UI is running) |
 
-Open port **7044** and **4001** in your firewall. Keep 8080 internal (localhost only) and 3000 optional.
+Open port **7044** and **4001** in your firewall. 3000 is optional.
 
 ## Step 4: Run the Node
 
@@ -177,7 +176,7 @@ Check the API health:
 curl http://localhost:7044/daemon/health
 # {"status":"ok","time":"2026-06-26T18:25:32Z"}
 
-curl http://localhost:7044/miner-dispatcher/integrations
+curl http://localhost:7044/api/miners
 # Returns JSON array of loaded miner integrations
 ```
 

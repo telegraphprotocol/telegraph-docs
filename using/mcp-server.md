@@ -24,7 +24,7 @@ Your Agent (Claude / Cursor / ElizaOS / LangChain / etc.)
 │                                                         │
 │  ┌────────────┐  ┌────────────┐  ┌──────────────────┐  │
 │  │ Node tools │  │Engine tools│  │  Daemon tools    │  │
-│  │ :7044      │  │ :8080      │  │  :8081           │  │
+│  │ /          │  │ /engine    │  │  /daemon         │  │
 │  └────────────┘  └────────────┘  └──────────────────┘  │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
@@ -38,8 +38,10 @@ Your Agent (Claude / Cursor / ElizaOS / LangChain / etc.)
     │
     │  HTTP + x402 micropayments
     │
-Telegraph Node / Engine / Daemon  (testnet: 13.237.89.59)
+Telegraph Node — one host, path-prefixed (testnet: devnode.telegraphprotocol.com)
 ```
+
+Node, Engine, and Daemon are not separate services — they're one Telegraph process on one port, reached through different path prefixes (`/`, `/engine`, `/daemon`). The three env vars below exist because the MCP server's own code reads them independently, but on testnet they all point at the same host.
 
 ---
 
@@ -63,9 +65,9 @@ Edit `.env` — at minimum, set your EVM private key:
 
 ```bash
 # ── Telegraph Node URLs ─────────────────────────────────
-TELEGRAPH_NODE_URL=http://13.237.89.59:7044
-TELEGRAPH_ENGINE_URL=http://13.237.89.59:8080
-TELEGRAPH_DAEMON_URL=http://13.237.89.59:8081
+TELEGRAPH_NODE_URL=https://devnode.telegraphprotocol.com
+TELEGRAPH_ENGINE_URL=https://devnode.telegraphprotocol.com/engine
+TELEGRAPH_DAEMON_URL=https://devnode.telegraphprotocol.com/daemon
 
 # ── Payment Key (Required) ──────────────────────────────
 TELEGRAPH_EVM_PRIVATE_KEY=0x_your_private_key_here
@@ -103,9 +105,9 @@ npm run inspect
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `TELEGRAPH_NODE_URL` | Yes | `http://localhost:7044` | Telegraph node public API |
-| `TELEGRAPH_ENGINE_URL` | Yes | `http://localhost:8080` | Engine inference server |
-| `TELEGRAPH_DAEMON_URL` | Yes | `http://localhost:8081` | Daemon signal API |
+| `TELEGRAPH_NODE_URL` | Yes | `https://devnode.telegraphprotocol.com` | Telegraph node base URL — used bare (e.g. `/status`, `/miner-dispatcher/integrations`) |
+| `TELEGRAPH_ENGINE_URL` | Yes | `https://devnode.telegraphprotocol.com/engine` | Same node, `/engine` prefix — used bare after this (e.g. `/v1/ask`) |
+| `TELEGRAPH_DAEMON_URL` | Yes | `https://devnode.telegraphprotocol.com/daemon` | Same node, `/daemon` prefix — used bare after this (e.g. `/health`) |
 | `TELEGRAPH_EVM_PRIVATE_KEY` | Yes* | — | EVM private key (`0x`-prefixed hex) |
 | `TELEGRAPH_SOLANA_PRIVATE_KEY` | No* | — | Solana private key (base58) |
 | `EVM_NETWORK` | No | `eip155:*` | CAIP-2 network for EVM payments |
@@ -151,7 +153,7 @@ npm run inspect
 |---|---|---|
 | `category` | string | Filter by category (e.g., `CRYPTO`, `PHARMA`, `TECHNOLOGY`) |
 | `source` | string | Filter by data source (e.g., `reddit`, `polymarket`, `gdelt`) |
-| `sort` | `interest` \| `timestamp` | Sort order (default: `timestamp`) |
+| `sort` | `recent` \| `interest` \| `affected` \| `audience` | Sort order (default: `recent`) |
 | `since_hours` | number | Only results from the last N hours |
 | `min_interest` | number | Minimum interest score |
 | `limit` | number | Max results (default: 10) |
@@ -195,9 +197,9 @@ All integrations use the same configuration block — only the file location and
 The base config values for testnet:
 
 ```
-TELEGRAPH_NODE_URL   = http://13.237.89.59:7044
-TELEGRAPH_ENGINE_URL = http://13.237.89.59:8080
-TELEGRAPH_DAEMON_URL = http://13.237.89.59:8081
+TELEGRAPH_NODE_URL   = https://devnode.telegraphprotocol.com
+TELEGRAPH_ENGINE_URL = https://devnode.telegraphprotocol.com/engine
+TELEGRAPH_DAEMON_URL = https://devnode.telegraphprotocol.com/daemon
 TELEGRAPH_EVM_PRIVATE_KEY = 0xyour_key_here
 ```
 
@@ -212,9 +214,9 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
       "command": "node",
       "args": ["/path/to/Telegraph-MCP/dist/index.js"],
       "env": {
-        "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-        "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-        "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+        "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+        "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+        "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
         "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here"
       }
     }
@@ -239,9 +241,9 @@ In your character file or MCP plugin config:
       "command": "node",
       "args": ["/path/to/Telegraph-MCP/dist/index.js"],
       "env": {
-        "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-        "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-        "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+        "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+        "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+        "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
         "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here"
       }
     }
@@ -274,9 +276,9 @@ client = MultiServerMCPClient({
         "command": "node",
         "args": ["/path/to/Telegraph-MCP/dist/index.js"],
         "env": {
-            "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-            "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-            "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+            "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+            "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+            "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
             "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here",
         },
     }
@@ -301,9 +303,9 @@ const client = new MultiServerMCPClient({
     command: "node",
     args: ["/path/to/Telegraph-MCP/dist/index.js"],
     env: {
-      TELEGRAPH_NODE_URL: "http://13.237.89.59:7044",
-      TELEGRAPH_ENGINE_URL: "http://13.237.89.59:8080",
-      TELEGRAPH_DAEMON_URL: "http://13.237.89.59:8081",
+      TELEGRAPH_NODE_URL: "https://devnode.telegraphprotocol.com",
+      TELEGRAPH_ENGINE_URL: "https://devnode.telegraphprotocol.com/engine",
+      TELEGRAPH_DAEMON_URL: "https://devnode.telegraphprotocol.com/daemon",
       TELEGRAPH_EVM_PRIVATE_KEY: "0xyour_key_here",
     },
     transport: "stdio",
@@ -325,9 +327,9 @@ Add to `openclaw.config.json`:
       "command": "node",
       "args": ["/path/to/Telegraph-MCP/dist/index.js"],
       "env": {
-        "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-        "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-        "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+        "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+        "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+        "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
         "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here"
       }
     }
@@ -347,9 +349,9 @@ extensions:
     args:
       - /path/to/Telegraph-MCP/dist/index.js
     env:
-      TELEGRAPH_NODE_URL: http://13.237.89.59:7044
-      TELEGRAPH_ENGINE_URL: http://13.237.89.59:8080
-      TELEGRAPH_DAEMON_URL: http://13.237.89.59:8081
+      TELEGRAPH_NODE_URL: https://devnode.telegraphprotocol.com
+      TELEGRAPH_ENGINE_URL: https://devnode.telegraphprotocol.com/engine
+      TELEGRAPH_DAEMON_URL: https://devnode.telegraphprotocol.com/daemon
       TELEGRAPH_EVM_PRIVATE_KEY: 0xyour_key_here
 ```
 
@@ -367,9 +369,9 @@ In Continue's `config.json`:
           "command": "node",
           "args": ["/path/to/Telegraph-MCP/dist/index.js"],
           "env": {
-            "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-            "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-            "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+            "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+            "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+            "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
             "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here"
           }
         }
@@ -390,9 +392,9 @@ The server uses **MCP stdio transport** — the standard for local MCP servers. 
       "command": "node",
       "args": ["/path/to/Telegraph-MCP/dist/index.js"],
       "env": {
-        "TELEGRAPH_NODE_URL": "http://13.237.89.59:7044",
-        "TELEGRAPH_ENGINE_URL": "http://13.237.89.59:8080",
-        "TELEGRAPH_DAEMON_URL": "http://13.237.89.59:8081",
+        "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
+        "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
+        "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
         "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_key_here"
       }
     }
