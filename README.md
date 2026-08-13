@@ -24,6 +24,6 @@ Documentation should be self-contained — engineers and users should be able to
 
 | Repo | Purpose |
 |---|---|
-| [telegraphprotocol/Telegraph](https://github.com/telegraphprotocol/Telegraph) | Protocol node source code |
+| [telegraphprotocol/Telegraph](https://github.com/telegraphprotocol/Telegraph) | Protocol node source code (private — request access) |
 | [telegraphprotocol/Telegraph-api-docs](https://github.com/telegraphprotocol/Telegraph-api-docs) | OpenAPI specs + API reference |
 | [telegraphprotocol/Telegraph-MCP](https://github.com/telegraphprotocol/Telegraph-MCP) | MCP server for AI agents |

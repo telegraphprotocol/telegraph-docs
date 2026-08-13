@@ -67,7 +67,7 @@ A miner with a $0.01 floor that handles a popular Intent generating 5,000 reques
 
 The protocol takes **2% (200 basis points)** of every payment — whether through x402 direct inference, Engine calls, or ERC-8183 jobs. This goes to the Treasury address.
 
-**Treasury address (testnet):** `0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9`
+**Treasury address (testnet):** `0xffe89e1f0a77C600Ad938b57180E5be3e3119f40` — read it live with `cast call $DIAMOND "getTreasury()(address)"`.
 
 ## Value Linkage
 

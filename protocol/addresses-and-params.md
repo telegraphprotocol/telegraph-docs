@@ -13,13 +13,21 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 | **Diamond (Port)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` |
 | **MACHINA Token** | `0x7b9Bd0e5f9a4D0A01db18823De1D8442C84993b7` |
 | **USDC (Circle)** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| **Treasury** | `0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9` |
+| **Treasury** | `0xffe89e1f0a77C600Ad938b57180E5be3e3119f40` |
 | **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
 | **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
 
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
 > the value your client should use.
+
+Every address above is readable from the Diamond itself, which is the source of truth if this table ever drifts:
+
+```bash
+cast call $DIAMOND "usdcToken()(address)"    --rpc-url $RPC   # escrow, jobs and settlement token
+cast call $DIAMOND "machinaToken()(address)" --rpc-url $RPC   # what miners are actually paid in
+cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
+```
 
 ### Network Configuration
 
@@ -43,11 +51,19 @@ Engine and Daemon are the same node, reached via `/engine` and `/daemon` path pr
 
 ### Active Miners (Testnet)
 
+The live miner set changes as operators register and deregister on-chain, so there is no useful static list here. Read the current catalogue — with each miner's ID, endpoints, schemas, declared intents and floor price:
+
+```bash
+curl https://devnode.telegraphprotocol.com/api/miners
+```
+
+A few long-standing ones, as a sample of what the network serves:
+
 | Miner | Intents |
 |---|---|
 | LiteLLM | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, WEB_SEARCH |
-| Telegraph Chatbot | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, TELEGRAPH_KNOWLEDGE |
-| Zeus (Bittensor SN18) | WEATHER_CHECK, WEATHER_FORECAST, STORM_ALERT, WEATHER_RISK_ASSESSMENT |
+| Telegraph Chatbot | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, WEB_SEARCH, TELEGRAPH_KNOWLEDGE |
+| Zeus (Bittensor SN18) | WEATHER_CHECK, WEATHER_FORECAST, STORM_ALERT |
 | BitMind (Bittensor SN34) | DEEPFAKE_DETECTION, IMAGE_VERIFICATION, VIDEO_VERIFICATION, MEDIA_AUTHENTICITY_CHECK |
 
 ---
@@ -124,7 +140,9 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | 100,000 – 999,999 | 5.0× |
 | 1,000,000+ | 10.0× |
 
-The charged price for any call is `min_price_usdc × multiplier`, where the multiplier is selected from the rolling 24-hour request volume for that Intent. These tiers are live on testnet — a miner's effective price rises automatically with demand and returns to the floor when demand subsides.
+For **x402 pay-per-call inference**, the charged price is `min_price_usdc × multiplier`, where the multiplier is selected from the rolling 24-hour request volume for that Intent. A miner's effective price rises automatically with demand and returns to the floor when demand subsides.
+
+**ERC-8183 jobs are priced differently.** A job does not use the miner's `min_price_usdc` at all — it uses a single protocol-wide `jobBasePrice`, scaled by the same multiplier table. Read it with `cast call $DIAMOND "getJobBasePrice()(uint256)"`; on testnet it is currently `1000000` (1 USDC per job).
 
 ### Gas & Escrow
 

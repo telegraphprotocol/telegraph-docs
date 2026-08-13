@@ -16,6 +16,8 @@ How to build, configure, and run a Telegraph node.
 
 ## 1. Clone and Build
 
+> **Access required.** The node source repository is currently private. Contact the Telegraph team for access before starting — the clone below will 404 otherwise.
+
 ```bash
 git clone https://github.com/telegraphprotocol/Telegraph
 cd Telegraph

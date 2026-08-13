@@ -82,4 +82,11 @@ The testnet node is currently configured as a single-signer genesis node using a
 PRIVATE_KEY=0x<key>
 ```
 
-The node wallet (`0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9`) is both the Treasury address and the sole registered signer. This is a development configuration — mainnet validators will have distinct Manager and Operator keys with staked MACHINA from separate cold wallets.
+On the testnet node this single key is the sole registered signer — it signs blocks, submits epochs and resolves jobs. It is **not** the Treasury: protocol fees go to the address returned by `getTreasury()`, which is configured separately on the Diamond. You can check both:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/status          # "publicKey" = the node's signing wallet
+cast call $DIAMOND "getTreasury()(address)" --rpc-url $RPC    # where protocol fees land
+```
+
+Using one key for every role is a development configuration — mainnet validators will have distinct Manager and Operator keys with staked MACHINA from separate cold wallets.
