@@ -93,7 +93,7 @@ means "perfect answer." An empty or blank miner answer should always score
 ## A simple starting example (Rust)
 
 The full, buildable project below lives in
-[telegraph-examples/wasm-scoring-module](https://github.com/telegraphprotocol/telegraph-examples/tree/main/wasm-scoring-module) —
+[telegraph-examples/wasm-scoring-module](https://github.com/telegraphprotocol/telegraph-examples/tree/master/wasm-scoring-module) —
 clone it, `cd wasm-scoring-module/rust-module`, and run
 `cargo build --release --target wasm32-unknown-unknown` to get a working
 `.wasm` immediately. It scores based on how many words a miner's answer
@@ -250,7 +250,7 @@ A ready-to-run CLI that does exactly this — loads your `.wasm` file the same
 way the node does (writing your question/ground-truth/answer strings into
 its memory via `alloc`, then calling `rank_answer`) and prints back the
 score — lives alongside the example module at
-[telegraph-examples/wasm-scoring-module/go-tester](https://github.com/telegraphprotocol/telegraph-examples/tree/main/wasm-scoring-module/go-tester).
+[telegraph-examples/wasm-scoring-module/go-tester](https://github.com/telegraphprotocol/telegraph-examples/tree/master/wasm-scoring-module/go-tester).
 Clone the repo, then:
 
 ```bash

@@ -177,26 +177,44 @@ Check that the node is loading miners from the on-chain registry by watching sta
 
 ## Step 6: Register as a Validator Signer
 
-Once your node is running and synced, register your Operator Key as a signer:
+Once your node is running and synced, register your Operator Key as a signer. Until this succeeds the node observes the chain but cannot submit anything — its transactions revert with `Caller must be a valid signer`.
 
 ```bash
 cast send 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
-  "addSigner(bytes,address,string,string)" \
-  <pubkey-bytes> \
+  "addSigner(address,address,string,string,uint8[],bytes32[],bytes32[],bytes32[])" \
   <operator-key-address> \
+  0x0000000000000000000000000000000000000000 \
+  "http://your-node-host:7044" \
   "my-moniker" \
-  "enode://..." \
+  "[]" "[]" "[]" "[]" \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY> \
   --private-key <MANAGER_KEY>
 ```
 
-After registration, your node's wallet should appear in the signer list:
+| Argument | Meaning |
+|---|---|
+| `_signer` | The Operator Key address being added — this is the wallet your node signs with, the same one `GET /status` reports as `publicKey` |
+| `_feeAddress` | Payout address. Pass the zero address on Base Sepolia |
+| `_domain` | **Where other validators reach your node, including the port.** Liveness probes hit `<domain>/status`, so a bare host without `:7044` probes port 80 and your node reads as unreachable |
+| `_moniker` | A human-readable label for your node |
+| `sigV`, `sigR`, `sigS`, `hashes` | Approval signatures from the existing signer set. Pass four empty arrays when adding the **first** signer to a deployment; after that the set must approve the addition and the call reverts with `Signer threshold not met` without enough signatures |
+
+Adding the first signer also stamps the deployment's `nodeStartTime`, which the signature threshold is measured against.
+
+After registration, confirm the node is a recognised signer:
 
 ```bash
+cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
+  "isValidSigner(address)(bool)" <operator-key-address> \
+  --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
+# → true
+
 cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
   "getSigners()" \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
 ```
+
+`addSigner` reverts with `New signer cannot be an existing signer` if the address is already registered, so a repeat call is safe to attempt but will not succeed twice.
 
 ## Step 7: Monitor Liveness
 

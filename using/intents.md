@@ -105,6 +105,24 @@ one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
 | `TASK_COMPLETION` | B — LLM-Judge | Autonomous personal assistants |
 | `AGENT_TASK` | B — LLM-Judge | Multi-step autonomous agents |
 
+### Media Authenticity
+
+These four are served by image and video verification miners rather than text
+models, so the input you send is a media URL or upload rather than a prompt.
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `DEEPFAKE_DETECTION` | A — Deterministic | Trust and safety pipelines |
+| `IMAGE_VERIFICATION` | A — Deterministic | Provenance checks on user-submitted images |
+| `VIDEO_VERIFICATION` | A — Deterministic | Video authenticity screening |
+| `MEDIA_AUTHENTICITY_CHECK` | A — Deterministic | Newsroom and moderation workflows |
+
+### Protocol
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `TELEGRAPH_KNOWLEDGE` | B — LLM-Judge | Agents answering questions about Telegraph itself |
+
 ### Text Analysis
 
 | Intent | Tier | Typical use |

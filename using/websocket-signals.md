@@ -21,6 +21,14 @@ This is the right interface for:
 wss://devnode.telegraphprotocol.com/engine/ws
 ```
 
+On an anonymous connection the server greets you as soon as the socket opens, before you have sent anything:
+
+```json
+{"type": "connected", "data": {"message": "connected to telegraph engine"}, "timestamp": "..."}
+```
+
+Read and discard it. If your client pairs each reply with the last message it sent, this greeting shifts every response by one — your `ping` appears to return the miner catalogue. Match on the `type` field instead of on arrival order.
+
 Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` don't charge your escrow, but the connection they run on still has to be wallet-authenticated.
 
 **Wallet-authenticated connections** unlock `ask`, `ask_direct`, subscriptions, and escrow-based signal delivery. Connect with your EVM address as a query parameter:

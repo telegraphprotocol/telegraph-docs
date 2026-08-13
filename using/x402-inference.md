@@ -88,6 +88,32 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
 
 The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts.
 
+Each entry also carries an `extra` object holding what the signature needs — `{"name": "USDC", "version": "2"}` on Base Sepolia, and a `feePayer` on Solana. The SDK reads these for you.
+
+The response **body** carries a shorter summary of the same options, meant for humans reading a failed call:
+
+```json
+{
+  "error": "payment required",
+  "accepts": [
+    {
+      "scheme": "exact",
+      "price": "$0.01",
+      "network": "eip155:84532",
+      "payTo": "0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8"
+    },
+    {
+      "scheme": "exact",
+      "price": "$0.01",
+      "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+      "payTo": "G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix"
+    }
+  ]
+}
+```
+
+It quotes `price` as a dollar string and omits `asset`, `amount` and `maxTimeoutSeconds`, so build your payment from the decoded header — the body alone doesn't carry enough to sign with.
+
 Always read `payTo` from the challenge you received. Never hardcode a receiving address — it is set per node and changes.
 
 > Note that `resource.url` reports the path *inside* the engine (`/v1/ask/18`), without the `/engine` prefix you called. Keep using the URL you requested; don't rebuild it from this field.
