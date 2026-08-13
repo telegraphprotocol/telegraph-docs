@@ -163,15 +163,28 @@ npm run inspect
 
 These tools are not hardcoded. On startup and every 5 minutes, the MCP server fetches the live integration registry from the Telegraph node, diffs against registered tools, and adds or removes tools as miners change on-chain. Connected clients receive a `notifications/tools/list_changed` notification automatically.
 
-Tool names are derived from the miner's slug and its endpoints. For example:
+One tool is generated per miner endpoint, so the live set is far larger than the examples below — every miner in the catalogue with at least one endpoint contributes.
+
+**The naming rule.** A tool name is `tg_<miner>_<endpoint>`, built like this:
+
+1. Take the miner's `slug` and drop a leading `bittensor-sn<number>-` if present — `bittensor-sn18-zeus` becomes `zeus`.
+2. Take the endpoint `path` and drop its leading `/`.
+3. In both, replace `/` and `-` with `_`, collapse any run of underscores, and lowercase.
+4. Join them: `tg_` + miner + `_` + endpoint.
+
+So `coingecko` + `/price` is `tg_coingecko_price`, and `bittensor-sn34-bitmind` + `/detect-image` is `tg_bitmind_detect_image`. Applying the rule to any entry in `GET /api/miners` tells you the tool name before you connect.
 
 | Miner | Auto-generated tools |
 |---|---|
 | **Zeus (18)** — Weather forecasting | `tg_zeus_predict` |
-| **ItsAI (32)** — AI text detection | `tg_itsai_text_detector_detect` |
+| **ItsAI (32)** — AI text detection | `tg_itsai_detect` |
 | **BitMind (34)** — Deepfake detection | `tg_bitmind_detect_image`, `tg_bitmind_detect_video`, `tg_bitmind_preprocess_video`, `tg_bitmind_get_video_upload_url` |
+| **Gemini (109)** — Chat | `tg_gemini_chat` |
+| **CoinGecko (207)** — Crypto prices | `tg_coingecko_price` |
 
-The live set changes on-chain — newly registered miners appear as tools within 5 minutes, with no MCP server restart. Which miners exist at any moment comes from the discovery endpoint, not from this page.
+Each tool's description carries the miner's name, the HTTP method and path, its signal mapping, and its subnet ID, so you can confirm you have the right one from the tool list itself.
+
+The live set changes on-chain — newly registered miners appear as tools within 5 minutes, with no MCP server restart, and miners that deregister have their tools removed. Which miners exist at any moment comes from the discovery endpoint, not from this page.
 
 ---
 
