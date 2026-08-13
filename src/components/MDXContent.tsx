@@ -1,31 +1,34 @@
+import path from 'node:path'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import { slugify } from '@/lib/docs'
 
-// currentDocDir is the directory (slash-joined, no leading/trailing slash) of
-// the page currently being parsed — set synchronously by MDXContent right
-// before calling marked.parse({ async: false }), and read by the link()
-// renderer below. marked.use() configures one renderer shared across every
-// page, so there's no per-render closure to hold this; a module-level
-// variable is safe here only because the parse itself is synchronous (no
-// await between the set and the read), so no other request's render can
-// interleave on Node's single JS thread.
+// currentDocDir is the directory (slash-joined, no leading/trailing slash,
+// '' for docs root) of the page currently being parsed — set synchronously
+// by MDXContent right before calling marked.parse({ async: false }), and
+// read by the link() renderer below. marked.use() configures one renderer
+// shared across every page, so there's no per-render closure to hold this;
+// a module-level variable is safe here only because the parse itself is
+// synchronous (no await between the set and the read), so no other
+// request's render can interleave on Node's single JS thread.
 let currentDocDir = ''
 
-// resolveDocHref turns a relative .md link (possibly with ../ or ./
-// segments) written inside currentDocDir into an absolute /docs/... route,
-// the same way a filesystem path would resolve. Plain string-concatenating
-// '/docs/' + href (the previous approach) broke both on '../' (collapsed by
-// the browser's URL parser during navigation, eating the '/docs/' prefix)
-// and on same-directory bare filenames (missing the directory entirely).
+// resolveDocHref turns a relative .md link (possibly with ../, ./, or a
+// leading / for root-relative) written inside currentDocDir into an
+// absolute /docs/... route, the same way a filesystem path would resolve.
+// Delegates '.'/'..' collapsing to path.posix (already used the same way in
+// src/lib/docs.ts) instead of hand-rolling it — the hand-rolled version
+// missed the root-path special case filePathToHref has (producing '/docs/'
+// instead of '/docs' for a link that resolves to root) and silently
+// swallowed excess '../' instead of leaving it visible.
 function resolveDocHref(dir: string, relHref: string): string {
-  const segments = dir ? dir.split('/') : []
-  for (const seg of relHref.replace(/\.md$/, '').split('/')) {
-    if (seg === '' || seg === '.') continue
-    if (seg === '..') segments.pop()
-    else segments.push(seg)
-  }
-  return '/docs/' + segments.join('/').replace(/\/?(README|index)$/i, '')
+  const withoutExt = relHref.replace(/\.md$/, '')
+  const isRootRelative = withoutExt.startsWith('/')
+  const joined = path.posix
+    .join(isRootRelative ? '' : dir, withoutExt)
+    .replace(/\/?(README|index)$/i, '')
+    .replace(/^\/+/, '')
+  return joined === '' || joined === '.' ? '/docs' : `/docs/${joined}`
 }
 
 // ── Custom marked renderer (legacy function-signature API) ────────────────────
@@ -211,11 +214,18 @@ function preprocessContent(src: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 interface MDXContentProps {
   source: string
-  slug?: string[]
+  // filePath is the doc's real path relative to DOCS_ROOT (e.g.
+  // 'using/engine-ask.md' or 'scoring/README.md') — from getDocContent's
+  // DocContent.filePath. Deriving currentDocDir from this instead of the
+  // URL slug matters for directory-index pages: slug ['scoring'] alone
+  // can't tell whether that's scoring.md (dir '') or scoring/README.md
+  // (dir 'scoring') — filePath already disambiguates it correctly.
+  filePath?: string
 }
 
-export function MDXContent({ source, slug = [] }: MDXContentProps) {
-  currentDocDir = slug.slice(0, -1).join('/')
+export function MDXContent({ source, filePath = '' }: MDXContentProps) {
+  const dir = path.posix.dirname(filePath)
+  currentDocDir = dir === '.' ? '' : dir
   const html = marked.parse(preprocessContent(source), { async: false }) as string
 
   return (

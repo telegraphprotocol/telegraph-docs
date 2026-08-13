@@ -25,6 +25,12 @@ At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents 
 5. The finalized signal is delivered — either directly to the agent, or as a callback to a smart contract.
 6. The USDC paid gets dripped into Uniswap to purchase MACHINA, which is sent to the miner.
 
+## WebSocket: A Continuous Signal Stream
+
+The flow above is on-demand: you ask a question, you get an answer. Telegraph also runs a background **Daemon** that autonomously scrapes real-world data, generates its own questions, and produces signals on a fixed cycle whether or not any agent is asking.
+
+You can subscribe to this feed over WebSocket instead of polling for it: authenticate with your wallet, pick the Intents you care about, and each matching signal is pushed to you as the Daemon produces it. Delivery is settled against your on-chain USDC escrow per signal, rather than paid per call like the Engine. See [WebSocket Signal Subscriptions](using/websocket-signals.md).
+
 ## Where to Go Next
 
 | I want to... | Go here |

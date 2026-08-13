@@ -40,7 +40,7 @@ First, approve the Diamond to spend your USDC:
 
 ```
 ERC20.approve(
-  diamondAddress,  // 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3
+  diamondAddress,  // 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
   amount           // USDC amount in 6-decimal units
 )
 ```
@@ -51,7 +51,7 @@ Then deposit:
 EscrowFacet.depositUSDC(amount)
 ```
 
-The Diamond address on Base Sepolia is `0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3`. The escrow has a 4-hour timelock on withdrawals, so deposit what you'll need for your jobs.
+The Diamond address on Base Sepolia is `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8`. The escrow has a 4-hour timelock on withdrawals, so deposit what you'll need for your jobs.
 
 ## Step 2: Find the Intent ID
 
@@ -60,7 +60,7 @@ Each miner has an Intent ID — a `bytes32` derived from the miner's address, th
 Query the registered miners to find an intentId:
 
 ```
-cast call 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
+cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
   "getMiner(uint256)" 12 \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
 ```
@@ -99,7 +99,7 @@ For multiple messages, continue alternating role/content.
 **Example — Chat completion job:**
 
 ```bash
-cast send 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
+cast send 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
   "createJob(bytes32,(address[],uint256[],string[],bool[]),address)(uint256)" \
   "0xccd42820467c59d6f703fb6d0fe57d6303fbfaa893759ee493c29293adfdc1f7" \
   '([],[],["telegraph-assistant","user","What is 2+2?"],[false])' \
@@ -184,7 +184,7 @@ The minimum job budget is the target miner's floor price × the current [demand 
 Check the floor price before creating a job by reading the miner's `minPriceUsdc` from the Diamond:
 
 ```bash
-cast call 0xac683bFa8F1C892E23e8300d14c20678C6FC0CA3 \
+cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
   "getMiner(uint256)" <minerId> \
   --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
 ```
