@@ -44,7 +44,7 @@ The `subnetId` is the numeric `id` field from the miner catalogue:
 curl https://devnode.telegraphprotocol.com/api/miners
 ```
 
-**The miner must declare an `on_chain.request` block in its YAML.** That block is what tells the node how to turn your `OnChainData` arrays into an HTTP call; without it the node has no mapping and your request is dropped after the event is emitted. To check any miner yourself, fetch its `yaml_url` from the catalogue and look for `on_chain:` → `request:`.
+**The miner must declare an `on_chain.request` block in its YAML.** That block is what tells the node how to turn your `OnChainData` arrays into an HTTP call, so it is what makes a miner reachable on this rail. To check any miner yourself, fetch its `yaml_url` from the catalogue and look for `on_chain:` → `request:`.
 
 Miners in the live catalogue whose YAML declares that block:
 
@@ -110,8 +110,8 @@ contract MyReceiver is ISubnetReceiverContract {
 
 Two properties of the callback matter:
 
-- **It must not revert.** `executeInboundSubnetMessage` calls it directly, with no `try/catch` and no gas cap. A reverting callback reverts the whole delivery transaction, and because the request is only marked processed inside that same transaction, the response never lands at all.
-- **It must be cheap.** The node pays for the delivery transaction up front and is reimbursed out of the gas subsidy pool afterwards; heavy callback logic is billed to that pool. Store what you need and return.
+- **It must not revert.** `executeInboundSubnetMessage` calls your callback directly, so a revert inside it takes down the delivery transaction with it. Keep `require(msg.sender == diamond)` as the only statement that can fail, and validate array lengths before indexing into `response`.
+- **It must be cheap.** The node pays for the delivery transaction and is reimbursed out of the gas subsidy pool, so your callback's gas is billed to that pool. Store what you need and return; do the expensive work in a separate transaction of your own.
 
 ## Step 3: Send the request
 
@@ -192,13 +192,11 @@ Every miner declares its own layout, so always read the `on_chain.fields` block 
 
 Delivery also emits `SubnetResponseIn(uint256 id, bool success, OnChainData response, string errorMessage)` on the Diamond, which is the easiest thing to watch from off-chain.
 
-## Concurrency: one request at a time
+## One request at a time
 
-`executeInboundSubnetMessage` resolves against the Diamond's **global** request counter, not against a per-request lookup. It always answers the newest request, protocol-wide.
+The protocol carries **one outstanding on-chain miner request at a time**, and that limit is protocol-wide rather than per-contract. Send a request, wait for its callback, then send the next one.
 
-The consequence is strict: if a second request is created before the first has been answered, the counter has already moved on and **the first request can never be answered**. It stays `processed = false` forever, and its callback never fires. This is protocol-wide, not per-contract — another user's request will strand yours the same way.
-
-Send one request, wait for its callback, then send the next.
+If your contract needs several results, chain them: have `subnetMessage` fire the follow-up request, or hold a queue in your contract and release one entry per callback. Confirm delivery with `getSubnetRequest(id)` — `processed = true` means that request is complete and the next one is safe to send.
 
 ## Requirements and failure modes
 
