@@ -11,9 +11,8 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 | Contract | Address |
 |---|---|
 | **Diamond (Port)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` |
-| **MACHINA Token** | `0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7` |
-| **USDC — x402 micropayments** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| **USDC — Diamond escrow & jobs** | `0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18` |
+| **MACHINA Token** | `0x7b9Bd0e5f9a4D0A01db18823De1D8442C84993b7` |
+| **USDC (Circle)** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 | **Treasury** | `0xB82E4DE09f1C43BBD9ca4907c01f1EEd65a521B9` |
 | **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
 | **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
@@ -21,13 +20,6 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
 > the value your client should use.
-
-> **Why there are two USDC addresses.** The protocol uses two distinct USDC tokens on testnet, by design:
->
-> - **`0x036CbD5...`** is Circle's canonical Base Sepolia USDC. The **x402 payment gate** uses it because pay-per-call inference settles through the PayAI facilitator, which works in the standard testnet USDC that wallets and faucets already issue. Use this token when paying for inference via x402.
-> - **`0xfFC3a7e0...`** is the protocol's own test USDC, configured on the Diamond via `setUSDCToken`. The **on-chain escrow, ERC-8183 jobs, and settlement** facets use it — it's freely mintable for testing so you can fund jobs and WebSocket escrow without competing for faucet USDC.
->
-> On mainnet both roles collapse onto a single canonical USDC. The split exists only because testnet separates "real" faucet USDC (for x402) from a mintable test token (for on-chain escrow).
 
 ### Network Configuration
 

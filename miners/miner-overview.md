@@ -89,7 +89,7 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 The live miner set changes as operators register and deregister on-chain, so there is no useful fixed list to publish here.
 
 **See the live set two ways:**
-- **Interface:** the [Intelligence Terminal](https://terminal.telegraphprotocol.com/intelligence-terminal) shows active miners and the signals they produce.
+- **Interface:** the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/) shows active miners and the signals they produce.
 - **API:** `GET https://devnode.telegraphprotocol.com/api/miners` returns the current catalog with schemas and prices.
 
 ## Next Steps

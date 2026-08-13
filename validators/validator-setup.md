@@ -69,8 +69,8 @@ EVM_WSS_URL=wss://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
 
 # ─── Contract Addresses ───────────────────────────────────────────────────────
 DIAMOND_ADDRESS=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
-USDC_ADDRESS=0xfFC3a7e0F71E9b48D8DBa86dc7d7B44aB24edD18
-MACHINA_ADDRESS=0xbAd88F9F77AdCF455d8a6aC08B2d1bA2b312f3e7
+USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+MACHINA_ADDRESS=0x7b9Bd0e5f9a4D0A01db18823De1D8442C84993b7
 
 # ─── Node Identity ────────────────────────────────────────────────────────────
 ID=my-telegraph-node

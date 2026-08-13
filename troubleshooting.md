@@ -41,7 +41,7 @@ State `0` = Funded, State `1` = Terminal.
 The listener falls back to an error hash if the miner returns a non-200 response. Check the job result on-chain:
 
 ```bash
-cast call <diamond> "getJobResult(uint256)(bytes32)" <jobId> --rpc-url <rpc>
+cast call <diamond> "getJobOutput(uint256)(bytes32)" <jobId> --rpc-url <rpc>
 ```
 
 A non-zero hash means the job was resolved, even if the miner had an error.

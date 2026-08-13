@@ -22,6 +22,13 @@ Your module gets three pieces of text (the question, the correct/expected
 answer, and a miner's answer) and returns a score. Higher score means a
 better answer.
 
+- **`question`** — the question we're trying to solve.
+- **`ground_truth`** — the correct answer to that question.
+- **`miner_answer`** — what this particular miner responded.
+
+If `miner_answer` matches `ground_truth`, your module should score it high.
+If it doesn't, score it low.
+
 ## What environment does it run in?
 
 Your module runs inside a lightweight WASM sandbox built into the node
