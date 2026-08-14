@@ -84,6 +84,24 @@ Subscription requires wallet authentication (Step 1). Once verified, send a subs
 }
 ```
 
+The server immediately confirms with a `subscribed` message:
+
+```json
+{
+  "type": "subscribed",
+  "data": {
+    "subscription_id": "6ee741a1-5c5b-4c82-a29f-956d9e529fd9",
+    "wallet_address": "0x...",
+    "intents": ["WEATHER_FORECAST", "CLIMATE"],
+    "category": "",
+    "min_interest": 0,
+    "max_per_hour": 60,
+    "spend_limit_usdc": 500000,
+    "message": "subscribed — matching daemon results will be pushed as they arrive"
+  }
+}
+```
+
 - **`spend_limit_usdc` is required and must be greater than 0.** It's a per-session USDC budget in raw μUSDC (6 decimals — `500000` = $0.50) capping how much this connection can spend on pushed signals. It resets to zero spent every time you subscribe (including resubscribing) or reconnect; it is not carried over between sessions. See "How Delivery is Settled" below for what happens when you hit it.
 - **Optional filters:** `category` (restrict to one signal category), `min_interest` (only receive signals at or above this interest score), `max_per_hour` (rate cap on how often you're pushed to; defaults to 60 if omitted).
 
@@ -100,6 +118,14 @@ Available actions on the WebSocket connection:
 | `ask` | Yes | Request live on-demand inference (routed automatically) |
 | `ask_direct` | Yes | Route directly to a specific miner by ID |
 | `ping` | No | Keep the connection alive |
+
+`list_subnets` responds with the catalog under a `subnets`/`miners` key:
+
+```json
+{"type": "result", "data": {"count": 41, "subnets": [{"id": "203", "name": "VirusTotal Threat Intelligence", "slug": "virustotal", "description": "...", "base_url": "...", "capabilities": ["URL_SCAN"], "cost_per_call": "0.00", "protocol": "generic"}]}}
+```
+
+For the full schema, endpoints, prices, `activation_status`, use `GET /api/miners` instead — see [Discover Available Miners](x402-inference.md#step-1-discover-available-miners).
 
 The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer, and neither counts against your subscription's spend limit. These are live calls, not reads from the cached history.
 

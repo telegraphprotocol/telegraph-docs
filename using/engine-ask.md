@@ -17,7 +17,7 @@ Both are paid per call via x402. Both run **fresh, on-demand inference** — the
 
 **Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
-> **A note on naming:** the Engine API still uses `subnet` in some paths and field names (`/v1/subnets`, `subnet_id`, `subnet_name`). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner** — read `subnet` as "miner" throughout the API.
+> **A note on naming:** parts of the Telegraph API still use `subnet` in field names (`subnet_id`, `subnet_name` on the [Daemon](daemon-signals.md) and [WebSocket](websocket-signals.md) signal feeds) and tool names (the `tg_engine_*_subnet` [MCP tools](mcp-server.md)). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner** — read `subnet` as "miner" wherever you see it.
 
 ## Auto-Routed Ask
 
@@ -121,13 +121,13 @@ So check your miner ID and endpoint against `/api/miners` before you build the r
 
 ## Listing Available Miners
 
-To see what the Engine can route to:
+To see what the Engine can route to, use the discovery endpoint:
 
 ```
-GET /engine/v1/subnets
+GET /api/miners
 ```
 
-Returns the miner catalog as `{ "miners": [...], "count": N }` — each entry has the numeric ID you pass to a direct ask, the slug, name, and capability metadata. The authoritative live list is always the [miner dispatcher discovery endpoint](x402-inference.md#step-1-discover-available-miners), which also gives you each miner's endpoints and schemas.
+Returns a JSON array of every registered miner — numeric `id`, `slug`, `name`, `endpoints` (path, method, and schema), `supported_intents`, `activation_status`, and `min_price_usdc`. Filter server-side instead of fetching the whole catalog: `?intent=`, `?status=`, and `&limit=` are all supported. See [Discover Available Miners](x402-inference.md#step-1-discover-available-miners) for the full field reference.
 
 ## Available Intents
 
