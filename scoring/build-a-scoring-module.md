@@ -90,6 +90,36 @@ number between `0` and `1`, where `0` means "not a match at all" and `1`
 means "perfect answer." An empty or blank miner answer should always score
 `0`.
 
+### Understanding `rank_answer`'s parameters
+
+`rank_answer` receives **six numbers**, not three strings, because WASM can
+only pass numbers across the boundary. Each of the three text inputs arrives
+as a **pointer + length** pair: the pointer says *where* in your module's
+memory the text starts, and the length says *how many bytes* it is. They
+always come in this exact order:
+
+| Parameters | What it is |
+|---|---|
+| `q_ptr`, `q_len` | The **question** — where it starts, how many bytes long. |
+| `gt_ptr`, `gt_len` | The **ground truth** (the correct answer). |
+| `ma_ptr`, `ma_len` | The **miner's answer** — the text you're actually scoring. |
+
+To use one, read `len` bytes of memory starting at `ptr` and interpret them
+as UTF-8 (see `read_str` in the example below), which turns the raw
+`(ptr, len)` pair back into a normal string you can work with.
+
+Two things to keep in mind:
+
+- **The order never changes.** Read them as `question`, then `ground_truth`,
+  then `miner_answer`. Reading them in the wrong order (or with the wrong
+  length) is the single most common bug: if your `miner_answer` comes out
+  empty because of it, your scorer returns `0` for everything and fails
+  registration.
+- **You don't have to use all three.** Scoring quality mostly comes from
+  comparing `miner_answer` against `ground_truth`; the `question` is there if
+  you want it (the simple example below ignores it). Whatever you compute, you
+  return a single `f32` between `0` and `1`.
+
 ## A simple starting example (Rust)
 
 The full, buildable project below lives in
@@ -274,6 +304,47 @@ input before you register anything on-chain:
 
 If your module loads without errors and behaves sensibly across cases like
 these, you're in good shape to register it.
+
+## What checks your module must pass
+
+Registering on-chain is only the first step. Before your module is allowed to
+score real traffic, the node runs it through a set of automatic checks. If it
+fails any of them, it's rejected and won't serve traffic (the rejection reason
+is recorded, so you can see exactly what went wrong). There are two stages,
+and you have to clear both.
+
+### Stage 1: structural checks
+
+These make sure your module is well-formed and behaves sanely. Each is a
+requirement your module has to meet, how you meet it is up to you:
+
+1. **It loads and exports the required functions.** Your `.wasm` must expose
+   `rank_answer` (with the six parameters described
+   [above](#understanding-rank_answers-parameters)), `alloc`, and `dealloc`,
+   and load in the sandbox.
+2. **An empty or blank answer scores exactly `0`.** Whether the miner's answer
+   is empty or only whitespace, `rank_answer` has to return `0`.
+3. **A correct answer scores higher than an unrelated one.** For the same
+   question, a known-correct answer must score strictly above a known-unrelated
+   answer. The rejection `self-match (0.0000) did not beat unrelated
+   cross-match (0.0000)` means your module failed this one, it returned the
+   same score for both.
+4. **Awkward input doesn't crash it.** Your module will be given very long
+   answers (tens of KB) and text full of emoji and non-English characters, and
+   it has to handle both without crashing or trapping.
+
+### Stage 2: it has to beat the current scorer
+
+Passing Stage 1 only proves your module isn't *broken*, not that it's *good*.
+Each intent has exactly one active "champion" scoring module at a time. To
+actually go live, your module has to **beat the current champion on accuracy**:
+the node replays real historical answers through both scorers and keeps
+whichever ranks them better. If yours isn't more accurate than the one already
+in place, it won't be promoted, the existing champion keeps serving traffic.
+
+So there are two bars: pass the structural checks (Stage 1), then out-score the
+incumbent (Stage 2). A module can be perfectly valid and still not go live,
+simply because a better one already exists for that intent.
 
 ## How to submit / register your module
 
