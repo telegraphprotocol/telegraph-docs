@@ -264,11 +264,6 @@ rustup target add wasm32-unknown-unknown
 cargo build --release --target wasm32-unknown-unknown
 ```
 
-That gives you a working `.wasm` file you can test (see the section below)
-and then register. From there, the best way to do well is to make the
-scoring logic smarter: real semantic understanding will always beat simple
-word-matching.
-
 **Make sure you upload the `wasm32-unknown-unknown` build.**
 
 If you have multiple WASM targets installed, Cargo can produce files with the same
