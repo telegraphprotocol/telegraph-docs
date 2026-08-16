@@ -379,18 +379,63 @@ requirement your module has to meet, how you meet it is up to you:
    answers (tens of KB) and text full of emoji and non-English characters, and
    it has to handle both without crashing or trapping.
 
-### Stage 2: it has to beat the current scorer
+### Stage 2: it has to beat the current champion
 
 Passing Stage 1 only proves your module isn't *broken*, not that it's *good*.
-Each intent has exactly one active "champion" scoring module at a time. To
-actually go live, your module has to **beat the current champion on accuracy**:
-the node replays real historical answers through both scorers and keeps
-whichever ranks them better. If yours isn't more accurate than the one already
-in place, it won't be promoted, the existing champion keeps serving traffic.
+Each intent has exactly one active "champion" scoring module at a time, and to
+go live your module has to be at least as good as that champion at telling good
+answers from bad ones.
 
-So there are two bars: pass the structural checks (Stage 1), then out-score the
-incumbent (Stage 2). A module can be perfectly valid and still not go live,
-simply because a better one already exists for that intent.
+To decide, the node uses a built-in **benchmark set**: a fixed set of
+questions, each with a known-**good** answer and a known-**bad** answer. It
+scores both your module and the current champion on that same benchmark and
+compares them head to head.
+
+Your module is promoted only if it clears all of these:
+
+1. **It recognizes a perfect answer.** For every benchmark question, scoring the
+   correct answer against itself (`rank_answer(question, ground_truth,
+   ground_truth)`) must be at least **0.75**. A good scorer rates a perfect
+   answer near `1.0`.
+2. **Its scores actually vary.** Across the benchmark your scores must have real
+   spread. A module that returns the same number for everything can't tell
+   answers apart, and is rejected.
+3. **It separates good from bad at least as well as the champion.** On the
+   benchmark questions both modules were scored on, your module must order the
+   good answer above the bad one on **at least as many questions** as the
+   champion, separate good from bad by **at least as large an average margin** as
+   the champion, and clear an absolute margin floor. You don't have to be perfect
+   on every question, but you can't lose to the champion on either count.
+
+If the intent has enough real traffic (several miners with scoring history), the
+node also checks that your module's ranking of those real answers broadly agrees
+with the champion's.
+
+#### The numbers you'll see
+
+Whether your module is promoted or rejected, the node records a **score** and a
+**breakdown** on your registration (queryable via the API), and the rejection
+reason spells out exactly which bar you missed. The breakdown fields:
+
+| Field | What it means |
+|---|---|
+| `candidate_margin` | Your module's average "good-answer score minus bad-answer score" across the benchmark. This is your headline **score**: how clearly you separate good from bad. Higher is better. |
+| `champion_margin` | The same number for the current champion. You must match or beat it. |
+| `candidate_wins` | How many benchmark questions your module scored the good answer above the bad one. |
+| `champion_wins` | The same, for the champion. You must win on at least as many. |
+| `comparable_cases` | How many benchmark questions both modules were scored on (the denominator for the wins and margins above). |
+| `worst_self_match` | The lowest score your module gave a perfect answer anywhere in the benchmark. Must be at least `0.75`. |
+| `score_stddev` | How much your scores varied across the benchmark. Must be above a small floor (the "your scores actually vary" check). |
+| `historical_rows_evaluated` | How many real past answers the extra traffic check looked at (`0` when there wasn't enough traffic to run it). |
+
+For example, a promoted module might record a `candidate_margin` of `0.37`
+against a `champion_margin` of `0.05`, winning `32/32` benchmark questions to the
+champion's `19/32`: it separates good answers from bad ones far more sharply
+than the champion it replaced.
+
+So there are two bars: pass the structural checks (Stage 1), then match or beat
+the incumbent on the benchmark (Stage 2). A module can be perfectly valid and
+still not go live, simply because a better one already holds that intent.
 
 ## How to submit / register your module
 
