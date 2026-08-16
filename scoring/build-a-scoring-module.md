@@ -269,6 +269,57 @@ and then register. From there, the best way to do well is to make the
 scoring logic smarter: real semantic understanding will always beat simple
 word-matching.
 
+**Make sure you upload the `wasm32-unknown-unknown` build.**
+
+If you have multiple WASM targets installed, Cargo can produce files with the same
+filename for different targets. Telegraph scoring modules must use the
+**`wasm32-unknown-unknown`** target.
+
+Do **not** upload a `wasm32-wasip1` build. WASI builds contain imports for
+operating-system functionality such as `fd_write`, `environ_get`,
+`environ_sizes_get`, and `proc_exit`. Telegraph scoring modules run without WASI
+or OS access, so a WASI module will fail to instantiate during registration.
+
+Build the module with:
+
+```bash
+cargo build --release --target wasm32-unknown-unknown
+```
+
+The resulting file will be at:
+
+```text
+target/wasm32-unknown-unknown/release/<your_module>.wasm
+```
+
+Before registering, verify that the file has **no imports**:
+
+```bash
+wasm-tools print target/wasm32-unknown-unknown/release/<your_module>.wasm | grep -c '(import'
+```
+
+This should print:
+
+```text
+0
+```
+
+If it prints a value greater than `0`, inspect the module before registering it.
+In particular, make sure you did not accidentally upload the similarly named file
+from:
+
+```text
+target/wasm32-wasip1/release/
+```
+
+A WASM module with WASI imports is not a valid Telegraph scoring module and may
+result in an instantiation error such as `module[env] not instantiated`.
+
+That gives you a working `.wasm` file you can test (see the section below)
+and then register. From there, the best way to do well is to make the
+scoring logic smarter: real semantic understanding will always beat simple
+word-matching.
+
 ## Testing your module before you register
 
 Don't wait until you've registered on-chain to find out if your module
