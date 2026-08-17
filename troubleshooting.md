@@ -55,15 +55,24 @@ A reverting callback does not show up here: the protocol calls your callback ins
 
 ## Miner Registration
 
-### "Schema validation failed" in node logs
+### "Schema validation failed"
+
+You don't need the node's logs to read this — the full validator output is on the registration:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/api/miners/<registrationId> | jq -r '.miner.rejection_reason'
+```
 
 Your YAML file has validation errors. Common causes:
 
+- **`Additional property X is not allowed`**: every block in the YAML is a closed set — the root, each `endpoints[]` entry, `auth`, and `semantics.signal_mapping` all reject unlisted keys. The usual culprit is `input_schema`/`output_schema` placed **inside** an endpoint; they are top-level fields. See [YAML Configuration](miners/yaml-config.md#endpoints)
 - **Missing `base_url`**: Add a `base_url` starting with `http://` or `https://`
 - **`signal_mapping.type` not allowed**: Remove the `type:` field. Use only `confidence_field`, `label_field`, and `reason_field`
 - **`slug` not kebab-case**: Use lowercase letters and hyphens only
 - **Invalid `auth.type`**: Must be `bearer`, `header`, or `none`
 - **Missing `supported_intents`**: Add at least one canonical intent string
+
+A schema failure is terminal — the node will not retry it. Fix the YAML, re-pin it, and call `updateMiner` with the new URL and hash; you do not need to register again from scratch.
 
 ### "Hash mismatch" error
 
@@ -86,9 +95,19 @@ curl -s "<yamlUrl>" | sha256sum
 
 Activation is **not** tied to an epoch boundary — the node activates each registration as it processes that registration's event, usually within a minute. Waiting for an epoch will not help. If you're still pending:
 
-- Confirm your YAML is publicly reachable at the declared URL (the node fetches it directly).
-- Confirm the SHA-256 of what the URL serves matches your on-chain `yamlHash`.
-- Check the node logs for a schema validation error — a rejected YAML stays pending rather than activating.
+Ask the node about the registration directly — you don't need log access:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/api/miners/<registrationId> \
+  | jq '.miner | {activation_status, rejection_reason, fetch_attempts, retrying}'
+```
+
+If it comes back `pending`, activation really is just in flight — wait. Any other status is the answer:
+
+- `unreachable` — the YAML URL didn't answer. `retrying: true` means the node re-fetches roughly every 5 minutes, up to 5 attempts; nothing to do unless it later flips to `rejected`. Confirm the URL is publicly reachable in the meantime.
+- `rejected` — terminal. A schema or hash failure does **not** leave you pending; the row is rejected and `rejection_reason` quotes the validator verbatim. Fix the YAML and call `updateMiner`.
+
+For a hash failure specifically, confirm the SHA-256 of what the URL serves matches your on-chain `yamlHash` — `curl -s <url> | sha256sum`.
 
 ## WebSocket Signals
 
