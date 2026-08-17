@@ -173,6 +173,78 @@ cast send "$DIAMOND" \
 
 Only the address that registered a miner can update or deregister it; there is no admin override.
 
+### Rotating your API key
+
+Your API key is **not** part of your YAML and does not need an on-chain update.
+You can replace the key a node holds for you by proving ownership with the same
+wallet that registered the miner — no operator involvement, and the key never
+goes to a human.
+
+**1. Request a challenge**, naming the key you intend to install by its
+keccak256 fingerprint. Send the fingerprint, never the key:
+
+```bash
+NODE=https://your-node.example
+SLUG=your-miner-slug
+KEY_HASH=$(cast keccak "your-new-api-key")   # or ethers.keccak256(toUtf8Bytes(key))
+
+curl -X POST "$NODE/miner-dispatcher/miners/$SLUG/api-key/challenge" \
+  -H "Content-Type: application/json" \
+  -d "{\"key_hash\":\"$KEY_HASH\"}"
+```
+
+It is a `POST` because it writes a challenge, and `key_hash` goes in the body
+rather than a query string so it stays out of the node's access logs. A missing
+or malformed `key_hash` is a `400`; an unregistered slug is a `404`.
+
+You get back a `nonce` and the exact `message` to sign:
+
+```
+Telegraph Protocol
+
+Authorise an API key update.
+
+Miner: your-miner-slug
+Wallet: 0xabc...
+Key: 0x5f8d...
+Nonce: 9f86d0...
+Issued: 2026-08-17T10:00:00Z
+```
+
+**2. Sign that message** with `personal_sign` (EIP-191) using your registered
+wallet, and submit it with the key itself:
+
+```bash
+curl -X POST "$NODE/miner-dispatcher/miners/$SLUG/api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"nonce":"9f86d0...","signature":"0x...","api_key":"your-new-api-key"}'
+```
+
+The node sandbox-tests the new key against your **registered** YAML before
+storing it. If it fails, nothing is written and your existing key keeps serving
+traffic — a typo cannot take you offline.
+
+Things worth knowing:
+
+- **Sign the exact `message` string the node returned.** Do not rebuild it.
+- **The signature is bound to one key.** It commits to `key_hash`, so the same
+  signature cannot be used to install a different key. Changing your mind means
+  a new challenge.
+- **Challenges are single-use and expire after 5 minutes.** Any retry — after a
+  rejected key, or a `429` — needs a fresh one.
+- **A stored key overrides the operator's `env_var`** for your miner, and takes
+  effect on the next call with no restart. Miners with no stored key keep using
+  the environment variable.
+- **Every write is audited.** The node keeps an append-only trail of who changed
+  your key and when, recording a keccak256 of it — never the key itself.
+
+| Status | Meaning |
+|---|---|
+| `200` | Key validated and stored |
+| `401` | Signature invalid or from the wrong wallet; challenge used, expired, or issued for another miner; or `api_key` does not match the `key_hash` you requested the challenge for |
+| `422` | Your own endpoints rejected the key. `results` names which; nothing was stored |
+| `429` | This miner's key was updated in the last 30s. Retry with a fresh challenge |
+
 ### Deregistering
 
 To leave the network entirely:

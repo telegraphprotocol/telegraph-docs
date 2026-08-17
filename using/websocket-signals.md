@@ -103,6 +103,36 @@ Available actions on the WebSocket connection:
 
 The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer, and neither counts against your subscription's spend limit. These are live calls, not reads from the cached history.
 
+### Pre-request validation on `ask` and `ask_direct`
+
+Both actions run the same [pre-request validation](engine-ask.md#pre-request-validation)
+as their HTTP equivalents, and they behave the same way as those:
+
+- **`ask_direct` halts.** You named the miner and no fallback will be tried, so a
+  request the node predicts will fail comes back as an `error` message rather
+  than being sent upstream. Resend with `"acknowledge_warnings": true` to run it
+  regardless:
+
+  ```json
+  { "action": "ask_direct", "subnet_id": "18", "method": "POST",
+    "endpoint": "/chat", "payload": { "...": "..." },
+    "acknowledge_warnings": true }
+  ```
+
+- **`ask` warns and continues.** It did not choose the miner and a fallback is
+  lined up behind it. Warnings arrive on the `executing` message, for both the
+  primary and the fallback attempt:
+
+  ```json
+  { "type": "executing", "data": {
+      "status": "calling primary miner zeus [llm]…",
+      "warnings": ["miner \"zeus\" has reached its rate limit — try another miner for this intent, or try again later"]
+  } }
+  ```
+
+  The `warnings` array is absent or empty when there is nothing to report, so
+  treat it as optional.
+
 ## Step 3: Receive Signals
 
 When the Daemon produces a result matching your subscribed Intents, it's pushed to your connection wrapped in the standard message envelope:

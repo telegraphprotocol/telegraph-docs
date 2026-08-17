@@ -91,10 +91,81 @@ Each entry:
 | `code` | Yes | Machine-readable code (UPPER_SNAKE_CASE) |
 | `message` | Yes | Human-readable description |
 | `param` | No | Request body key this applies to |
-| `property` | No | `size_bytes`, `value`, `length`, or `count` |
+| `property` | No | `size_bytes`, `value`, `length`, `count`, or `rate` |
 | `value_bytes` | No | Byte threshold |
 | `value_num` | No | Numeric threshold |
 | `operator` | No | `lte`, `gte`, `lt`, `gt`, or `eq` |
+| `window_seconds` | No | For `property: rate` only: the window `value_num` applies over, e.g. 5 per `1s`, or 100 per `2592000s` (30 days) |
+
+#### Declaring a rate limit
+
+`property: rate` is the one limitation the node cannot check from the request
+itself — it depends on how many times the node has already called you. Declare
+your provider's real allowance and the node checks it *before* spending a
+caller's money:
+
+```yaml
+limitations:
+  - code: ACCOUNT_QUOTA
+    message: Free tier allows 100 requests per month
+    property: rate
+    value_num: 100
+    window_seconds: 2592000
+```
+
+Counts are **node-wide per miner**, not per caller: the node holds one upstream
+account for you, so all traffic draws on the same allowance.
+
+> **A miner that declares no rate limit still gets one.** The node applies a
+> default backstop of **600 calls/minute** per miner (operator-tunable via
+> `MINER_DEFAULT_RATE_PER_MIN`; `0` disables it). It sits far above normal
+> traffic — it exists to stop a runaway agent loop hammering you, not to
+> enforce a number. Declaring your real limit always beats inheriting this one.
+
+### Errors (Optional)
+
+Tell the protocol where your API reports failures, as dot-paths into your JSON
+response body. Numeric segments index arrays (e.g. `errors.0.message`).
+
+| Field | Description |
+|---|---|
+| `errors.message_path` | Path to your human-readable error message, e.g. `detail` or `errors.0.message` |
+| `errors.code_path` | Path to your machine-readable error code, e.g. `error.code` |
+| `errors.status_path` | Path to a status you report **inside a 200 response** |
+| `errors.success_values` | Values at `status_path` that mean success. Defaults to `["200"]` |
+
+`message_path` and `code_path` just make failures readable — the caller sees
+your wording instead of a slice of raw response body.
+
+**`status_path` matters more than it looks.** Some APIs answer `HTTP 200` even
+when the call failed, and report the real outcome in the body:
+
+```json
+{ "responseData": { "translatedText": "'XX' IS AN INVALID SOURCE LANGUAGE" },
+  "responseDetails": "'XX' IS AN INVALID SOURCE LANGUAGE",
+  "responseStatus": "403" }
+```
+
+To the protocol that is a successful call, because the HTTP status said so. The
+caller gets charged, and your error text is stored as a signal. If your API
+behaves this way, say so:
+
+```yaml
+errors:
+  message_path: responseDetails
+  status_path: responseStatus
+  success_values: ["200"]
+```
+
+Now the protocol sees the failure, the call fails properly, **your caller is not
+charged**, and no signal is recorded. If your API uses real HTTP status codes,
+omit `status_path` — there is nothing to declare.
+
+The check is deliberately conservative: no `status_path` is never a failure, and
+a path that does not resolve is never a failure. An API that omits the field on
+success will not have healthy calls turned into errors.
+
+> Collectors accept the same `errors:` block, with the same fields and meaning.
 
 ### Auth
 
