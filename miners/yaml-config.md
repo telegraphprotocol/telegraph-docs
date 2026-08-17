@@ -49,9 +49,9 @@ semantics:
 
 ### Top-Level Fields
 
-| Field | Required | Description |
-|---|---|---|
 The schema requires exactly six top-level fields: `version`, `kind`, `id`, `slug`, `name`, `base_url`. Everything else is optional, though a miner with no `endpoints` or `semantics` won't be routable.
+
+> **Every block below is a closed set.** The schema sets `additionalProperties: false` at the root *and* inside `endpoints[]`, `auth`, and `semantics.signal_mapping`. A key that isn't listed here is not ignored — it fails validation outright with `Additional property <name> is not allowed`, and your registration is rejected. There is no way to attach custom fields.
 
 | Field | Required | Description |
 |---|---|---|
@@ -63,8 +63,8 @@ The schema requires exactly six top-level fields: `version`, `kind`, `id`, `slug
 | `name` | Yes | Human-readable display name |
 | `description` | No | Description for routing context and documentation |
 | `base_url` | Yes | Upstream API base URL. Must start with `http://` or `https://` — plain `http` is accepted, and is what node-local miners use. |
-| `input_schema` | No | JSON Schema describing the request body, surfaced to callers via `/api/miners` |
-| `output_schema` | No | JSON Schema describing the response body |
+| `input_schema` | No | **Top-level only.** JSON Schema describing the request body, surfaced to callers via `/api/miners` |
+| `output_schema` | No | **Top-level only.** JSON Schema describing the response body |
 | `polling` | No | For `kind: validator` — requires `polling.interval_seconds` |
 | `cache_ttl_sec` | No | Response cache lifetime |
 | `rate_limit_per_sec` | No | Client-side rate cap the node applies to your upstream |
@@ -135,6 +135,43 @@ The node reads the environment variable at runtime. Your API key is never stored
 | `content_type` | No | Override `Content-Type` header for this endpoint |
 | `multipart_fields` | No | Fields to encode as `multipart/form-data` (for file uploads) |
 | `param_map` | No | Rename incoming query params to upstream names: `{incoming: upstream}` |
+
+**Those eight fields are the whole list.** Anything else inside an `endpoints[]` entry is rejected.
+
+The most common way to hit this is `input_schema` / `output_schema`. They describe a request and a response, so nesting them under the endpoint they describe is the natural guess — but they are **top-level** fields, and the schema refuses them anywhere else:
+
+```yaml
+# ✗ REJECTED — "endpoints.0: Additional property input_schema is not allowed"
+endpoints:
+  - path: /check-tx
+    external_path: /check-tx
+    method: GET
+    input_schema:            # ← not allowed here
+      type: object
+```
+
+```yaml
+# ✓ CORRECT — the schema blocks sit at the top level
+endpoints:
+  - path: /check-tx
+    external_path: /check-tx
+    method: GET
+
+input_schema:
+  type: object
+  required: [tx_hash]
+  properties:
+    tx_hash:
+      type: string
+      pattern: "^0x[0-9a-fA-F]{64}$"
+
+output_schema:
+  type: object
+  properties:
+    status: { type: string }
+```
+
+One consequence worth planning around: `input_schema` is a single top-level block, so a miner exposing several endpoints with different request shapes describes them in one schema (or omits it). It is documentation surfaced to callers, not a per-endpoint validator — the node does not enforce it against incoming requests.
 
 ### Semantics
 
@@ -340,4 +377,9 @@ Validation catches the mistakes that are expensive to fix later: a schema violat
 | Invalid `auth.type` | Must be `bearer`, `header`, or `none` |
 | Missing `supported_intents` | Add at least one canonical Intent string |
 | Invalid `signal_mapping` | Must use only `confidence_field`, `label_field`, and `reason_field` — the `type` field is not allowed |
+| `endpoints.N: Additional property X is not allowed` | An `endpoints[]` entry has a key outside the eight listed above. Most often `input_schema`/`output_schema` — move them to the top level |
+| `(root): Additional property X is not allowed` | A top-level key isn't in the field reference. The schema accepts no custom fields; delete it |
+| `semantics.signal_mapping: Additional property type is not allowed` | Remove `type` — only the three `*_field` keys are accepted |
 | Hash mismatch on registration | YAML content changed after you computed the hash — recompute |
+
+Every row above is a real validator error string — searching this page for the text in your rejection reason will land on the fix.

@@ -139,7 +139,34 @@ curl https://devnode.telegraphprotocol.com/api/miners
 
 Your miner's slug should appear in the response JSON.
 
-If your YAML fails validation (hash mismatch, missing required fields, invalid schema), the node stores your registration as rejected. Fix the YAML and call `updateMiner` with the corrected URL and hash — see [Updating Your Miner](#updating-your-miner).
+### If it isn't there
+
+`/api/miners` lists the miners a node has successfully **loaded**, so a registration whose YAML was rejected is absent from it by design. Absence is not evidence the node missed your event — check the registration itself, by the `registrationId` from your `registerMiner` receipt:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/api/miners/84 | jq '.miner | {activation_status, rejection_reason, retrying}'
+```
+
+```json
+{
+  "activation_status": "rejected",
+  "rejection_reason": "YAML schema validation failed: [endpoints.0: Additional property input_schema is not allowed]. This will NOT be retried: fix the YAML and re-submit the registration with updateMiner().",
+  "retrying": false
+}
+```
+
+`activation_status` tells you whether to wait or to act:
+
+| Status | What it means | What to do |
+|---|---|---|
+| `active` | Live and routable | Nothing |
+| `pending` | YAML validated, activating shortly | Wait a few seconds |
+| `unreachable` | The YAML URL didn't answer. `retrying: true` means the node is still trying — every ~5 min, up to 5 attempts | Nothing, unless it later becomes `rejected` |
+| `rejected` | Terminal. `rejection_reason` says exactly why | Fix the cause, then `updateMiner` |
+| `superseded` | A newer registration took your slug | Use the newer `registrationId` |
+| `deregistered` | Withdrawn on-chain | Re-register if this wasn't intentional |
+
+A rejection is **not** something you re-register from scratch — call `updateMiner` with the corrected URL and hash, see [Updating Your Miner](#updating-your-miner). Validate the fix at [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com) before spending gas.
 
 ## Step 6: The Grace Period
 
@@ -192,8 +219,8 @@ Deregistering costs nothing beyond gas — there is no bond to release and no un
 | Symptom | Likely Cause | Fix |
 |---|---|---|
 | `MinerRegistryFacet: unsupported intent` | One of your `supportedIntents` isn't canonical | Check each with `isCanonicalIntent(string)` and re-send |
-| Miner stuck in pending state | YAML unreachable, or hash/schema check failed — activation is not epoch-gated | Verify the URL serves publicly and `curl -s <url> \| sha256sum` matches your on-chain hash |
+| Miner stuck in pending state | YAML unreachable, or hash/schema check failed — activation is not epoch-gated | `curl -s <node>/api/miners/<registrationId>` — `activation_status` and `rejection_reason` name the cause directly |
 | "Hash mismatch" in node logs | The bytes served differ from what you hashed (often a trailing newline) | Recompute from `curl -s <url>`, then `updateMiner` |
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) field reference |
-| Not appearing in `/api/miners` | Registration rejected, or the node hasn't seen the event | Check node logs; re-point with `updateMiner` once the YAML is fixed |
+| Not appearing in `/api/miners` | Registration rejected, or the node hasn't seen the event | `curl -s <node>/api/miners/<registrationId>` — a `rejected` status with a `rejection_reason` means the YAML failed, not that the node missed you. Fix it, then `updateMiner` |
 | Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |
