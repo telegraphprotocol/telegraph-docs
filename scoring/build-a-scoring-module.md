@@ -448,6 +448,34 @@ testing carefully first (see the section above): a module that fails the
 validation gates doesn't serve traffic, and every re-registration is another
 transaction.
 
+## Removing or replacing your module
+
+Registering isn't permanent — you can take a module down, and you can put a
+better one up.
+
+**To remove a module,** the address that registered it calls
+`deregisterEntity(registrationId, 2)` on the Diamond, where `registrationId`
+is the ID you got when you registered and `2` marks it as a scoring-module
+registration. Only the original registering address can do this — nobody else
+can take your module down. The module is marked inactive right away; if it was
+the live champion for its intent, the node stops scoring with it and falls back
+to the previous champion if there is one.
+
+**To replace a module,** just register the new one — you don't have to
+deregister the old one first. If the new module beats the current champion (see
+[What checks your module must pass](#what-checks-your-module-must-pass)) it
+takes over the intent automatically; deregistering the old one afterwards is
+optional cleanup.
+
+You can also re-register the **same** binary after deregistering it —
+deregistering frees it up, so a module you took down can go back up later. Each
+registration, new or repeated, gets its own fresh registration ID.
+
+Removing and registering both cost only gas — no bond or fee either way. The
+Diamond address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page, and is
+always readable from the chain.
+
 ## Tips for building a good scorer
 
 - Reward answers that are actually **semantically correct**, not just ones
