@@ -439,14 +439,139 @@ still not go live, simply because a better one already holds that intent.
 
 ## How to submit / register your module
 
-1. Build your `.wasm` file and put it somewhere it can be downloaded from a
-   URL (e.g. IPFS or any file host).
-2. You can submit your `.wasm` file via `https://integrate.telegraphprotocol.com/`
+You register a module on-chain, either through the Telegraph platform or by
+calling the contract yourself.
 
-Registering costs nothing but gas — there is no bond or fee. Still worth
-testing carefully first (see the section above): a module that fails the
-validation gates doesn't serve traffic, and every re-registration is another
-transaction.
+### The easy way
+
+Build your `.wasm`, host it somewhere it can be downloaded from a public URL
+(IPFS or any file host), then submit it at
+[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com/).
+The platform hashes the file and sends the transaction for you.
+
+### Registering directly
+
+If you're wiring this into your own app, registration is a single call on the
+Diamond:
+
+```solidity
+registerWasm(wasmHash, wasmUrl, intent)
+```
+
+- **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
+  re-downloads your file and re-hashes it; if the two don't match, the
+  registration is rejected. So hash the same bytes you upload — if your host
+  re-encodes the file after upload, that breaks the match.
+- **`wasmUrl`** — a public `https://` or `ipfs://` URL the node can fetch,
+  32 MB or smaller.
+- **`intent`** — the one canonical intent your module scores for (for example
+  `CHAT_COMPLETION`). It has to be one of the network's canonical intents, or
+  the call reverts with `unsupported intent`. You can read the current list from
+  the chain with `getCanonicalIntents`.
+
+The call returns a **`registrationId`** — keep it. It's how you check the
+module's status and how you deregister it later. Registering costs only gas:
+there's no bond and no fee. The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### You can't register the same binary twice
+
+While a module is registered and active, registering the **same binary again
+from the same address** is refused with `duplicate wasm hash`. The check is on
+*(your address + the binary)*, which means:
+
+- You can't accidentally register your own module twice.
+- A *different* author can still register the same public binary.
+- Once you **deregister** a module you can register that same binary again — see
+  [Putting the same module back](#putting-the-same-module-back).
+
+To put up a genuinely improved module, just register it under its own
+(different) hash; it competes for the intent on its merits (see
+[What checks your module must pass](#what-checks-your-module-must-pass)).
+
+### After you register
+
+Your module doesn't go live instantly. It moves through a handful of states,
+which you can see in the explorer / API by its `registrationId`:
+
+| Status | Meaning |
+|---|---|
+| `pending` | Registered, being fetched and evaluated. |
+| `active` | Passed the checks and is the live champion for its intent. |
+| `rejected` | Failed a structural or benchmark check; the reason is recorded. |
+| `superseded` | Was active, then a better module took over the intent. |
+| `deregistered` | Taken down by its author (see the next section). |
+
+`pending` can last a few minutes while the node downloads the binary and runs
+the Stage 2 benchmark. A module that fails validation ends up `rejected` and
+never serves traffic — which is why it's worth testing first (above): every
+re-registration is another transaction.
+
+## Removing or replacing your module
+
+Registering isn't permanent. You can take a module down, swap in a better one,
+or put an old one back — this section covers all three.
+
+### Taking a module down
+
+To deregister a module, the address that registered it calls one function on
+the Diamond:
+
+```solidity
+deregisterEntity(registrationId, 2)
+```
+
+- **`registrationId`** — the ID you got when you registered that module.
+- **`2`** — tells the contract this is a scoring module (as opposed to a miner
+  or a collector).
+
+Only the original registering address can do this, so no one else can take your
+module down. The change is picked up **immediately** — there's no bond, no fee,
+and nothing to wait for (you don't need to wait for an epoch to roll over).
+
+The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page, and can
+always be read straight from the chain.
+
+### What actually happens when you deregister
+
+Once the network sees the deregistration:
+
+- **Your module is marked `deregistered`.** That's a final state — a
+  deregistered module won't start scoring again on its own. (You can register
+  it again from scratch, though — see below.)
+- **If your module was the live champion for its intent, scoring doesn't stop.**
+  The network automatically falls back to the *previous* champion for that
+  intent — the module yours had replaced — and if there isn't one, to
+  Telegraph's built-in default scorer. That intent keeps getting scored either
+  way; there's never a gap.
+- **If your module wasn't the current champion** (it was still pending, was
+  rejected, or had already been beaten by a newer one), deregistering it just
+  marks it inactive. Nothing that's live changes.
+
+So deregistering is safe: the worst case for the network is that an intent
+quietly reverts to whatever was scoring it before you.
+
+### Replacing a module
+
+You usually **don't** need to deregister to upgrade. Just register the new
+module — if it beats the current champion (see
+[What checks your module must pass](#what-checks-your-module-must-pass)), it
+takes over the intent automatically. Deregistering the old one afterwards is
+optional tidy-up, not a required step.
+
+### Putting the same module back
+
+Deregistering is not a one-way door. After you deregister a module, you can
+register the **exact same binary** again later — the slot it used is freed up
+when you deregister. Every registration, whether it's a brand-new module or one
+you're bringing back, gets its own fresh registration ID.
+
+### What it costs
+
+Nothing but gas, in every direction. There's no bond and no fee to register or
+to deregister, so there's also nothing to refund — taking a module down simply
+removes it from service.
 
 ## Tips for building a good scorer
 
