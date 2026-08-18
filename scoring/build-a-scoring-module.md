@@ -439,14 +439,73 @@ still not go live, simply because a better one already holds that intent.
 
 ## How to submit / register your module
 
-1. Build your `.wasm` file and put it somewhere it can be downloaded from a
-   URL (e.g. IPFS or any file host).
-2. You can submit your `.wasm` file via `https://integrate.telegraphprotocol.com/`
+You register a module on-chain, either through the Telegraph platform or by
+calling the contract yourself.
 
-Registering costs nothing but gas — there is no bond or fee. Still worth
-testing carefully first (see the section above): a module that fails the
-validation gates doesn't serve traffic, and every re-registration is another
-transaction.
+### The easy way
+
+Build your `.wasm`, host it somewhere it can be downloaded from a public URL
+(IPFS or any file host), then submit it at
+[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com/).
+The platform hashes the file and sends the transaction for you.
+
+### Registering directly
+
+If you're wiring this into your own app, registration is a single call on the
+Diamond:
+
+```solidity
+registerWasm(wasmHash, wasmUrl, intent)
+```
+
+- **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
+  re-downloads your file and re-hashes it; if the two don't match, the
+  registration is rejected. So hash the same bytes you upload — if your host
+  re-encodes the file after upload, that breaks the match.
+- **`wasmUrl`** — a public `https://` or `ipfs://` URL the node can fetch,
+  32 MB or smaller.
+- **`intent`** — the one canonical intent your module scores for (for example
+  `CHAT_COMPLETION`). It has to be one of the network's canonical intents, or
+  the call reverts with `unsupported intent`. You can read the current list from
+  the chain with `getCanonicalIntents`.
+
+The call returns a **`registrationId`** — keep it. It's how you check the
+module's status and how you deregister it later. Registering costs only gas:
+there's no bond and no fee. The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### You can't register the same binary twice
+
+While a module is registered and active, registering the **same binary again
+from the same address** is refused with `duplicate wasm hash`. The check is on
+*(your address + the binary)*, which means:
+
+- You can't accidentally register your own module twice.
+- A *different* author can still register the same public binary.
+- Once you **deregister** a module you can register that same binary again — see
+  [Putting the same module back](#putting-the-same-module-back).
+
+To put up a genuinely improved module, just register it under its own
+(different) hash; it competes for the intent on its merits (see
+[What checks your module must pass](#what-checks-your-module-must-pass)).
+
+### After you register
+
+Your module doesn't go live instantly. It moves through a handful of states,
+which you can see in the explorer / API by its `registrationId`:
+
+| Status | Meaning |
+|---|---|
+| `pending` | Registered, being fetched and evaluated. |
+| `active` | Passed the checks and is the live champion for its intent. |
+| `rejected` | Failed a structural or benchmark check; the reason is recorded. |
+| `superseded` | Was active, then a better module took over the intent. |
+| `deregistered` | Taken down by its author (see the next section). |
+
+`pending` can last a few minutes while the node downloads the binary and runs
+the Stage 2 benchmark. A module that fails validation ends up `rejected` and
+never serves traffic — which is why it's worth testing first (above): every
+re-registration is another transaction.
 
 ## Removing or replacing your module
 
