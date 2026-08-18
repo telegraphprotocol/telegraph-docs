@@ -450,31 +450,69 @@ transaction.
 
 ## Removing or replacing your module
 
-Registering isn't permanent — you can take a module down, and you can put a
-better one up.
+Registering isn't permanent. You can take a module down, swap in a better one,
+or put an old one back — this section covers all three.
 
-**To remove a module,** the address that registered it calls
-`deregisterEntity(registrationId, 2)` on the Diamond, where `registrationId`
-is the ID you got when you registered and `2` marks it as a scoring-module
-registration. Only the original registering address can do this — nobody else
-can take your module down. The module is marked inactive right away; if it was
-the live champion for its intent, the node stops scoring with it and falls back
-to the previous champion if there is one.
+### Taking a module down
 
-**To replace a module,** just register the new one — you don't have to
-deregister the old one first. If the new module beats the current champion (see
-[What checks your module must pass](#what-checks-your-module-must-pass)) it
-takes over the intent automatically; deregistering the old one afterwards is
-optional cleanup.
+To deregister a module, the address that registered it calls one function on
+the Diamond:
 
-You can also re-register the **same** binary after deregistering it —
-deregistering frees it up, so a module you took down can go back up later. Each
-registration, new or repeated, gets its own fresh registration ID.
+```solidity
+deregisterEntity(registrationId, 2)
+```
 
-Removing and registering both cost only gas — no bond or fee either way. The
-Diamond address is on the
-[Addresses & Parameters](../protocol/addresses-and-params.md) page, and is
-always readable from the chain.
+- **`registrationId`** — the ID you got when you registered that module.
+- **`2`** — tells the contract this is a scoring module (as opposed to a miner
+  or a collector).
+
+Only the original registering address can do this, so no one else can take your
+module down. The change is picked up **immediately** — there's no bond, no fee,
+and nothing to wait for (you don't need to wait for an epoch to roll over).
+
+The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page, and can
+always be read straight from the chain.
+
+### What actually happens when you deregister
+
+Once the network sees the deregistration:
+
+- **Your module is marked `deregistered`.** That's a final state — a
+  deregistered module won't start scoring again on its own. (You can register
+  it again from scratch, though — see below.)
+- **If your module was the live champion for its intent, scoring doesn't stop.**
+  The network automatically falls back to the *previous* champion for that
+  intent — the module yours had replaced — and if there isn't one, to
+  Telegraph's built-in default scorer. That intent keeps getting scored either
+  way; there's never a gap.
+- **If your module wasn't the current champion** (it was still pending, was
+  rejected, or had already been beaten by a newer one), deregistering it just
+  marks it inactive. Nothing that's live changes.
+
+So deregistering is safe: the worst case for the network is that an intent
+quietly reverts to whatever was scoring it before you.
+
+### Replacing a module
+
+You usually **don't** need to deregister to upgrade. Just register the new
+module — if it beats the current champion (see
+[What checks your module must pass](#what-checks-your-module-must-pass)), it
+takes over the intent automatically. Deregistering the old one afterwards is
+optional tidy-up, not a required step.
+
+### Putting the same module back
+
+Deregistering is not a one-way door. After you deregister a module, you can
+register the **exact same binary** again later — the slot it used is freed up
+when you deregister. Every registration, whether it's a brand-new module or one
+you're bringing back, gets its own fresh registration ID.
+
+### What it costs
+
+Nothing but gas, in every direction. There's no bond and no fee to register or
+to deregister, so there's also nothing to refund — taking a module down simply
+removes it from service.
 
 ## Tips for building a good scorer
 
