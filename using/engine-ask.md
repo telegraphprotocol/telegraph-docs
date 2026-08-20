@@ -92,6 +92,7 @@ Content-Type: application/json
 | `method` | Yes | One of `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Leaving this out returns `400`. |
 | `endpoint` | Yes | The upstream path, e.g. `/chat`. Must match what the miner's YAML declares. |
 | `payload` | Yes | Sent as the request body, or as query parameters when `method` is `GET`. |
+| `acknowledge_warnings` | No | Run the request even when the node predicts it will fail. See [Pre-request validation](#pre-request-validation). |
 
 Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-inference.md#step-1-discover-available-miners), and use one of the `endpoints` that miner lists there. Miner IDs are not stable across time — always take them from discovery rather than from an example.
 
@@ -112,6 +113,41 @@ Replace `{minerId}` with a numeric miner ID from the [discovery endpoint](x402-i
 The direct path performs no routing, so the response has **no** `reasoning` or `intent` field. It is otherwise identical to the auto-routed response.
 
 Rate limits are counted per miner across the whole node — every caller draws on the same allowance — so a `warnings` entry about a rate limit usually means switching to another miner for the same Intent works better than retrying the same one.
+
+### Pre-request validation
+
+Before calling the miner, the node checks your request against the constraints
+that miner declared in its YAML — body and parameter sizes, value and count
+limits, and whether its call-rate allowance is already spent.
+
+**On the direct path this stops the request**, because you named the miner and
+nothing else will be tried:
+
+```json
+{
+  "error": "request is predicted to fail",
+  "warnings": ["miner \"zeus\" has reached its rate limit — try another miner for this intent, or try again later"],
+  "proceed_anyway": {
+    "field": "acknowledge_warnings",
+    "value": true,
+    "note": "resend with this field set to run the request regardless; you are charged only if it runs"
+  }
+}
+```
+
+That comes back as **`422`**, and **you are not charged** — x402 settles only on
+a `2xx`, so a request refused here costs nothing. Your options:
+
+1. Pick another miner for the same Intent (usually right for rate limits — the
+   allowance is shared node-wide, so waiting may not help).
+2. Fix the request, if the warning is about your payload.
+3. Resend with `"acknowledge_warnings": true` to run it anyway. The prediction
+   is not a guarantee; you may know something the node doesn't.
+
+**On the auto-routed path (`POST /engine/v1/ask`) nothing is ever blocked.** You
+did not choose the miner and a fallback is already lined up behind it, so
+refusing would reject a query the fallback could still answer. Warnings are
+attached to the response instead, and `acknowledge_warnings` is not used there.
 
 ### The payment gate runs first
 

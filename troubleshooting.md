@@ -109,6 +109,52 @@ If it comes back `pending`, activation really is just in flight — wait. Any ot
 
 For a hash failure specifically, confirm the SHA-256 of what the URL serves matches your on-chain `yamlHash` — `curl -s <url> | sha256sum`.
 
+### API key update rejected
+
+```
+{"error":"signature does not match the wallet that registered this miner"}
+```
+
+The signer is not the address in the miner registry. Check which wallet owns the
+slug — the challenge response tells you:
+
+```bash
+KEY_HASH=$(cast keccak "<the key you intend to install>")
+curl -X POST "https://<node>/miner-dispatcher/miners/<slug>/api-key/challenge" \
+  -H "Content-Type: application/json" \
+  -d "{\"key_hash\":\"$KEY_HASH\"}" | jq .address
+```
+
+```
+{"error":"api_key does not match the key_hash this challenge was issued for — ..."}
+```
+
+A challenge authorises exactly one key: the signature commits to its
+fingerprint. Request the challenge with the `key_hash` of the key you actually
+intend to install, and send that same key in the update body.
+
+```
+{"error":"key_hash must be keccak256 of the api_key you intend to install, ..."}
+```
+
+Send `{"key_hash":"0x<64 hex digits>"}` — the keccak256 of the key, never the key
+itself. A `404` here usually means you called the endpoint as a `GET`; it is a
+`POST`, so the fingerprint never lands in an access log.
+
+Other `401`s mean the challenge was already used, expired (5 minutes), or was
+issued for a different miner — request a fresh one. A `422` means your own
+endpoints rejected the key; `results` names which, and nothing was stored, so
+your previous key keeps serving. A `429` means the key was changed in the last
+30 seconds; that cooldown only starts once a key is actually **stored**, so a
+rejected key costs you nothing but a new challenge.
+
+### Miner errors read `miner error N: ...` instead of `upstream error N: ...`
+
+The miner declares an `errors:` block in its YAML, so the node surfaces the
+provider's own message instead of a slice of raw response body. Miners without
+that block keep the `upstream error N: <raw body>` form. Nothing is reworded in
+either case — see [YAML Configuration](miners/yaml-config.md).
+
 ## WebSocket Signals
 
 ### WS connection drops immediately after connecting
@@ -151,6 +197,27 @@ The engine classifies your query to an intent, then routes to the best-scored mi
 ```bash
 curl http://<node>:7044/api/miners
 ```
+
+### `422 request is predicted to fail` on /engine/v1/ask/{minerId}
+
+```json
+{"error":"request is predicted to fail","warnings":["miner \"zeus\" has reached its rate limit — ..."]}
+```
+
+The node checked your request against the miner's declared limits and expects it
+to be rejected upstream, so it refused before calling out. **Nothing is charged**
+— x402 settles only on a `2xx`. Either pick another miner for the same Intent,
+fix the payload if the warning is about your request, or resend with
+`"acknowledge_warnings": true` to run it regardless.
+
+Rate limits are counted **node-wide per miner**, so this can fire on your first
+request if other traffic already spent the allowance — and waiting may not help
+as much as switching miners.
+
+The auto-routed `POST /engine/v1/ask` never returns this: it attaches warnings to
+the response and still runs, because a fallback miner is lined up behind the
+primary. Over WebSocket, `ask_direct` halts with an `error` message and takes the
+same `acknowledge_warnings` field, while `ask` warns on its `executing` message.
 
 ## Contract Interactions
 
