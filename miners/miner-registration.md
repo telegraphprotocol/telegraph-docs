@@ -11,9 +11,11 @@ Registration is permissionless — anyone can register a miner. Once registered,
 **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)** does the whole flow for you. Connect your wallet, paste your YAML, and it will:
 
 - validate the YAML and sandbox-test your endpoints against your real API,
-- take your **API key** and store it with the node, so an authenticated miner works without you sending the key to anyone,
 - pin the YAML to IPFS,
-- send the `registerMiner` transaction from your wallet.
+- send the `registerMiner` transaction from your wallet,
+- store your **API key** against your slug, so an authenticated miner works without you sending the key to anyone.
+
+Note the order: the key is stored **after** registration, because it is bound to the wallet that holds the slug. Sandbox-testing a key before you are registered still works and still reports pass/fail per endpoint — it just reports `api_key_stored: false`, and you install the key once you are live.
 
 This is the recommended path, and the only one that lets you supply an API key yourself.
 
@@ -139,6 +141,8 @@ curl https://devnode.telegraphprotocol.com/api/miners
 
 Your miner's slug should appear in the response JSON.
 
+If your API needs a key, install it now — the key is bound to the wallet holding the slug, so it cannot be installed before this point. See [API keys](#installing-or-rotating-your-api-key).
+
 ### If it isn't there
 
 `/api/miners` lists the miners a node has successfully **loaded**, so a registration whose YAML was rejected is absent from it by design. Absence is not evidence the node missed your event — check the registration itself, by the `registrationId` from your `registerMiner` receipt:
@@ -167,6 +171,21 @@ curl -s https://devnode.telegraphprotocol.com/api/miners/84 | jq '.miner | {acti
 | `deregistered` | Withdrawn on-chain | Re-register if this wasn't intentional |
 
 A rejection is **not** something you re-register from scratch — call `updateMiner` with the corrected URL and hash, see [Updating Your Miner](#updating-your-miner). Validate the fix at [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com) before spending gas.
+
+Always look your registration up **by `registrationId`**, not by slug. The by-slug lookup returns whoever is currently serving that slug — which, if you were rejected for a slug clash, is someone else.
+
+### Identity rejections
+
+Two terminal rejections concern identity rather than schema. Neither is retried, and both need a YAML change:
+
+| `rejection_reason` says | Meaning | Fix |
+|---|---|---|
+| slug `"x"` is already served by an active registration owned by a different wallet | A slug is a miner's identity; only its owner may register it | Pick a different slug, or have the current owner `deregisterMiner` first |
+| YAML id `"N"` is already in use by active miner `"y"` | `id` is the key requests are routed on — two miners sharing one would serve each other's traffic | Pick an unused id, re-pin, `updateMiner` |
+
+Re-registering your *own* slug is never a clash: `updateMiner`, a plain re-register, and taking a slug whose previous holder deregistered all work without operator involvement.
+
+**A rejected registration stops holding its slug**, so the name is claimable again immediately. If you were rejected, fix and re-submit promptly rather than leaving it.
 
 ## Step 6: The Grace Period
 
@@ -200,7 +219,7 @@ cast send "$DIAMOND" \
 
 Only the address that registered a miner can update or deregister it; there is no admin override.
 
-### Rotating your API key
+### Installing or rotating your API key
 
 Your API key is **not** part of your YAML and does not need an on-chain update.
 You can replace the key a node holds for you by proving ownership with the same
@@ -259,9 +278,12 @@ Things worth knowing:
   a new challenge.
 - **Challenges are single-use and expire after 5 minutes.** Any retry — after a
   rejected key, or a `429` — needs a fresh one.
-- **A stored key overrides the operator's `env_var`** for your miner, and takes
-  effect on the next call with no restart. Miners with no stored key keep using
-  the environment variable.
+- **The stored key is the only source.** It takes effect on the next call with
+  no restart. Nothing falls back to the environment — a miner with no stored key
+  has no credential.
+- **The key is bound to your wallet, not to the slug.** It is released only
+  while that wallet still holds the slug, so a slug changing hands hands over
+  nothing.
 - **Every write is audited.** The node keeps an append-only trail of who changed
   your key and when, recording a keccak256 of it — never the key itself.
 
@@ -296,3 +318,5 @@ Deregistering costs nothing beyond gas — there is no bond to release and no un
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) field reference |
 | Not appearing in `/api/miners` | Registration rejected, or the node hasn't seen the event | `curl -s <node>/api/miners/<registrationId>` — a `rejected` status with a `rejection_reason` means the YAML failed, not that the node missed you. Fix it, then `updateMiner` |
 | Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |
+| Upstream returns 401, or requests fail naming a credential | No API key installed for the slug | Install it — see [API keys](#installing-or-rotating-your-api-key). Register first; the endpoint 404s with no live registration |
+| Registration rejected over slug or `id` | Another wallet holds that identity | See [Identity rejections](#identity-rejections) |

@@ -74,6 +74,28 @@ Your YAML file has validation errors. Common causes:
 
 A schema failure is terminal — the node will not retry it. Fix the YAML, re-pin it, and call `updateMiner` with the new URL and hash; you do not need to register again from scratch.
 
+Look the registration up by `registrationId`, not by slug — a by-slug lookup returns whoever is serving that slug, which after a slug clash is not you.
+
+### "slug is already served by ... a different wallet" / "YAML id is already in use"
+
+Both are terminal identity rejections, not schema errors.
+
+- **slug** — a slug is a miner's identity, and only the wallet holding it may register it. Choose another, or have the current owner `deregisterMiner` first. Re-registering your own slug is always fine, including `updateMiner` and taking over a slug whose holder has deregistered.
+- **`id`** — requests are routed on `id`, so two miners sharing one means one serves the other's traffic. Pick an unused id, re-pin, `updateMiner`.
+
+A rejected registration releases its slug, so the name is claimable by anyone straight away — fix and re-submit promptly.
+
+### Miner calls go out unauthenticated
+
+No credential is installed for that slug. The node reads **no** environment variable for miner keys, and `auth.env_var` in the YAML names nothing — it is accepted for backward compatibility and ignored. Install the key with `POST /miner-dispatcher/miners/<slug>/api-key`; see [API keys](miners/miner-registration.md#installing-or-rotating-your-api-key).
+
+Other causes of the same symptom:
+
+- **The key was installed before the registration was live.** It is bound to the wallet holding the slug, so there was nothing to bind it to. The endpoint returns `404` in that case; re-install after registering.
+- **The slug changed hands.** A stored key is released only while the installing wallet still holds the slug. The new holder installs their own.
+
+If the YAML uses `auth.inject[]` rather than a top-level `auth` block, an unresolved credential fails the request outright instead — the error names the injection.
+
 ### "Hash mismatch" error
 
 The SHA-256 of your hosted YAML doesn't match the on-chain hash. Your YAML content changed after you registered. Recompute the hash and point your registration at it with `updateMiner`, which replaces the entry in a single transaction:
