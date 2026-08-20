@@ -194,24 +194,14 @@ Use `in: query` for the many APIs that expect `?apikey=...` rather than a header
 
 ### API keys
 
-Your key never goes in the YAML — a YAML is public, pinned to IPFS and hashed on-chain. It is not read from the node's environment either. Install it directly, after your registration is live:
+Your key never goes in the YAML — a YAML is public, pinned to IPFS and hashed on-chain — and it is not read from the node's environment either. You install it against your slug, signing with the wallet that registered the miner: see [Installing or rotating your API key](miner-registration.md#installing-or-rotating-your-api-key).
 
-```bash
-# 1. get a nonce
-curl -X POST https://<node>/miner-dispatcher/miners/<slug>/api-key/challenge
-
-# 2. sign the returned message with your miner wallet (EIP-191), then
-curl -X POST https://<node>/miner-dispatcher/miners/<slug>/api-key \
-  -H "Content-Type: application/json" \
-  -d '{"nonce":"<nonce>","signature":"0x...","api_key":"<your-key>"}'
-```
-
-For a multi-secret provider, send a JSON object as the `api_key` value and select the parts with `secret` in each `auth.inject[]` entry.
-
-Two rules follow from this:
+Two rules follow:
 
 - **Register first.** With no live registration for the slug there is no wallet to bind the key to, and the endpoint returns `404`.
 - **The key belongs to the wallet, not the slug.** It is released only while that wallet still holds the slug. `updateMiner` keeps it — same wallet. If a slug changes hands, the new holder gets nothing.
+
+For a multi-secret provider, install a JSON object as the key and select the parts with `secret` in each `auth.inject[]` entry.
 
 If no key resolves, the two auth styles differ: a top-level `auth` block is called **unauthenticated** (so you see upstream `401`s), while an unresolved `auth.inject[]` entry **fails the request before any upstream call**, naming the injection.
 

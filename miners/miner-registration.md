@@ -141,7 +141,7 @@ curl https://devnode.telegraphprotocol.com/api/miners
 
 Your miner's slug should appear in the response JSON.
 
-If your API needs a key, install it now — the key is bound to the wallet holding the slug, so it cannot be installed before this point. See [API keys](yaml-config.md#api-keys).
+If your API needs a key, install it now — the key is bound to the wallet holding the slug, so it cannot be installed before this point. See [API keys](#installing-or-rotating-your-api-key).
 
 ### If it isn't there
 
@@ -219,7 +219,7 @@ cast send "$DIAMOND" \
 
 Only the address that registered a miner can update or deregister it; there is no admin override.
 
-### Rotating your API key
+### Installing or rotating your API key
 
 Your API key is **not** part of your YAML and does not need an on-chain update.
 You can replace the key a node holds for you by proving ownership with the same
@@ -278,9 +278,12 @@ Things worth knowing:
   a new challenge.
 - **Challenges are single-use and expire after 5 minutes.** Any retry — after a
   rejected key, or a `429` — needs a fresh one.
-- **A stored key overrides the operator's `env_var`** for your miner, and takes
-  effect on the next call with no restart. Miners with no stored key keep using
-  the environment variable.
+- **The stored key is the only source.** It takes effect on the next call with
+  no restart. Nothing falls back to the environment — a miner with no stored key
+  has no credential.
+- **The key is bound to your wallet, not to the slug.** It is released only
+  while that wallet still holds the slug, so a slug changing hands hands over
+  nothing.
 - **Every write is audited.** The node keeps an append-only trail of who changed
   your key and when, recording a keccak256 of it — never the key itself.
 
@@ -315,5 +318,5 @@ Deregistering costs nothing beyond gas — there is no bond to release and no un
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) field reference |
 | Not appearing in `/api/miners` | Registration rejected, or the node hasn't seen the event | `curl -s <node>/api/miners/<registrationId>` — a `rejected` status with a `rejection_reason` means the YAML failed, not that the node missed you. Fix it, then `updateMiner` |
 | Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |
-| Upstream returns 401, or requests fail naming a credential | No API key installed for the slug | Install it — see [API keys](yaml-config.md#api-keys). Register first; the endpoint 404s with no live registration |
+| Upstream returns 401, or requests fail naming a credential | No API key installed for the slug | Install it — see [API keys](#installing-or-rotating-your-api-key). Register first; the endpoint 404s with no live registration |
 | Registration rejected over slug or `id` | Another wallet holds that identity | See [Identity rejections](#identity-rejections) |

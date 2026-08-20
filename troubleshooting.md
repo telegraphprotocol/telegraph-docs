@@ -87,7 +87,7 @@ A rejected registration releases its slug, so the name is claimable by anyone st
 
 ### Miner calls go out unauthenticated
 
-No credential is installed for that slug. The node reads **no** environment variable for miner keys, and `auth.env_var` in the YAML names nothing — it is accepted for backward compatibility and ignored. Install the key with `POST /miner-dispatcher/miners/<slug>/api-key`; see [API keys](miners/yaml-config.md#api-keys).
+No credential is installed for that slug. The node reads **no** environment variable for miner keys, and `auth.env_var` in the YAML names nothing — it is accepted for backward compatibility and ignored. Install the key with `POST /miner-dispatcher/miners/<slug>/api-key`; see [API keys](miners/miner-registration.md#installing-or-rotating-your-api-key).
 
 Other causes of the same symptom:
 
