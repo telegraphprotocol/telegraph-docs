@@ -36,10 +36,19 @@ Copy `.env.example` to `.env` and configure:
 | `EVM_WSS_URL` | (Optional) Base Sepolia WSS URL for event listener |
 | `DIAMOND_ADDRESS` | Diamond proxy address |
 | `PORT` | HTTP server port (default: 7044) |
-| `LITELLM_API_KEY` | (Optional) API key for LiteLLM-based miners |
-| `BITMIND_API_KEY` | (Optional) API key for BitMind miner |
-| `ZEUS_API_KEY` | (Optional) API key for Zeus weather miner |
 | `DAEMON_CYCLE_INTERVAL` | (Optional) Daemon poll interval (e.g., `30m`) |
+| `INTERNAL_SECRET` | Operator secret for `/validate` and the operator key-install path |
+
+Miner API keys are **not** environment variables. The node reads none from the environment — per-miner variables such as `LITELLM_API_KEY` or `ZEUS_API_KEY` are inert and should be removed. Install each miner's key against its slug instead:
+
+```bash
+curl -X POST https://<node>/miner-dispatcher/miners/<slug>/api-key \
+  -H "X-Internal-Secret: $INTERNAL_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"api_key":"<key>"}'
+```
+
+The key binds to the wallet holding that slug, so the miner must be registered first.
 
 ## 3. Set Up PostgreSQL
 

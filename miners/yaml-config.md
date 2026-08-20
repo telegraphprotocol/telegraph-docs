@@ -27,7 +27,6 @@ base_url: https://api.zeussubnet.com
 auth:
   type: header
   header_name: X-API-Key
-  env_var: ZEUS_API_KEY
 
 endpoints:
   - path: /predict
@@ -57,8 +56,8 @@ The schema requires exactly six top-level fields: `version`, `kind`, `id`, `slug
 |---|---|---|
 | `version` | Yes | Always `"1"` |
 | `kind` | Yes | `"miner"` for on-demand inference, `"validator"` for polled data, `"subnet"` for a Bittensor subnet integration |
-| `id` | Yes | Numeric miner ID used in API paths (`/engine/v1/ask/{id}`) |
-| `slug` | Yes | kebab-case identifier, must be unique — pattern `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `id` | Yes | Numeric miner ID used in API paths (`/engine/v1/ask/{id}`). Must be unused — requests are routed on it, so a clash is rejected |
+| `slug` | Yes | kebab-case identifier, pattern `^[a-z0-9]+(-[a-z0-9]+)*$`. Your identity: only the wallet holding it may register it |
 | `protocol` | No | `"bittensor"` or `"generic"` |
 | `name` | Yes | Human-readable display name |
 | `description` | No | Description for routing context and documentation |
@@ -176,7 +175,7 @@ The whole `auth` block is optional — omit it for an open API. If you do includ
 | Field | Required | Description |
 |---|---|---|
 | `auth.type` | Yes (within `auth`) | `"bearer"`, `"header"`, or `"none"` |
-| `auth.env_var` | If type ≠ none | The **name** of an environment variable holding your API key. Never put the raw key in the YAML. |
+| `auth.env_var` | No | **Not read.** Accepted for backward compatibility only — see [API keys](#api-keys). |
 | `auth.header_name` | No | Header to inject the key into. Defaults to `Authorization` for `bearer`. |
 | `auth.value_prefix` | No | Prefix prepended to the key value (e.g., `"APIKey "`, `"Token "`). Defaults to `"Bearer "` for bearer auth. |
 | `auth.inject` | No | List of extra injection points, for APIs that want the key somewhere other than a header |
@@ -187,12 +186,34 @@ Each `auth.inject[]` entry requires `in` and `name`:
 |---|---|---|
 | `in` | Yes | `"header"`, `"query"`, `"body"`, or `"multipart"` |
 | `name` | Yes | Parameter or header name to inject under |
-| `env_var` | No | Environment variable holding the value, if different from `auth.env_var` |
+| `secret` | No | Selects one value from a multi-secret JSON key (e.g. `api_key`, `api_secret`). Omit for single-secret providers |
+| `env_var` | No | **Not read.** Accepted for backward compatibility only |
 | `value_prefix` | No | Prefix prepended to the injected value |
 
 Use `in: query` for the many APIs that expect `?apikey=...` rather than a header.
 
-The node reads the environment variable at runtime. Your API key is never stored on-chain — only the `env_var` name is.
+### API keys
+
+Your key never goes in the YAML — a YAML is public, pinned to IPFS and hashed on-chain. It is not read from the node's environment either. Install it directly, after your registration is live:
+
+```bash
+# 1. get a nonce
+curl -X POST https://<node>/miner-dispatcher/miners/<slug>/api-key/challenge
+
+# 2. sign the returned message with your miner wallet (EIP-191), then
+curl -X POST https://<node>/miner-dispatcher/miners/<slug>/api-key \
+  -H "Content-Type: application/json" \
+  -d '{"nonce":"<nonce>","signature":"0x...","api_key":"<your-key>"}'
+```
+
+For a multi-secret provider, send a JSON object as the `api_key` value and select the parts with `secret` in each `auth.inject[]` entry.
+
+Two rules follow from this:
+
+- **Register first.** With no live registration for the slug there is no wallet to bind the key to, and the endpoint returns `404`.
+- **The key belongs to the wallet, not the slug.** It is released only while that wallet still holds the slug. `updateMiner` keeps it — same wallet. If a slug changes hands, the new holder gets nothing.
+
+If no key resolves, the two auth styles differ: a top-level `auth` block is called **unauthenticated** (so you see upstream `401`s), while an unresolved `auth.inject[]` entry **fails the request before any upstream call**, naming the injection.
 
 ### Endpoints
 
@@ -385,7 +406,6 @@ base_url: https://subnet-api.bitmindlabs.ai
 
 auth:
   type: bearer
-  env_var: BITMIND_API_KEY
 
 rate_limit_per_sec: 5
 circuit_threshold: 5
