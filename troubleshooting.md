@@ -76,6 +76,52 @@ A schema failure is terminal — the node will not retry it. Fix the YAML, re-pi
 
 Look the registration up by `registrationId`, not by slug — a by-slug lookup returns whoever is serving that slug, which after a slug clash is not you.
 
+### "Request-contract validation failed"
+
+Distinct from a schema failure: the YAML is structurally valid, but it does not describe how to call you. The reason names each finding.
+
+- **`no endpoint declares any intents`** — routing selects an endpoint by intent, so an endpoint with no `intents:` can never be chosen. With none anywhere, the registration would be live and permanently unreachable. Add `intents:` to the endpoint(s) serving your `supported_intents`.
+- **`endpoint X has no description`** — the request builder is handed the description to work out how to call the endpoint. Add one that says what it does.
+- **`endpoint X declares intent Y not listed in semantics.supported_intents`** — the endpoint claims something the miner never declared. Add it to `supported_intents` or drop it from the endpoint.
+
+Terminal, like a schema failure: fix, re-pin, `updateMiner`.
+
+**Already registered before these checks?** Nothing happens to you. They apply when a YAML is registered or re-submitted, never to a miner already running — active miners keep serving, and a node restart will not deregister them. If a re-submission is refused, your **existing registration keeps serving and keeps your slug**; only the new registration is rejected, so the update simply does not take effect until the YAML is fixed.
+
+Not rejections, but worth fixing: an endpoint with no `params` (the node then guesses your field names — the most common reason an active miner fails the calls it receives), and a single endpoint with no `intents` while others have them (that is how a utility endpoint is declared). Both come back in `warnings` from the validator.
+
+### Sandbox returns 401 but the same key works from my machine
+
+The validator reports the exact credential it sent. Each entry in `results[]` carries `auth_applied` — location, header name, and the value with the secret masked — and the `error` string repeats it:
+
+```
+auth failed: HTTP 401 — the node sent [header Authorization: "TES…23 (10 chars)"].
+Compare this against what your upstream expects.
+```
+
+Compare that against what your API wants. The usual cause is a YAML declaring **both** a top-level `auth.type` and an `auth.inject[]` entry on the same header: the `inject[]` entry wins and the prefix from `auth.type` is dropped, so an upstream expecting `Authorization: Bearer <key>` receives a bare `<key>`. `auth_applied` flags this case as `OVERWRITTEN`.
+
+Declare the prefix on the inject entry instead of relying on `auth.type`:
+
+```yaml
+auth:
+  type: none
+  inject:
+    - in: header
+      name: Authorization
+      prefix: "Bearer "
+```
+
+The production dispatcher resolves the same conflict the same way, so this is a real failure and not a sandbox artefact.
+
+### "credential store unreachable"
+
+```
+miner "your-slug": credential store unreachable, refusing to call upstream unauthenticated
+```
+
+The node could not read your credential from its database and declined to make the call rather than send it without auth — an unauthenticated call would burn a slot on **your** upstream's rate limit and come back `401`, which looks like the node losing your key. Transient; it clears when the database recovers. Your key is fine and does not need reinstalling.
+
 ### "slug is already served by ... a different wallet" / "YAML id is already in use"
 
 Both are terminal identity rejections, not schema errors.

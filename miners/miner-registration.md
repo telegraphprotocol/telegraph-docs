@@ -151,6 +151,21 @@ If your API needs a key, install it now — the key is bound to the wallet holdi
 curl -s https://devnode.telegraphprotocol.com/api/miners/84 | jq '.miner | {activation_status, rejection_reason, retrying}'
 ```
 
+`/api/miners/{registrationId}` is the lookup to use — it serves rejected and
+unreachable registrations, which the `/api/miners` catalogue cannot.
+
+To see everything one wallet has ever registered:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/miner-dispatcher/miners/address/<yourAddress>/yamls \
+  | jq '{count, yamls: [.yamls[] | {registration_id, slug, activation_status}]}'
+```
+
+**This lists every registration, including superseded and deregistered ones.**
+Each `updateMiner` leaves the old entry behind here, so seeing old rows next to
+your new one is expected — sort by `registration_id` and take the highest, or
+filter on `activation_status`.
+
 ```json
 {
   "activation_status": "rejected",
@@ -173,6 +188,30 @@ curl -s https://devnode.telegraphprotocol.com/api/miners/84 | jq '.miner | {acti
 A rejection is **not** something you re-register from scratch — call `updateMiner` with the corrected URL and hash, see [Updating Your Miner](#updating-your-miner). Validate the fix at [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com) before spending gas.
 
 Always look your registration up **by `registrationId`**, not by slug. The by-slug lookup returns whoever is currently serving that slug — which, if you were rejected for a slug clash, is someone else.
+
+### Request-contract rejections
+
+A YAML can satisfy the JSON schema and still be refused, because passing the schema does not prove the node can work out **how to call you**. These are terminal and need a YAML change:
+
+| `rejection_reason` contains | Meaning | Fix |
+|---|---|---|
+| `no endpoint declares any intents` | No endpoint carries an `intents:` list, so no intent can select one. The registration would be inert — live, but unreachable | Add `intents:` to the endpoint(s) serving your `supported_intents` |
+| `endpoint X has no description` | An endpoint doesn't say what it does. The request builder is given the description to decide how to call it | Add `description:` to that endpoint |
+| `semantics.supported_intents is empty` | The miner declares nothing it can serve | Add at least one canonical intent |
+| `endpoint X declares intent Y not listed in semantics.supported_intents` | An endpoint claims an intent the miner never declared | Add it to `supported_intents`, or drop it from the endpoint |
+
+Full field-by-field guidance is in [YAML Configuration](yaml-config.md#why-description-intents-and-params-decide-whether-you-get-traffic).
+
+Two things **warn** rather than reject, and both are worth acting on anyway:
+
+- **An endpoint with no `params`.** Legal — an endpoint that genuinely takes no parameters is valid — but without `params` the node has to guess your field names, which is the most common reason a registered, active miner then fails the calls it is sent.
+- **A single endpoint with no `intents`**, when another endpoint has them. That is how you declare a utility endpoint (a health check, an upload-URL helper) that is deliberately not intent-routed.
+
+> **If you registered before these checks existed, nothing happens to you.** They apply when a YAML is registered or re-submitted, not to miners already running — an active miner keeps serving, and a node restart will not deregister it. You first meet these rules on your next `updateMiner()`, and until then the only cost is that a missing `params` block may be hurting your scores.
+>
+> If a re-submission is refused on these grounds, your **existing registration keeps serving and keeps your slug** — the new registration is rejected, the old one is untouched. You do not lose the slug by trying; the update simply does not take effect until the YAML is fixed.
+
+Validate before spending gas at [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com) — it applies the identical checks and returns the same messages.
 
 ### Identity rejections
 
