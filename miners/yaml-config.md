@@ -32,6 +32,19 @@ endpoints:
   - path: /predict
     external_path: /v1/forecast/point
     method: GET
+    description: Hourly weather forecast for a single latitude/longitude point.
+    intents: [WEATHER_CHECK, WEATHER_FORECAST]
+    params:
+      query:
+        required:
+          - name: lat
+            type: number
+            intents: ["*"]
+            description: "Latitude in decimal degrees, -90 to 90."
+          - name: lon
+            type: number
+            intents: ["*"]
+            description: "Longitude in decimal degrees, -180 to 180."
     param_map:
       lat: latitude
       lon: longitude
@@ -43,6 +56,8 @@ semantics:
     - WEATHER_CHECK
     - WEATHER_FORECAST
 ```
+
+`description` and `intents` are on the endpoint because they are required — a YAML without them is refused at registration. `params` is not required, but it is what stops the node guessing your field names, so treat it as part of the minimum in practice.
 
 ## Field Reference
 
@@ -212,13 +227,81 @@ If no key resolves, the two auth styles differ: a top-level `auth` block is call
 | `path` | Yes | Incoming path Telegraph exposes (e.g., `/predict`) |
 | `external_path` | Yes | Upstream path to forward to |
 | `method` | Yes | `GET`, `POST`, `PUT`, `PATCH`, or `DELETE` |
-| `description` | No | Human-readable description |
+| `description` | **Yes** | What this endpoint does. Not decoration — the request builder is given this text to decide how to call you. See below. |
+| `intents` | **Yes\*** | Canonical intents this endpoint serves, e.g. `[WEATHER_FORECAST]`. Without it no intent can select this endpoint. See below. |
+| `params` | Recommended | The request contract: which parameters this endpoint takes, where they go, and which are required. See below. |
 | `endpoint_base_url` | No | Per-endpoint base URL, overrides top-level `base_url` for this endpoint only |
 | `content_type` | No | Override `Content-Type` header for this endpoint |
 | `multipart_fields` | No | Fields to encode as `multipart/form-data` (for file uploads) |
 | `param_map` | No | Rename incoming query params to upstream names: `{incoming: upstream}` |
 
-**Those eight fields are the whole list.** Anything else inside an `endpoints[]` entry is rejected.
+**Those ten fields are the whole list.** Anything else inside an `endpoints[]` entry is rejected.
+
+\* At least one endpoint must declare `intents`, and registration is refused if none does. An *individual* endpoint may omit it when it is a utility endpoint not meant to be selected by intent (a health check, an upload-URL helper) — that produces a warning, not a rejection.
+
+### Why `description`, `intents` and `params` decide whether you get traffic
+
+These three are how the node works out **how to call you**. A miner that omits them registers successfully and then answers badly, which is much harder to debug than a rejection.
+
+Concretely, for every question routed to your miner the node has to turn a natural-language task into an HTTP request against your API. It has your YAML and nothing else:
+
+- **`intents`** decides *whether the endpoint is reachable at all*. Routing selects an endpoint by intent. An endpoint declaring no intents can never be selected — it exists in your YAML and receives nothing.
+- **`description`** decides *which* endpoint is picked when several serve the same intent, and tells the request builder what the endpoint expects. "Detect AI-generated images" is useful; "endpoint" is not.
+- **`params`** decides *whether the request is well-formed*. Without it the builder has to guess your field names. Guessing is the single most common cause of a miner rejecting the calls Telegraph sends it — the node asks for `q`, your API wanted `query`, and every call comes back `400`.
+
+If your miner is registered and active but scoring badly or returning errors on requests that look fine by hand, missing `params` is the first thing to check.
+
+### `params` — the request contract
+
+`params` groups parameters by **where they go** — `body`, `query`, `path`, `header`, `multipart` — and each group splits into `required` and `optional`. Which array a parameter sits in is what marks it required, so that is never repeated on the parameter itself.
+
+```yaml
+endpoints:
+  - path: /forecast
+    external_path: /v1/forecast/point
+    method: GET
+    description: Hourly weather forecast for a single latitude/longitude point.
+    intents: [WEATHER_FORECAST]
+    params:
+      query:
+        required:
+          - name: lat
+            type: number
+            intents: ["*"]
+            description: "Latitude in decimal degrees, -90 to 90."
+          - name: lon
+            type: number
+            intents: ["*"]
+            description: "Longitude in decimal degrees, -180 to 180."
+        optional:
+          - name: units
+            type: string
+            intents: ["*"]
+            description: "Temperature units. Defaults to celsius."
+            accepted_fields:
+              - value: celsius
+                intents: ["*"]
+                description: Degrees Celsius.
+              - value: fahrenheit
+                intents: ["*"]
+                description: Degrees Fahrenheit.
+```
+
+Per-parameter fields:
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | The name sent upstream, after any `param_map` rename |
+| `type` | Yes | `string`, `integer`, `number`, `boolean`, `array`, or `object` |
+| `intents` | Yes | Which of the endpoint's intents need this parameter, or `["*"]` for all |
+| `description` | Recommended | What the value means, plus any constraint the caller must satisfy — ranges, formats, units, enums |
+| `accepted_fields` | No | The allowed values, each with its own `description` and `intents` |
+
+Two things worth being deliberate about:
+
+**Put your validation rules in `description`.** The node does not enforce ranges or formats for you — there is no per-parameter validator. The description is what the request builder reads to avoid sending a value your API will reject. `"Latitude in decimal degrees, -90 to 90"` prevents a bad call; `"latitude"` does not. If your API returns a `400` for anything, say what triggers it.
+
+**`intents` on a parameter is how one endpoint serves several intents.** When `/chat` handles both `CHAT_COMPLETION` and `WEB_SEARCH` and the difference is a `model` value, express it with `accepted_fields` carrying different `intents` — the builder then picks the right value by parsing the YAML, with no guesswork.
 
 The most common way to hit this is `input_schema` / `output_schema`. They describe a request and a response, so nesting them under the endpoint they describe is the natural guess — but they are **top-level** fields, and the schema refuses them anywhere else:
 
@@ -405,14 +488,30 @@ endpoints:
   - path: /detect-image
     external_path: /detect-image
     method: POST
-    description: Detect AI-generated images
+    description: Detect whether a supplied image was AI-generated or authentic.
+    intents: [DEEPFAKE_DETECTION, MEDIA_AUTHENTICITY_CHECK, IMAGE_VERIFICATION]
     multipart_fields: [image]
+    params:
+      multipart:
+        required:
+          - name: image
+            type: string
+            intents: ["*"]
+            description: "The image to classify, as a multipart file part. JPEG or PNG, up to 10 MB."
 
   - path: /detect-video
     external_path: /detect-video
     method: POST
-    description: Detect AI-generated videos
+    description: Detect whether a supplied video was AI-generated or authentic.
+    intents: [DEEPFAKE_DETECTION, MEDIA_AUTHENTICITY_CHECK, VIDEO_VERIFICATION]
     multipart_fields: [image, video]
+    params:
+      multipart:
+        required:
+          - name: video
+            type: string
+            intents: ["*"]
+            description: "The video to classify, as a multipart file part. MP4, up to 50 MB."
 
 semantics:
   signal_mapping:
@@ -449,6 +548,13 @@ Use **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)
 
 Validation catches the mistakes that are expensive to fix later: a schema violation, an endpoint that doesn't respond, or an auth setup that doesn't actually authenticate.
 
+It also applies the **request-contract checks** — at least one endpoint with `intents`, a `description` on every endpoint, a non-empty `supported_intents` — using exactly the rules registration uses. A YAML that comes back clean here will not be refused on those grounds after you have paid gas.
+
+Two results are worth reading rather than skimming:
+
+- **`warnings`** never blocks registration, but it is where "this endpoint declares no `params`" appears. That is the difference between a miner that works and one that registers and then fails every call.
+- **`auth_applied`**, on each endpoint result, is the exact credential the sandbox sent, with the secret masked. If your upstream returns `401` while the same key works from your own machine, compare this against what your API expects — it is the fastest way to spot a missing or doubled `Bearer ` prefix.
+
 ## Common Validation Failures
 
 | Error | Fix |
@@ -457,6 +563,9 @@ Validation catches the mistakes that are expensive to fix later: a schema violat
 | `slug` not kebab-case | Use lowercase letters and hyphens only |
 | Invalid `auth.type` | Must be `bearer`, `header`, or `none` |
 | Missing `supported_intents` | Add at least one canonical Intent string |
+| `no endpoint declares any intents` | No endpoint has an `intents:` list, so nothing can route to you. Add it to the endpoint(s) serving your `supported_intents` |
+| `endpoint X has no description` | Every endpoint needs a `description:` — the request builder is given it to decide how to call you |
+| `endpoint X declares intent Y not listed in semantics.supported_intents` | An endpoint claims an intent the miner never declared. Add it to `supported_intents`, or remove it from the endpoint |
 | Invalid `signal_mapping` | Must use only `confidence_field`, `label_field`, and `reason_field` — the `type` field is not allowed |
 | `endpoints.N: Additional property X is not allowed` | An `endpoints[]` entry has a key outside the eight listed above. Most often `input_schema`/`output_schema` — move them to the top level |
 | `(root): Additional property X is not allowed` | A top-level key isn't in the field reference. The schema accepts no custom fields; delete it |
