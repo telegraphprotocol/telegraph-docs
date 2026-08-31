@@ -26,16 +26,16 @@ const robotoMono = Roboto_Mono({
 export const metadata: Metadata = {
   title: {
     default: 'Telegraph Docs',
-    template: '%s — Telegraph Docs',
+    template: '%s - Telegraph Docs',
   },
   description:
-    'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+    'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
   metadataBase: new URL('https://docs.telegraphprotocol.com'),
   icons: { icon: '/favicon.ico' },
   openGraph: {
     title: 'Telegraph Docs',
     description:
-      'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+      'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
     url: 'https://docs.telegraphprotocol.com',
     siteName: 'Telegraph Docs',
     images: [
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Telegraph Docs',
     description:
-      'Telegraph Protocol Documentation — A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+      'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
     images: ['/telegraph-social-card.jpg'],
   },
 }
