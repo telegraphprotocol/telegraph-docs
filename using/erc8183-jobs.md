@@ -65,18 +65,22 @@ Deposit at least one job's worth (see [Budget and Pricing](#budget-and-pricing))
 
 `createJob` takes a `bytes32` intentId. There are two kinds, and which one you need depends on the intent.
 
-**Option A — hash the intent name.** For the intents the listener resolves by name, the intentId is simply the keccak256 of the canonical intent string:
+**Option A — hash the intent name.** The intentId is the keccak256 of the canonical intent string:
 
 ```bash
 cast keccak "CHAT_COMPLETION"
 # 0xccd42820467c59d6f703fb6d0fe57d6303fbfaa893759ee493c29293adfdc1f7
 ```
 
-The job is then routed to whichever live miner currently ranks best for that intent. This works for:
+The job is routed to whichever live miner currently ranks best for that intent. This works for **any** intent in the canonical set — the node resolves the hash against the set it syncs from the contract, so intents added by governance work as soon as they are added. See [Intents](intents.md) for the current set, or read it from chain:
 
-`LANGUAGE_GENERATION` · `CHAT_COMPLETION` · `WEATHER_CHECK` · `STORM_ALERT` · `WEATHER_FORECAST` · `TASK_COMPLETION` · `AGENT_TASK` · `WEB_SEARCH` · `NEWS_SEARCH` · `FACT_CHECK` · `AI_TEXT_DETECTION` · `CONTENT_VERIFICATION` · `DEEPFAKE_DETECTION` · `MEDIA_AUTHENTICITY_CHECK` · `IMAGE_VERIFICATION` · `VIDEO_VERIFICATION`
+```bash
+cast call $DIAMOND 'getCanonicalIntents()(string[])' --rpc-url $RPC
+```
 
-**Option B — read a specific miner's registration.** Every registration also gets its own intentId, derived as `keccak256(miner ‖ yamlHash ‖ registrationBlock)`. Use this to pin a job to one specific miner, and for any canonical intent not in the list above (`CRYPTO_PRICE`, `TVL_LOOKUP`, `SPORTS_SCORE`, `TELEGRAPH_KNOWLEDGE`, and the rest). It is the **fifth** return value of `getMiner`:
+> Older nodes (builds before 2026-09-08) resolved this against a fixed list of 16 names — the chat, weather and media-verification intents — and returned no route for anything else. If a name-hashed job goes unrouted against an older node, use Option B.
+
+**Option B — read a specific miner's registration.** Every registration also gets its own intentId, derived as `keccak256(miner ‖ yamlHash ‖ registrationBlock)`. Use this to pin a job to **one specific miner** rather than letting the network pick. It is the **fifth** return value of `getMiner`:
 
 ```bash
 cast call $DIAMOND \
