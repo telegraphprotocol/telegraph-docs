@@ -24,6 +24,8 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents
 That returns every canonical intent with a description and how many miners
 currently serve it.
 
+There are **108** canonical intents as of 2026-09-08. The tables below group them; the chain is what actually decides.
+
 ## How answers are scored
 
 Each intent is scored one of two ways. This affects how a miner wins traffic
@@ -33,6 +35,7 @@ for it, and it's worth knowing if you're building either side.
 |---|---|---|
 | **Tier A — Deterministic** | WASM exact match | There is one right answer. Miners are graded on getting it exactly right. |
 | **Tier B — LLM-Judge** | LLM context + WASM | The answer is open-ended. A language model supplies context and the WASM module scores quality against it. |
+| **A/B — Hybrid** | Both | Part of the answer is checkable and part is judgment (a CVE hit is a lookup; its severity in context is not). Scored with a comparator for the mechanical part and an LLM judge for the rest. |
 
 Scoring runs inside a sandboxed WASM module, and anyone can write a better
 one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
@@ -135,6 +138,134 @@ models, so the input you send is a media URL or upload rather than a prompt.
 | `TEXT_AUTHENTICITY_CHECK` | B — LLM-Judge | SEO quality control bots |
 | `CONTENT_EXTRACTION` | B — LLM-Judge | Data ingestion pipelines |
 | `LANGUAGE_TRANSLATION` | B — LLM-Judge | Real-time localisation agents |
+
+## Added 2026-09-08
+
+The 63 intents below were added to the canonical set on 2026-09-08, taking it to 108.
+**None of them has a live miner yet** — see [A note on coverage](#a-note-on-coverage).
+They are listed here because they are routable targets today: the classifier can pick
+them, and a miner can register for them right now.
+
+### Verification & Markets
+
+#### Web3 Verification
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `EVENT_OUTCOME_RESOLUTION` | A/B — Hybrid | Prediction market and conditional contract settlement |
+| `WASH_TRADING_DETECTION` | A/B — Hybrid | Exchange surveillance and token due diligence |
+| `ONCHAIN_METRIC_VERIFY` | A — Deterministic | Agents reading contract state at a block height |
+| `LIQUIDITY_DEPTH_VERIFY` | A — Deterministic | Slippage-aware trading bots |
+| `CROSS_CHAIN_STATE_VERIFY` | A — Deterministic | Bridge and cross-chain message monitors |
+| `ASSET_RESERVE_ATTESTATION` | A — Deterministic | Stablecoin and RWA risk agents |
+| `VALIDATOR_PERFORMANCE_VERIFY` | A — Deterministic | Staking allocators and delegation bots |
+
+#### Markets, Payments & Risk
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `OPTIMAL_EXECUTION_ROUTE` | A/B — Hybrid | Order routers and execution agents |
+| `FX_NOW` | A — Deterministic | Treasury and cross-border pricing agents |
+| `MACRO_ECONOMIC_INDICATOR` | A — Deterministic | Macro research and rates agents |
+| `PAYMENT_METHOD_VERIFY` | A — Deterministic | Checkout and onboarding flows |
+| `FRAUD_RISK` | B — LLM-Judge | Signup and account-takeover defence |
+| `TRANSACTION_RISK` | B — LLM-Judge | Payment authorisation and chargeback scoring |
+
+### Software & Security
+
+#### Code & Release
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `CODE_REVIEW` | B — LLM-Judge | PR review bots |
+| `SECURITY_REVIEW` | A/B — Hybrid | Dependency, secret and config scanning in CI |
+| `CODE_PATCH_VERIFY` | A — Deterministic | Autonomous bug-fix agents proving a patch builds |
+| `REGRESSION_VERIFY` | A — Deterministic | Release gates and pre-merge suites |
+| `TASK_EXECUTION_QUALITY` | B — LLM-Judge | Agent benchmarking and grading harnesses |
+| `LLM_OUTPUT_EVALUATION` | B — LLM-Judge | Model comparison and hallucination monitoring |
+
+#### Threat & Abuse
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `VULNERABILITY_TRIAGE` | A/B — Hybrid | Security backlog prioritisation |
+| `URL_SAFE` | A/B — Hybrid | Link scanning against live threat feeds |
+| `EMAIL_SECURITY` | A/B — Hybrid | SPF/DKIM/DMARC and phishing checks |
+| `MALWARE_DETECTION` | A/B — Hybrid | File and hash screening pipelines |
+| `THREAT_INTELLIGENCE` | A/B — Hybrid | SIEM enrichment and IOC lookups |
+| `SOCIAL_BOT_DETECTION` | B — LLM-Judge | Platform integrity and campaign analysis |
+| `MEDIA_FORENSIC_VERIFY` | B — LLM-Judge | Newsroom and moderation forensics |
+
+### Commerce, Travel & Logistics
+
+#### Commerce & Procurement
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `LIVE_SHELF_PRICE` | A — Deterministic | Repricing and comparison agents |
+| `SKU_IN_STOCK` | A — Deterministic | Buying agents and restock alerts |
+| `COMMERCE_PURCHASE_VERIFY` | A — Deterministic | Order and receipt verification |
+| `RETURN_POLICY_VERIFY` | A/B — Hybrid | Post-purchase support agents |
+| `PRODUCT_AUTHENTICITY` | A/B — Hybrid | Anti-counterfeit checks on resale listings |
+| `PURCHASE_ORDER_VERIFY` | A — Deterministic | Procurement automation |
+| `VENDOR_VERIFY` | A/B — Hybrid | Supplier onboarding and payment release |
+
+#### Travel & Mobility
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `TRAVEL_DISRUPTION` | A — Deterministic | Rebooking and traveller-notification agents |
+| `TRAVEL_TRANSIT_LOCK` | A — Deterministic | Fare-hold and booking-guarantee checks |
+| `FLIGHT_AVAILABILITY` | A — Deterministic | Booking agents |
+| `HOTEL_AVAILABILITY` | A — Deterministic | Itinerary assembly agents |
+| `FARE_RULE_VERIFY` | A/B — Hybrid | Change and cancellation handling |
+| `ROUTE_ETA` | A — Deterministic | Dispatch and last-mile planning |
+
+#### Logistics & Maritime
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `SHIP_RATE_ETA` | A/B — Hybrid | Checkout shipping quotes |
+| `CARRIER_SERVICEABILITY` | A — Deterministic | Lane and hazmat feasibility checks |
+| `PACKAGE_STATUS` | A — Deterministic | Order-tracking assistants |
+| `DELIVERY_WINDOW_VERIFY` | A — Deterministic | Appointment and dispatch confirmation |
+| `WAREHOUSE_INVENTORY` | A — Deterministic | Fulfilment and replenishment agents |
+| `LIVE_PORT_CONGESTION` | A/B — Hybrid | Freight planning and ETA adjustment |
+| `VESSEL_TELEMETRY_VERIFY` | A — Deterministic | Maritime tracking and demurrage analysis |
+| `SHIPMENT_DELAY_RISK` | B — LLM-Judge | Supply chain risk scoring |
+
+### Enterprise, Compliance & Infrastructure
+
+#### Compliance & Records
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `SANCTIONS_SCREENING_MATCH` | A/B — Hybrid | KYB/AML onboarding checks |
+| `KYC_BIOMETRIC_LIVENESS` | A/B — Hybrid | Identity verification flows |
+| `REGULATORY_FILING_MONITOR` | A — Deterministic | Disclosure monitoring and event-driven trading |
+| `CORPORATE_REGISTRY_LOOKUP` | A — Deterministic | Counterparty due diligence |
+
+#### Enterprise Operations
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `B2B_IDENTITY_ENRICHMENT` | A/B — Hybrid | CRM and lead enrichment agents |
+| `CONTRACT_OBLIGATION_AUDIT` | B — LLM-Judge | Contract lifecycle and milestone tracking |
+| `DOCUMENT_AUTHENTICITY` | A/B — Hybrid | Signature and notarization verification |
+| `INVOICE_LEDGER_RECONCILE` | A/B — Hybrid | Accounts-payable automation |
+| `CUSTOMER_TICKET_RESOLUTION` | B — LLM-Judge | Support quality assurance |
+| `SLA_COMPLIANCE` | A — Deterministic | Uptime and service-credit reporting |
+
+#### Energy, Sensing & Climate
+
+| Intent | Tier | Typical use |
+|---|---|---|
+| `GRID_POWER_PRICE` | A — Deterministic | Energy trading and load-shifting agents |
+| `MINING_HASHPRICE_VERIFY` | A — Deterministic | Mining profitability agents |
+| `DATACENTER_TELEMETRY_VERIFY` | A — Deterministic | Facility monitoring and capacity planning |
+| `SENSOR_TELEMETRY_VERIFY` | A — Deterministic | IoT fleet integrity checks |
+| `SATELLITE_IMAGERY_ANALYSIS` | B — LLM-Judge | Agriculture, insurance and infrastructure monitoring |
+| `WEATHER_FORECAST_VERIFY` | A — Deterministic | Parametric insurance and forecast scoring |
 
 ## Using an intent
 
