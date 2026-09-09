@@ -223,6 +223,47 @@ provider's own message instead of a slice of raw response body. Miners without
 that block keep the `upstream error N: <raw body>` form. Nothing is reworded in
 either case — see [YAML Configuration](miners/yaml-config.md).
 
+### Validation said `valid: true`, but my miner fails every real call
+
+The endpoint sandbox tests **reachability and credentials, not correctness**.
+Anything that isn't a `401`, `403` or `5xx` counts as a pass — including `400`
+and `404`. So a YAML with a wrong `external_path` validates clean:
+
+```json
+{ "path": "/forecast", "method": "GET", "status": 404, "success": true }
+```
+
+Read `status` on every entry in `results[]`, not just `success`. A `4xx` there
+means the sandbox reached your API and was authenticated, but the request it
+guessed was wrong — which is expected for parameters, and a real problem for a
+path. Endpoints reported as `skipped (multipart/file upload)` were never called
+at all; test those yourself.
+
+The other common cause of "registered and active, but every call fails" is a
+missing `params` block. Without one the node has to guess your field names.
+See [Validation API](miners/validation-api.md#what-success-actually-proves).
+
+### Where do I check a scoring module's status?
+
+By `registrationId`, on any node — the same three free endpoints cover every
+case:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/<registrationId>
+curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/addresses/<yourAddress>/wasm
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/<INTENT>/wasm
+```
+
+`ActivationStatus` is the state, `RejectionReason` says exactly which check
+failed, and `EvalDetails` carries the benchmark breakdown. A module that stays
+`pending` for more than a few minutes is usually a binary the node cannot fetch
+or re-hash — check `EvalErrorCount`, which reaches `3` before the record is
+rejected outright. Full field reference:
+[Checking your module's status](scoring/build-a-scoring-module.md#checking-your-modules-status).
+
+Remember scoring modules hash with **keccak256**, not the SHA-256 used for miner
+YAMLs. A hash mismatch rejection right after registering is almost always this.
+
 ## WebSocket Signals
 
 ### WS connection drops immediately after connecting
@@ -243,6 +284,28 @@ cast call  <diamond> "escrowBalance(address)(uint256)" <yourAddress> --rpc-url <
 ### "wallet verification required for ask"
 
 `ask` and `ask_direct` are **not** anonymous over WebSocket. Only `list_subnets` and `ping` work without a wallet. Reconnect with `?wallet_address=0x...` and complete the `auth_wallet` → `wallet_verify` handshake first.
+
+### "insufficient escrow for delivery" on ask/ask_direct
+
+```json
+{"type":"error","data":{"message":"insufficient escrow for delivery: committed=10000 μUSDC + price=10000 μUSDC > available=15000 μUSDC"}}
+```
+
+Different from the connect-time rejection above: that gate runs **once**, when
+you authenticate. `ask` and `ask_direct` additionally check escrow before
+**every** call, at a flat $0.01 each, queued for deduction at the next epoch
+close.
+
+So clearing the $1.00 minimum to get connected does not buy unlimited calls —
+`committed` is what this epoch has already charged you but not yet settled, and
+once `committed + price` passes your available balance you get this instead of a
+result. Deposit more and retry on the same connection:
+
+```bash
+cast send $DIAMOND "depositUSDC(uint256)" 1000000 --rpc-url $RPC --private-key $KEY
+```
+
+See [How `ask` and `ask_direct` are billed](using/websocket-signals.md#how-ask-and-ask_direct-are-billed).
 
 ### No signals received after subscribing
 

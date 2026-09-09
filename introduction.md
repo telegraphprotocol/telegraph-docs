@@ -35,6 +35,7 @@ You can subscribe to this feed over WebSocket instead of polling for it: authent
 
 | I want to... | Go here |
 |---|---|
+| **Get an answer, and not read six pages first** | **[Choosing an Inference Path](using/inference-paths.md)** |
 | Understand the full protocol mechanics | [How It Works](protocol/how-it-works.md) |
 | Learn about MACHINA tokenomics | [Tokenomics](protocol/tokenomics.md) |
 | See contract addresses and key parameters | [Addresses & Parameters](protocol/addresses-and-params.md) |

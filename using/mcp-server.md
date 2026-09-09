@@ -203,7 +203,7 @@ When an agent calls a paid tool:
 
 1. The MCP server sends the request to the Telegraph Engine.
 2. The Engine returns HTTP 402 with payment requirements in response headers.
-3. `@x402/fetch` intercepts the 402, signs an EIP-3009 `TransferWithAuthorization` using your configured private key, attaches the signature as a `PAYMENT` header, and retries automatically.
+3. `@x402/fetch` intercepts the 402, signs an EIP-3009 `TransferWithAuthorization` using your configured private key, attaches the signature as a `PAYMENT-SIGNATURE` header, and retries automatically.
 4. The Engine verifies payment via the PayAI facilitator and returns the result.
 
 The agent and LLM never see the payment flow, the private key, or any blockchain transaction. From the agent's perspective, the tool call returns a result.
