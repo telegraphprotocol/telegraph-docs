@@ -29,7 +29,7 @@ On an anonymous connection the server greets you as soon as the socket opens, be
 
 Read and discard it. If your client pairs each reply with the last message it sent, this greeting shifts every response by one — your `ping` appears to return the miner catalogue. Match on the `type` field instead of on arrival order.
 
-Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` don't charge your escrow, but the connection they run on still has to be wallet-authenticated.
+Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` are billed against your escrow per call — see [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
 
 **Wallet-authenticated connections** unlock `ask`, `ask_direct`, subscriptions, and escrow-based signal delivery. Connect with your EVM address as a query parameter:
 
@@ -115,8 +115,8 @@ Available actions on the WebSocket connection:
 | `unsubscribe` | Yes | Stop receiving signals for a subscription |
 | `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
-| `ask` | Yes | Request live on-demand inference (routed automatically) |
-| `ask_direct` | Yes | Route directly to a specific miner by ID |
+| `ask` | Yes | Request live on-demand inference (routed automatically). Billed $0.01 to escrow per call |
+| `ask_direct` | Yes | Route directly to a specific miner by ID. Billed $0.01 to escrow per call |
 | `ping` | No | Keep the connection alive |
 
 `list_subnets` responds with the catalog under a `subnets`/`miners` key:
