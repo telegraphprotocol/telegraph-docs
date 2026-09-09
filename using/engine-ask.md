@@ -185,6 +185,7 @@ The same `ask` and `ask_direct` operations are available over the Engine's WebSo
 
 | Scenario | Use |
 |---|---|
+| You aren't sure which rail you want at all | [Choosing an Inference Path](inference-paths.md) |
 | You want the best miner picked automatically | Auto-routed `POST /engine/v1/ask` |
 | You know exactly which miner and endpoint you need | Direct `POST /engine/v1/ask/{minerId}` |
 | You want to understand the payment flow itself | [Paying with x402](x402-inference.md) |

@@ -127,7 +127,9 @@ Available actions on the WebSocket connection:
 
 For the full schema, endpoints, prices, `activation_status`, use `GET /api/miners` instead — see [Discover Available Miners](x402-inference.md#step-1-discover-available-miners).
 
-The `ask` and `ask_direct` actions route inference through the Engine directly — no x402 payment is charged at the WebSocket layer, and neither counts against your subscription's spend limit. These are live calls, not reads from the cached history.
+The `ask` and `ask_direct` actions route inference through the Engine directly. These are live calls, not reads from the cached history.
+
+**They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
 
 ### Pre-request validation on `ask` and `ask_direct`
 
@@ -217,7 +219,7 @@ If you connect and nothing arrives within minutes, that's expected — the next 
 
 Before connecting with wallet auth, you must have at least **1.00 USDC** deposited in the escrow contract. The KnockGate checks this balance at connection time — if it's insufficient, the connection is immediately rejected with an error.
 
-- Deposit USDC to your escrow via `EscrowFacet.depositUSDC()` on the Diamond contract before connecting.
+- Fund your escrow **before** connecting — see [Funding your escrow](#funding-your-escrow) below.
 - Each pushed signal is logged with your wallet address, intent ID, receipt hash, and a node signature.
 - At each epoch boundary, the Validator batch-settles all logged deliveries, deducting USDC from your escrow.
 - If your escrow runs dry mid-epoch, WebSocket delivery is suspended — each matching signal is silently skipped rather than queued — until you replenish it.
@@ -233,7 +235,67 @@ Before connecting with wallet auth, you must have at least **1.00 USDC** deposit
 
 To keep receiving signals after this, reconnect and send `subscribe` again with a new `spend_limit_usdc`.
 
-**`ask` and `ask_direct` actions do not deduct from your escrow or your session spend limit.** Only subscription-pushed signals are settled.
+### How `ask` and `ask_direct` are billed
+
+`ask` and `ask_direct` are billed against your escrow, but on a different meter
+from subscriptions:
+
+- **Each call costs a flat $0.01** — the protocol's minimum price per signal,
+  which is also the `cost_usd` reported back to you. The demand multiplier that
+  moves the x402 price does not apply here.
+- **Escrow is checked before the miner is called**, and the charge is recorded
+  only **after** a result is actually delivered to you. A call that fails to
+  route or execute is never billed.
+- **The charge is queued, not deducted immediately.** It settles at the next
+  epoch close, the same mechanism subscription deliveries use.
+- **It does not touch your subscription's `spend_limit_usdc`.** That cap applies
+  only to pushed signals.
+
+The connect-time balance gate runs once; this check runs on every call. So a
+wallet that got in on the $1.00 minimum can still be refused mid-session:
+
+```json
+{"type": "error", "data": {"message": "insufficient escrow for delivery: committed=10000 μUSDC + price=10000 μUSDC > available=15000 μUSDC"}}
+```
+
+`committed` is what this epoch has already charged you but not yet settled.
+Deposit more — see [Funding your escrow](#funding-your-escrow) — and retry; you
+do not need to reconnect.
+
+### Funding your escrow
+
+Escrow lives on the Diamond, in the token the Diamond is configured to use — on
+Base Sepolia that is Circle's canonical USDC. Three transactions, in this order.
+Skipping the approval fails with `ERC20: transfer amount exceeds allowance`:
+
+```bash
+export DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
+export USDC=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+export RPC=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
+
+# 1 — let the Diamond move your USDC (2000000 = 2.00 USDC, 6 decimals)
+cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 \
+  --rpc-url $RPC --private-key $KEY
+
+# 2 — deposit into escrow
+cast send $DIAMOND "depositUSDC(uint256)" 2000000 \
+  --rpc-url $RPC --private-key $KEY
+
+# 3 — confirm it landed, before you open the socket
+cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
+# 2000000
+```
+
+`escrowBalance(address)` is the only escrow getter on the Diamond —
+`getEscrowBalance()` and `available()` are not part of the external surface.
+
+Deposit more than the $1.00 minimum. That figure is only the gate to *connect* —
+both meters then draw against the same balance: every pushed subscription signal
+and every `ask`/`ask_direct` call. An escrow that runs dry mid-epoch silently
+stops subscription delivery rather than queueing, and starts refusing asks.
+Withdrawals carry a 4-hour timelock, so deposit what you will actually use.
+
+The same escrow funds [ERC-8183 jobs](erc8183-jobs.md) — one balance, both rails.
 
 ## Keeping the Connection Alive
 

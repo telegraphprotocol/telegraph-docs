@@ -19,6 +19,19 @@ Note the order: the key is stored **after** registration, because it is bound to
 
 This is the recommended path, and the only one that lets you supply an API key yourself.
 
+**Scripting it, or driving it from an agent?** The validation half of that
+interface is a plain HTTP API you can call directly — same checks, same error
+strings, no browser and no wallet:
+
+```
+POST https://integrate.telegraphprotocol.com/api/validate
+{"yaml": "<raw YAML text>", "api_key": "...", "miner_address": "0xYourWallet"}
+```
+
+See [Validation API](validation-api.md) for the full request and response
+contract. Run it until it comes back clean, then send the registration
+transaction below yourself.
+
 The rest of this page covers doing the same thing by hand with `cast` — useful if you want to script it or understand what the interface is doing on your behalf.
 
 ## Prerequisites

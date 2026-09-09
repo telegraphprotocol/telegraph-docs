@@ -26,7 +26,7 @@ The rate of dripping (0.01 USDC at a time, ±30 seconds jitter) prevents flash p
 
 ## Signal Pricing
 
-When you register as a miner, you declare a floor price (`min_price_usdc`). This is the minimum you'll receive per request — agents can't pay less. The floor is immutable after registration; to change it you must deregister and re-register.
+When you register as a miner, you declare a floor price (`min_price_usdc`). This is the minimum you'll receive per request — agents can't pay less. To change it later, call `updateMiner` with the new price — see [Updating Your Miner](miner-registration.md#updating-your-miner). That deregisters the old entry and registers the new one atomically, so you get a new `registrationId` and a new `intentId`.
 
 The actual price an agent pays may be higher based on how much demand exists for your Intent in the last 24 hours:
 

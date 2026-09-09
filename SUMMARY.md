@@ -13,6 +13,7 @@
 
 ## Using Telegraph
 
+* [Choosing an Inference Path](using/inference-paths.md)
 * [Engine Inference](using/engine-ask.md)
 * [Intents](using/intents.md)
 * [Paying with x402](using/x402-inference.md)
@@ -26,6 +27,7 @@
 
 * [What Miners Do](miners/miner-overview.md)
 * [YAML Configuration](miners/yaml-config.md)
+* [Validation API](miners/validation-api.md)
 * [Registering as a Miner](miners/miner-registration.md)
 
 ## Building a Scoring Module

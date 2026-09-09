@@ -455,7 +455,7 @@ If you're wiring this into your own app, registration is a single call on the
 Diamond:
 
 ```solidity
-registerWasm(wasmHash, wasmUrl, intent)
+registerWasm(bytes32 wasmHash, string wasmUrl, string intent)
 ```
 
 - **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
@@ -469,10 +469,72 @@ registerWasm(wasmHash, wasmUrl, intent)
   the call reverts with `unsupported intent`. You can read the current list from
   the chain with `getCanonicalIntents`.
 
+> **Scoring modules hash with `keccak256`. Miner YAMLs hash with `SHA-256`.**
+> The two registration flows deliberately differ here, and using the wrong one
+> is a rejected registration you paid gas for. For a `.wasm` it is
+> `cast keccak`, never `sha256sum`.
+
+The whole call from the command line:
+
+```bash
+export DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
+export RPC=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
+export WASM_URL="ipfs://bafkrei..."
+
+# keccak256 of the file's raw bytes. The 0x prefix is required — it is what
+# tells cast to hex-decode rather than hash the hex text itself, and without it
+# you get a wrong hash with no error.
+export WASM_HASH=$(cast keccak "0x$(xxd -p -c 0 my_module.wasm)")
+
+cast send "$DIAMOND" \
+  "registerWasm(bytes32,string,string)(uint256)" \
+  "$WASM_HASH" "$WASM_URL" "CHAT_COMPLETION" \
+  --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
+```
+
+Hash the bytes you are actually going to serve, not a local copy you might edit
+afterwards. The safest order is: upload, then `curl` it back down and hash
+*that*.
+
+Registering costs only gas: there's no bond and no fee. The Diamond's address is
+on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### Getting your registrationId
+
 The call returns a **`registrationId`** — keep it. It's how you check the
-module's status and how you deregister it later. Registering costs only gas:
-there's no bond and no fee. The Diamond's address is on the
-[Addresses & Parameters](../protocol/addresses-and-params.md) page.
+module's status and how you deregister it later. A `cast send` doesn't hand you
+a return value, so read it back one of two ways.
+
+From the transaction's `WasmRegistered` event, where it is the first indexed
+topic:
+
+```solidity
+event WasmRegistered(
+    uint256 indexed registrationId,
+    address indexed author,
+    bytes32 indexed intentId,
+    string  intent,
+    bytes32 wasmHash,
+    string  wasmUrl
+);
+```
+
+Or — simpler, and it works even if you lost the receipt — ask a node for
+everything your address has ever registered:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/addresses/<yourAddress>/wasm
+```
+
+```json
+{
+  "address": "0xffe8...",
+  "count": 1,
+  "wasm": [
+    { "RegistrationID": 5, "IntentID": "CHAT_COMPLETION", "ActivationStatus": "rejected", "...": "..." }
+  ]
+}
+```
 
 ### You can't register the same binary twice
 
@@ -491,8 +553,7 @@ To put up a genuinely improved module, just register it under its own
 
 ### After you register
 
-Your module doesn't go live instantly. It moves through a handful of states,
-which you can see in the explorer / API by its `registrationId`:
+Your module doesn't go live instantly. It moves through a handful of states:
 
 | Status | Meaning |
 |---|---|
@@ -506,6 +567,85 @@ which you can see in the explorer / API by its `registrationId`:
 the Stage 2 benchmark. A module that fails validation ends up `rejected` and
 never serves traffic — which is why it's worth testing first (above): every
 re-registration is another transaction.
+
+### Checking your module's status
+
+Poll any node by your `registrationId`:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/5
+```
+
+```json
+{
+  "wasm": {
+    "RegistrationID": 5,
+    "AuthorAddress": "0xffe89e1f0a77c600ad938b57180e5be3e3119f40",
+    "WasmURL": "https://gateway.pinata.cloud/ipfs/QmTHHdpnUAwEXfaReukEzWUZt8vL7W4ohgdyHcrK8oYuto",
+    "WasmHash": "34220f7244084b2542c34b114189963db5924812e170e54997f9241c9b6807ac",
+    "ActivationStatus": "rejected",
+    "IntentID": "CHAT_COMPLETION",
+    "RejectionReason": "rank agreement below threshold (0.60), got: map[AGENT_TASK:0.11178552 ...]",
+    "EvalScore": null,
+    "EvalDetails": null,
+    "EvalErrorCount": 0,
+    "RegisteredAt": "2026-08-15T17:28:47Z",
+    "UpdatedAt": "2026-08-15T17:28:47Z"
+  }
+}
+```
+
+| Field | What to do with it |
+|---|---|
+| `ActivationStatus` | The state from the table above. This is what you poll for. |
+| `RejectionReason` | Exactly which bar you missed, in the evaluator's own words. `null` unless rejected. |
+| `EvalScore` | Your headline `candidate_margin`. `null` on a module that never got as far as being benchmarked. |
+| `EvalDetails` | The full [breakdown](#the-numbers-youll-see) as a JSON string — `candidate_margin`, `champion_margin`, `candidate_wins`, `worst_self_match`, and the rest. |
+| `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator panicked). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. `0` on a `pending` record just means it hasn't been reached yet. |
+
+Three lookups, depending on what you have:
+
+| Endpoint | Use it when |
+|---|---|
+| `GET /engine/validator/v1/wasm/{registrationId}` | You have the ID and want one module's status. |
+| `GET /engine/validator/v1/addresses/{yourAddress}/wasm` | You lost the ID, or want everything you have ever registered. |
+| `GET /engine/v1/intents/{INTENT}/wasm` | You want every module registered for an intent — including whichever one is currently `active`. |
+
+All three are free, unauthenticated `GET`s.
+
+`400` means a non-numeric or out-of-range id · `404` no registration with that
+id · `503` the node has no WASM store configured.
+
+### Knowing what you're up against
+
+Before you build, look at who currently holds the intent you're targeting. Stage
+2 is a head-to-head against exactly that module:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/CHAT_COMPLETION/wasm
+```
+
+```json
+{
+  "count": 5,
+  "intent_id": "CHAT_COMPLETION",
+  "wasm": [
+    { "RegistrationID": 5, "ActivationStatus": "rejected", "EvalScore": null, "...": "..." }
+  ]
+}
+```
+
+The entry with `ActivationStatus: "active"` is the champion — its `EvalScore` is
+roughly the `champion_margin` you have to match or beat.
+
+**An intent with no active module is not an empty seat.** Scoring falls back to
+Telegraph's built-in default scorer, and that is what you are benchmarked
+against instead. There is always an incumbent; on an unclaimed intent it is just
+a generic baseline rather than a module someone tuned for that intent, which is
+usually an easier margin to beat.
+
+The `rejected` entries are worth reading too. Their `RejectionReason` strings are
+a free list of the ways modules have already failed on that intent.
 
 ## Removing or replacing your module
 
