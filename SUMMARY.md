@@ -17,6 +17,7 @@
 * [Engine Inference](using/engine-ask.md)
 * [Intents](using/intents.md)
 * [Paying with x402](using/x402-inference.md)
+* [Paying from Escrow](using/escrow-inference.md)
 * [Daemon Signal Feed](using/daemon-signals.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
 * [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)

@@ -8,6 +8,8 @@ x402 is an HTTP-native payment protocol. Your client makes a request, gets a pay
 
 This page covers the payment mechanics. For what to actually send and get back, see [Engine Inference](engine-ask.md).
 
+> **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Paying from Escrow](escrow-inference.md).
+
 ## What You Need
 
 - A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`) or **Solana Devnet**.
