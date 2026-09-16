@@ -151,7 +151,7 @@ const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const wallet = createWalletClient({ account, chain: baseSepolia, transport: http() });
 
 export async function ask(question: string) {
-  const body = JSON.stringify({ question });
+  const body = JSON.stringify({ query: question });   // the field is `query`
   const json = { 'Content-Type': 'application/json' };
 
   // 1 — read the challenge
@@ -205,7 +205,7 @@ NOW=$(date +%s)
 NONCE="test-$NOW"
 
 curl -sS -X POST "$NODE/v1/ask" -H 'Content-Type: application/json' \
-  -d '{"question":"What is the current price of Bitcoin?"}' > challenge.json
+  -d '{"query":"What is the current price of Bitcoin?"}' > challenge.json
 
 TEMPLATE=$(jq -r '.accepts[] | select(.scheme=="escrow") | .extra.message' challenge.json)
 PAYTO=$(jq -r '.accepts[] | select(.scheme=="escrow") | .payTo' challenge.json)
@@ -223,8 +223,10 @@ PAYMENT=$(jq -cn --arg s "$SIG" --arg f "$ADDR" --arg t "$PAYTO" --arg v "$VALUE
   | base64 -w0)
 
 curl -sS -D - -X POST "$NODE/v1/ask" -H 'Content-Type: application/json' \
-  -H "X-PAYMENT: $PAYMENT" -d '{"question":"What is the current price of Bitcoin?"}'
+  -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
+
+The body field is `query` — see [Engine Inference](engine-ask.md). Sending anything else is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent.
 
 An unfunded wallet gets `insufficient escrow for delivery: committed=0 μUSDC + price=10000 μUSDC > available=0 μUSDC`, which is a useful signal on its own: it means the signature verified and only the balance is missing.
 
