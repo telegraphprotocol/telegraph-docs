@@ -455,7 +455,7 @@ If you're wiring this into your own app, registration is a single call on the
 Diamond:
 
 ```solidity
-registerWasm(bytes32 wasmHash, string wasmUrl, string intent)
+registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress)
 ```
 
 - **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
@@ -468,6 +468,11 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent)
   `CHAT_COMPLETION`). It has to be one of the network's canonical intents, or
   the call reverts with `unsupported intent`. You can read the current list from
   the chain with `getCanonicalIntents`.
+- **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
+  reverts with `zero fee address`. This is the same field miners and collectors
+  have always had. It is deliberately a separate argument rather than being
+  taken from the sending wallet: the key you register with is a hot key, and the
+  address your earnings go to should not have to be.
 
 > **Scoring modules hash with `keccak256`. Miner YAMLs hash with `SHA-256`.**
 > The two registration flows deliberately differ here, and using the wrong one
@@ -486,9 +491,13 @@ export WASM_URL="ipfs://bafkrei..."
 # you get a wrong hash with no error.
 export WASM_HASH=$(cast keccak "0x$(xxd -p -c 0 my_module.wasm)")
 
+# Where your MACHINA earnings are paid. Can be a cold wallet -- it never has to
+# sign or hold gas.
+export WASM_FEE_ADDRESS=0xYourPayoutAddress
+
 cast send "$DIAMOND" \
-  "registerWasm(bytes32,string,string)(uint256)" \
-  "$WASM_HASH" "$WASM_URL" "CHAT_COMPLETION" \
+  "registerWasm(bytes32,string,string,address)(uint256)" \
+  "$WASM_HASH" "$WASM_URL" "CHAT_COMPLETION" "$WASM_FEE_ADDRESS" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
 
@@ -498,6 +507,80 @@ afterwards. The safest order is: upload, then `curl` it back down and hash
 
 Registering costs only gas: there's no bond and no fee. The Diamond's address is
 on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### Registering without holding gas
+
+`registerWasm` makes the registration belong to whichever wallet sent the
+transaction, so that wallet needs ETH. `registerWasmFor` separates the two: you
+sign a message, and **anyone** can submit it and pay the gas for you.
+
+```solidity
+registerWasmFor(
+  address author,        // you -- ends up owning the registration
+  bytes32 wasmHash,
+  string  wasmUrl,
+  string  intent,
+  address feeAddress,
+  uint256 deadline,      // unix seconds; the signature is dead after this
+  bytes   signature      // EIP-712, signed by `author`
+)
+```
+
+Your signature covers every argument, so whoever relays it cannot change your
+binary, your URL, your intent or your payout address. They can only decide
+whether to submit at all.
+
+This is a signature rather than a plain `author` argument on purpose.
+Registration is permissionless and first-come-first-served, so if the contract
+simply believed an address argument, anyone could register junk under your
+address and have it served as yours.
+
+**Signing it (viem):**
+
+```ts
+const nonce = await publicClient.readContract({
+  address: DIAMOND, abi: intentRegistryAbi,
+  functionName: 'metaTxNonce', args: [author],
+});
+const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
+const signature = await walletClient.signTypedData({
+  account: author,
+  domain: {
+    name: 'Telegraph',
+    version: '1',
+    chainId: 84532,
+    verifyingContract: DIAMOND,   // the DIAMOND, not a facet address
+  },
+  types: {
+    RegisterWasm: [
+      { name: 'author',     type: 'address' },
+      { name: 'wasmHash',   type: 'bytes32' },
+      { name: 'wasmUrl',    type: 'string'  },
+      { name: 'intent',     type: 'string'  },
+      { name: 'feeAddress', type: 'address' },
+      { name: 'nonce',      type: 'uint256' },
+      { name: 'deadline',   type: 'uint256' },
+    ],
+  },
+  primaryType: 'RegisterWasm',
+  message: { author, wasmHash, wasmUrl, intent, feeAddress, nonce, deadline },
+});
+```
+
+Read `metaTxNonce(author)` immediately before signing and include it in the
+message. It only advances on a signature that was **accepted**, so a relay that
+reverts does not invalidate a signature you already prepared.
+
+`deregisterEntityFor(author, registrationId, 2, deadline, signature)` is the
+matching relayed deregistration (`2` is the WASM author entity type). Ownership
+is still enforced — the signature proves who is asking, and the record must
+actually be yours.
+
+If a relayed call keeps failing with `LibMetaTx: bad signature`, the usual cause
+is `verifyingContract` being set to a facet address instead of the Diamond.
+
+**This is optional.** `registerWasm` works exactly as before.
 
 ### Getting your registrationId
 
@@ -515,7 +598,8 @@ event WasmRegistered(
     bytes32 indexed intentId,
     string  intent,
     bytes32 wasmHash,
-    string  wasmUrl
+    string  wasmUrl,
+    address feeAddress
 );
 ```
 
@@ -668,6 +752,17 @@ deregisterEntity(registrationId, 2)
 Only the original registering address can do this, so no one else can take your
 module down. The change is picked up **immediately** — there's no bond, no fee,
 and nothing to wait for (you don't need to wait for an epoch to roll over).
+
+If the registering address holds no gas, sign instead and let anyone relay it:
+
+```solidity
+deregisterEntityFor(author, registrationId, 2, deadline, signature)
+```
+
+Same rule applies — the signature proves who is asking, and the module must
+actually be yours. See
+[Registering without holding gas](#registering-without-holding-gas) for how to
+produce the signature.
 
 The Diamond's address is on the
 [Addresses & Parameters](../protocol/addresses-and-params.md) page, and can

@@ -188,6 +188,7 @@ Keep the `signal_hash`. It's how you look the call up afterwards — see [Verify
 The response also carries a settlement header:
 ```
 PAYMENT-RESPONSE: <settlement-proof>
+X-TELEGRAPH-RECEIPT: <base64 JSON — see below>
 ```
 
 Keep this if you need to audit or dispute the payment later.
@@ -205,6 +206,44 @@ GET /engine/v1/signal/{signal_hash}
 ```
 
 The response includes the signal, the result behind it, and the payload the hash was computed over, so you can re-derive the hash yourself rather than taking the node's word for it.
+
+### Your receipt
+
+Alongside x402's own `PAYMENT-RESPONSE`, a served request returns
+`X-TELEGRAPH-RECEIPT` (base64 JSON). The two answer different questions:
+`PAYMENT-RESPONSE` says your payment settled; the Telegraph receipt says what
+that payment bought.
+
+```json
+{
+  "receipt_hash": "0x3f1c…",
+  "rail": "x402",
+  "payer": "0xyourwallet…",
+  "miner": "377",
+  "intent": "STOCK_PRICE",
+  "amount_uusdc": "10000",
+  "epoch_id": 314,
+  "settlement": "onchain",
+  "chain": "eip155:84532",
+  "tx_hash": "0x6bb27730…",
+  "timestamp": 1789466181
+}
+```
+
+`receipt_hash` identifies **your specific call**, permanently. `tx_hash` does
+not, and the difference matters more here than on any other rail: the facilitator
+batches concurrent payments from one wallet into a single settlement transaction
+— measured on the live network, 40 payments shared 25 transactions, one covering
+four separate `/v1/ask` calls 0.3 seconds apart. If you are reconciling calls to
+charges, key on `receipt_hash`.
+
+It is the same object, field for field, that the
+[escrow](escrow-inference.md) and [WebSocket](websocket-signals.md) rails return,
+so you can handle all three identically.
+
+Only a delivered `200` carries one. A payment that settled but whose request then
+failed is recorded as a payment but bills you no consumption, so there is nothing
+to receipt.
 
 ## Payment Networks
 

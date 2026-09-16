@@ -235,6 +235,34 @@ Before connecting with wallet auth, you must have at least **1.00 USDC** deposit
 
 To keep receiving signals after this, reconnect and send `subscribe` again with a new `spend_limit_usdc`.
 
+### `receipt` — what you were charged
+
+Every billed delivery is followed by a `receipt` message. It arrives **after** the `result` it pays for, never instead of it:
+
+```json
+{
+  "type": "receipt",
+  "data": {
+    "receipt_hash": "0xa8f605342196a831aa12a43656dfa672b120deb56f2f1dd745dbb5610cb9be89",
+    "rail": "ws",
+    "payer": "0xyourwallet…",
+    "miner": "377",
+    "intent": "WEATHER_CHECK",
+    "amount_uusdc": "10000",
+    "epoch_id": 314,
+    "settlement": "epoch",
+    "chain": "telegraph",
+    "timestamp": 1789466181
+  }
+}
+```
+
+`receipt_hash` identifies that one consumption permanently — it is the key of the delivery's ledger row and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch. There is no `tx_hash`, because WebSocket deliveries settle at the epoch boundary rather than per signal; `chain: "telegraph"` says so, and `epoch_id` names the transaction your charge will ride.
+
+This is the same receipt object the [x402](x402-inference.md) and [escrow](escrow-inference.md) HTTP rails return, so you can handle all three identically.
+
+If you don't care about receipts, ignore the message — nothing about `result` changed.
+
 ### How `ask` and `ask_direct` are billed
 
 `ask` and `ask_direct` are billed against your escrow, but on a different meter
