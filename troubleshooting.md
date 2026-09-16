@@ -264,6 +264,51 @@ rejected outright. Full field reference:
 Remember scoring modules hash with **keccak256**, not the SHA-256 used for miner
 YAMLs. A hash mismatch rejection right after registering is almost always this.
 
+## Scoring Modules
+
+### `zero fee address` when registering a module
+
+`registerWasm` takes a fourth argument now — your MACHINA payout address — and
+it must be non-zero:
+
+```solidity
+registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress)
+```
+
+If you are still sending the three-argument form the call fails earlier, because
+that signature no longer exists on the Diamond. Either way, add the payout
+address. See [Build a Scoring Module](scoring/build-a-scoring-module.md).
+
+Modules registered before this field existed read back `address(0)` from
+`getWasm`. That means no payout address was ever set for them — it does not
+default to the author. Deregister and re-register to set one.
+
+### `LibMetaTx: bad signature` on a relayed registration
+
+The `*For` entry points (`registerWasmFor`, `registerMinerFor`,
+`deregisterEntityFor`, `deregisterMinerFor`) verify an EIP-712 signature instead
+of trusting the sender. In order of how often it is the cause:
+
+1. **`verifyingContract` is not the Diamond.** It must be the Diamond address,
+   not the facet you took the ABI from. This is by far the most common mistake.
+2. **`chainId` does not match** the chain you are sending to (84532 on Base
+   Sepolia).
+3. **The nonce is stale.** Re-read `metaTxNonce(yourAddress)` right before
+   signing. One counter covers all four entry points.
+4. **A field was changed after signing** — including reordering a
+   `supportedIntents` array, which changes the hash.
+5. **You are replaying a signature.** Each one is good for exactly one call.
+
+`LibMetaTx: signature expired` means `deadline` has passed; sign a new one. A
+relay that reverts does **not** consume your nonce, so signatures you already
+prepared stay valid.
+
+### `getWasm` returns the wrong number of values
+
+`getWasm` now returns **eight** values, with `address feeAddress` last. An ABI
+still declaring seven decodes the first seven correctly and silently never sees
+the payout address. Update the ABI rather than the call.
+
 ## WebSocket Signals
 
 ### WS connection drops immediately after connecting

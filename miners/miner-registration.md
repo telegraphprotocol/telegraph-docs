@@ -113,6 +113,38 @@ cast call "$DIAMOND" "getCanonicalIntents()(string[])" --rpc-url "$RPC"   # the 
 
 The canonical set changes over time — intents get added and removed. Read the live list rather than copying one out of a document.
 
+### Registering from a wallet that holds no gas
+
+`registerMiner` binds your registration to whichever wallet sends the
+transaction, so that wallet needs ETH. If you would rather keep your miner
+identity on a cold wallet, `registerMinerFor` lets you sign offline and have
+anyone else relay it:
+
+```
+registerMinerFor(
+  address miner,              // you -- ends up owning the registration
+  string  yamlUrl,
+  bytes32 yamlHash,
+  address feeAddress,
+  uint256 minPriceUsdc,
+  string[] supportedIntents,
+  uint256 deadline,           // unix seconds; the signature dies after this
+  bytes   signature           // EIP-712, signed by `miner`
+)
+```
+
+The signature covers every field, so the relayer cannot change your YAML, your
+payout address, your price floor or your intent list. It can only choose whether
+to submit.
+
+Read the nonce you must sign over with `metaTxNonce(yourAddress)`. The EIP-712
+domain is `name: "Telegraph"`, `version: "1"`, the chain id you are deploying
+to, and `verifyingContract:` **the Diamond address** — not a facet.
+
+`deregisterMinerFor` is the matching relayed deregistration.
+
+This is optional. `registerMiner` works exactly as before.
+
 ## Step 4: Confirm the Registration
 
 The transaction emits a `MinerRegistered` event with seven fields:

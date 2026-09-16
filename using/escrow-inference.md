@@ -57,6 +57,17 @@ EscrowFacet(DIAMOND).agentDebt(you);          // unpaid deliveries, if any
 
 > If a settlement ever finds your escrow short, the shortfall is recorded on-chain as **debt** and delivery is suspended until you top up. The next deposit clears the debt first, before anything reaches spendable balance.
 
+### Funding somebody else
+
+`depositUSDCFor(beneficiary, amount)` pays from your wallet and credits somebody else's escrow. No signature from them is required, because it grants you nothing — only they can ever spend or withdraw it.
+
+```solidity
+IERC20(USDC).approve(DIAMOND, amount);
+EscrowFacet(DIAMOND).depositUSDCFor(userWallet, amount);
+```
+
+Useful for sponsoring your users' inference, topping up a fleet of agent wallets, or funding a hot agent key from a cold one. Any outstanding debt is cleared against the beneficiary, not you.
+
 ## Step 2: Read the Challenge
 
 Escrow is priced on the same routes x402 is — `POST /engine/v1/ask` and `POST /engine/v1/ask/{minerId}`. Call one with no payment header and you get the usual 402, whose body lists the schemes it accepts. Look for the entry whose `scheme` is `escrow`:
@@ -119,21 +130,28 @@ Rules the node enforces, all of them committed to by the signature:
 
 ## Step 4: Read the Receipt
 
-A served request returns `X-PAYMENT-RESPONSE` (base64 JSON):
+A served request returns `X-PAYMENT-RESPONSE` (base64 JSON) carrying the standard Telegraph receipt:
 
 ```json
 {
-  "success": true,
-  "scheme": "escrow",
-  "network": "eip155:84532",
+  "receipt_hash": "0xf2d3ec3113cc8e284ea988cba134d93351ee9f28a8358f4b6575a917b2a09591",
+  "rail": "escrow",
   "payer": "0xyourwallet…",
-  "amount": "10000",
+  "miner": "377",
+  "intent": "STOCK_PRICE",
+  "amount_uusdc": "10000",
+  "epoch_id": 314,
   "settlement": "epoch",
-  "epoch": 314
+  "chain": "telegraph",
+  "timestamp": 1789466181
 }
 ```
 
-There is **no transaction hash**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `settlement: "epoch"` says the charge is applied when the epoch closes, and `epoch` names the `submitEpoch` transaction it will ride — that is the transaction to look for on-chain.
+`receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch — so it identifies your call, and nothing else, permanently.
+
+There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the `submitEpoch` transaction your charge will ride — that is what to look for on-chain.
+
+The same receipt object, field for field, is returned by the x402 rail (in `X-TELEGRAPH-RECEIPT`) and by the WebSocket rail (as a `receipt` message). Whichever way you pay, you can treat the receipt identically.
 
 **A request that fails is never billed and carries no receipt.** Treat a missing header on a non-2xx as "not charged" — and retry with a fresh nonce, never the one you just sent.
 
