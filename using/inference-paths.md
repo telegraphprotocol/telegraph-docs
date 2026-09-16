@@ -16,6 +16,7 @@ Start here, then follow the link for the one you want.
 | You are... | Use | Page |
 |---|---|---|
 | A script or agent that wants an answer now | **HTTP ask** (auto-routed) | [Engine Inference](engine-ask.md) |
+| Calling often enough that per-request settlement hurts | **Escrow** on the same HTTP endpoints | [Paying from Escrow](escrow-inference.md) |
 | Sure which miner you want | **HTTP ask direct** | [Engine Inference](engine-ask.md#direct-ask) |
 | An LLM agent with an MCP client | **MCP server** | [MCP Server](mcp-server.md) |
 | Wanting a continuous feed, not one answer | **WebSocket subscribe** | [WebSocket Signals](websocket-signals.md) |
@@ -28,8 +29,8 @@ Start here, then follow the link for the one you want.
 | | HTTP `ask` | HTTP `ask/{id}` | WebSocket `ask` | WebSocket `subscribe` | ERC-8183 job | On-chain miner request |
 |---|---|---|---|---|---|---|
 | **Who picks the miner** | Engine's LLM router | You | Engine's LLM router | n/a — pushed to you | Protocol, by intent | You |
-| **You need** | USDC + x402 client | USDC + x402 client | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in escrow | Gas only |
-| **How you pay** | Per call, x402 | Per call, x402 | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow | Gas only |
+| **You need** | USDC + x402 client, *or* funded escrow | USDC + x402 client, *or* funded escrow | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in escrow | Gas only |
+| **How you pay** | Per call, x402 — or from [escrow](escrow-inference.md) | Per call, x402 — or from [escrow](escrow-inference.md) | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow | Gas only |
 | **Answer arrives** | In the response | In the response | As stream events | Pushed, on the Daemon's cycle | Callback + on-chain state | Callback |
 | **Synchronous** | Yes | Yes | Yes | No | No | No |
 | **Fresh inference** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes | Yes |
