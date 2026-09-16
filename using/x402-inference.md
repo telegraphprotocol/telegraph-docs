@@ -245,6 +245,14 @@ Only a delivered `200` carries one. A payment that settled but whose request the
 failed is recorded as a payment but bills you no consumption, so there is nothing
 to receipt.
 
+**Paying on Solana? There is no `X-TELEGRAPH-RECEIPT`, by design.** A Solana
+payment goes to the node's Solana receiving address rather than the Diamond, so
+it never enters Base epoch settlement and no delivery row is written for it —
+and a receipt whose `epoch_id` pointed at a settlement the payment is not part of
+would be worse than none. The payment is still fully recorded, and x402's own
+`PAYMENT-RESPONSE` still proves it settled. Pay on Base Sepolia if you need
+Telegraph receipts to reconcile against.
+
 ## Payment Networks
 
 | Network | CAIP-2 Identifier | USDC Contract |
