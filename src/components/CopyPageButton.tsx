@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { Bot, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function CopyPageButton({ content, title }: { content: string; title: string }) {
+// text is the page as built by pageMarkdown: title, source URL, description and
+// the body with absolute links, so a pasted copy still makes sense on its own.
+export function CopyPageButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    const text = `# ${title}\n\nSource: Telegraph Protocol Documentation\n\n---\n\n${content}`
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
