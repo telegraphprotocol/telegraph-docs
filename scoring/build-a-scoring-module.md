@@ -154,8 +154,11 @@ so the hash you register covers both.
 Answers reach your model as tokens from the network's pinned ModernBERT
 tokenizer, so build the model for that vocabulary.
 
-This page lists what the node checks. It does not document the model image
-format or the argument layout of the `imwq_*` exports.
+The tools to train one and package it into that file are in the adapter kit,
+[telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
+[Train a Scoring Adapter](train-a-scoring-adapter.md) walks through them step by
+step, and lists the exact input format, arithmetic and export signatures the
+node expects. This section lists what the node checks when a package arrives.
 
 ### What the node checks
 
