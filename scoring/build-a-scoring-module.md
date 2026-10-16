@@ -18,16 +18,26 @@ small program compiled to **WebAssembly (WASM)**, a compact, sandboxed
 binary format that runs safely inside the node without needing to trust your
 code.
 
-Your module gets three pieces of text (the question, the correct/expected
-answer, and a miner's answer) and returns a score. Higher score means a
-better answer.
+Every intent has a **class**, and the class decides which kind of module scores
+it (see [How answers are scored](../using/intents.md#how-answers-are-scored)):
 
-- **`question`** — the question we're trying to solve.
-- **`ground_truth`** — the correct answer to that question.
-- **`miner_answer`** — what this particular miner responded.
+| Intent class | Module you register | What it does |
+|---|---|---|
+| Deterministic | **Comparator module** | Compares the value read from a miner's answer with the true value fetched from a real source, using the intent's comparison rule and tolerance. |
+| Judgment | **Wide adapter package** | A reward model judges each answer on its own merits. No reference answer is needed. |
+| Hybrid | **Wide adapter package**, hybrid build | A comparator score for the checkable part, combined with the model's judgment of the rest. |
 
-If `miner_answer` matches `ground_truth`, your module should score it high.
-If it doesn't, score it low.
+Each intent has one live module at a time, its **canonical** module. A judgment
+or hybrid intent with no module of its own can use its family's (see
+[Families](#families-one-module-for-many-intents)). An intent that nothing
+serves is not scored, and its miners keep their previous ranking.
+
+> **`rank_answer` modules are retired.** Earlier versions of this guide
+> described a module exporting `rank_answer`, `alloc` and `dealloc` that
+> compared a miner's answer with a reference answer. The node no longer runs
+> that kind of module. A new registration of one is rejected straight away with
+> `MiniLM rank_answer scoring modules are retired and are no longer accepted: …`.
+> Build one of the two kinds below instead.
 
 ## What environment does it run in?
 
@@ -39,403 +49,356 @@ That means:
   reach the internet.
 - **No filesystem access.** No reading/writing files, no environment
   variables.
-- **No shared state.** Every call gets fresh memory, so you can't cache
-  things across requests or communicate with other running modules.
-- It only gets the plain text you're given (question, correct answer, miner's
-  answer) and must work with that alone.
+- **No state you can rely on.** The node may reuse one loaded copy of your
+  module for many calls, or load a fresh copy for each batch. The same input
+  must always give the same output.
+- It only gets the inputs it's given and must work with those alone.
 
 This is by design: it keeps scoring fast, deterministic, and safe to run
 untrusted, third-party code.
 
-## What language can I write it in?
+## Comparator modules (deterministic intents)
 
-Anything that compiles to a standalone WASM binary works. In practice, the
-easiest options are:
+A deterministic intent has one right answer: a price, a count, a yes or no. The
+node fetches the true value from the intent's data source, reads the value out
+of each miner's answer, and asks the comparator module how close they are.
 
-- **Rust** (recommended: what the reference examples use, small output size, good WASM tooling)
-- **C / C++** (via Clang's WASM target)
-- **TinyGo** (regular Go's WASM output tends to be large, TinyGo is a better fit here)
-- **AssemblyScript** (TypeScript-like syntax, compiles straight to WASM)
+A comparator has no model, so there is no "better" comparator to build. What
+the node checks is that yours computes the network's **reference rule**
+exactly (see [Stage 2 for comparator modules](#stage-2-for-comparator-modules-correctness)).
 
-Whatever you use, the compiled output must be a single `.wasm` file that
-doesn't depend on anything outside itself (no dynamic imports of OS
-functions, no threads).
+### What it must export
 
-## Size limit
+| Export | Signature | What it's for |
+|---|---|---|
+| `imw_score_deterministic` | `(truth: i64, miner: i64, spec_ptr: i32) -> i64` | Scores one miner value against the true value. |
+| `imw_alloc` | `(size: i32) -> i32` | Gives the node memory inside your module to write the comparison spec into. |
+| `imw_free` | `(ptr: i32, size: i32)` | Lets the node tell your module it can reuse that memory. |
 
-Your compiled `.wasm` file must be **32 MB or smaller**. In practice a good
-scoring module should be nowhere near that.
+How a call works:
 
-## What your module must contain
+- **`truth` comes first, then `miner`.** Both are integers on the same
+  fixed-point scale; the node scales them before calling you. The order is easy
+  to get backwards, and the gate will catch it.
+- **`spec_ptr`** points to 16 bytes the node wrote into memory from your
+  `imw_alloc`: two little-endian `i64` values, the comparison code and then the
+  tolerance.
+- **Return** a score in basis points, from `0` to `10000` (`10000` is a perfect
+  match). A negative return means your module refuses the input; the node treats
+  it as an error, not as a score. Anything above `10000` is also an error.
+- The node never passes a `truth` of `0`.
 
-Your module needs to expose ("export") three functions so the node knows
-how to call it:
+### The reference rule
 
-| Function | What it's for |
-|---|---|
-| `alloc` | Gives the node a chunk of memory inside your module to write text into. |
-| `dealloc` | Lets the node tell your module "you can reuse that memory now." |
-| `rank_answer` | The scoring function: takes the question, correct answer, and miner's answer, and returns a single score. |
+| Code | Name | Score |
+|---|---|---|
+| `0` | Exact | `10000` if `miner == truth`, else `0`. Tolerance is ignored. |
+| `1` | AbsTol | The error is `|miner − truth|`. |
+| `2` | RelTol | The error is `|miner − truth| × 10000 / max(|truth|, 1)`, in basis points, truncated toward zero. |
+| `3` | PassFail | Same as Exact. |
 
-That's the whole interface. `alloc`/`dealloc` aren't scoring logic, they're
-just how text gets handed into your module (a WASM function can only pass
-numbers, not strings, so the node needs your module's help placing the text
-in memory first). `rank_answer` is the only function that actually decides
-your module's behavior.
+For AbsTol and RelTol the score falls linearly with the error: `10000` at an
+error of `0`, then `10000 × (2 × tolerance − error) / (2 × tolerance)` (integer
+division), down to `0` once the error reaches `2 × tolerance`. A tolerance of
+`0` or less means only an exact match scores.
 
-**How data gets passed in:** text is passed as raw bytes into memory your
-module allocated (via your own `alloc`), along with a pointer and a length.
-Your `rank_answer` function reads that memory and returns a floating-point
-number between `0` and `1`, where `0` means "not a match at all" and `1`
-means "perfect answer." An empty or blank miner answer should always score
-`0`.
+Details that matter:
 
-### Understanding `rank_answer`'s parameters
+- The code is read as a 32-bit integer, and an unknown code is treated as Exact.
+- Multiplications saturate rather than wrap.
+- Compute the RelTol product in 128 bits. With values at wei scale (`1e18`),
+  `difference × 10000` overflows 64 bits.
 
-`rank_answer` receives **six numbers**, not three strings, because WASM can
-only pass numbers across the boundary. Each of the three text inputs arrives
-as a **pointer + length** pair: the pointer says *where* in your module's
-memory the text starts, and the length says *how many bytes* it is. They
-always come in this exact order:
+### Size and build
 
-| Parameters | What it is |
-|---|---|
-| `q_ptr`, `q_len` | The **question** — where it starts, how many bytes long. |
-| `gt_ptr`, `gt_len` | The **ground truth** (the correct answer). |
-| `ma_ptr`, `ma_len` | The **miner's answer** — the text you're actually scoring. |
+Your compiled `.wasm` file must be **32 MB or smaller**; a comparator is
+usually tens of KB. Anything that compiles to a standalone WASM binary works.
+Rust is the easiest (`#![no_std]`, `crate-type = ["cdylib"]`), and C/C++,
+TinyGo and AssemblyScript also work.
 
-To use one, read `len` bytes of memory starting at `ptr` and interpret them
-as UTF-8 (see `read_str` in the example below), which turns the raw
-`(ptr, len)` pair back into a normal string you can work with.
-
-Two things to keep in mind:
-
-- **The order never changes.** Read them as `question`, then `ground_truth`,
-  then `miner_answer`. Reading them in the wrong order (or with the wrong
-  length) is the single most common bug: if your `miner_answer` comes out
-  empty because of it, your scorer returns `0` for everything and fails
-  registration.
-- **You don't have to use all three.** Scoring quality mostly comes from
-  comparing `miner_answer` against `ground_truth`; the `question` is there if
-  you want it (the simple example below ignores it). Whatever you compute, you
-  return a single `f32` between `0` and `1`.
-
-## A simple starting example (Rust)
-
-The full, buildable project below lives in
-[telegraph-examples/wasm-scoring-module](https://github.com/telegraphprotocol/telegraph-examples/tree/master/wasm-scoring-module) —
-clone it, `cd wasm-scoring-module/rust-module`, and run
-`cargo build --release --target wasm32-unknown-unknown` to get a working
-`.wasm` immediately. It scores based on how many words a miner's answer
-shares with the correct answer: simple, but a legitimate starting point you
-can build on. Here's what each piece does.
-
-**No standard library.** The module can't link against Rust's standard
-library, there's no OS underneath it to provide one, so it opts out with
-`#![no_std]`. That means panics have no default handler either: one has to
-be supplied explicitly, and since there's nowhere to unwind to, it just
-traps.
-
-```rust
-#![no_std]
-use core::panic::PanicInfo;
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    core::arch::wasm32::unreachable()
-}
-```
-
-**Memory: a bump allocator.** WASM functions can only pass numbers, not
-strings, so the node needs somewhere in your module's own memory to write
-the question/answer text before calling you. `alloc` hands out slices of a
-fixed 1 MB static buffer by just moving an offset forward; `dealloc` is a
-no-op because nothing here needs to free anything mid-call, every call gets
-fresh memory anyway.
-
-```rust
-const HEAP_SIZE: usize = 1 * 1024 * 1024;
-static mut HEAP: [u8; HEAP_SIZE] = [0u8; HEAP_SIZE];
-static mut HEAP_OFFSET: usize = 0;
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn alloc(size: i32) -> i32 {
-    let size = size.max(0) as usize;
-    unsafe {
-        let aligned = (HEAP_OFFSET + 3) & !3;
-        if aligned + size > HEAP_SIZE {
-            HEAP_OFFSET = 0;
-        } else {
-            HEAP_OFFSET = aligned;
-        }
-        let ptr = core::ptr::addr_of_mut!(HEAP).cast::<u8>().add(HEAP_OFFSET);
-        HEAP_OFFSET += size;
-        ptr as i32
-    }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dealloc(_ptr: i32, _size: i32) {}
-```
-
-**Reading the input back out.** The host writes UTF-8 bytes at the pointer
-your `alloc` returned; this turns a raw `(ptr, len)` pair back into a Rust
-`&str` so the rest of the module can work with normal string operations.
-
-```rust
-unsafe fn read_str<'a>(ptr: i32, len: i32) -> &'a str {
-    unsafe {
-        let slice = core::slice::from_raw_parts(ptr as *const u8, len.max(0) as usize);
-        core::str::from_utf8_unchecked(slice)
-    }
-}
-```
-
-**The actual scoring logic.** `word_overlap` counts what fraction of the
-miner's answer's words also appear in the ground truth, case-insensitively.
-`score` short-circuits to a perfect `1.0` for a verbatim match, otherwise
-falls back to that overlap fraction.
-
-```rust
-fn word_overlap(answer: &str, ground_truth: &str) -> f32 {
-    let mut total = 0u32;
-    let mut matched = 0u32;
-    for word in answer.split_whitespace() {
-        total += 1;
-        if ground_truth
-            .split_whitespace()
-            .any(|w| w.eq_ignore_ascii_case(word))
-        {
-            matched += 1;
-        }
-    }
-    if total == 0 {
-        0.0
-    } else {
-        matched as f32 / total as f32
-    }
-}
-
-fn score(ground_truth: &str, miner_answer: &str) -> f32 {
-    if miner_answer == ground_truth {
-        return 1.0;
-    }
-    word_overlap(miner_answer, ground_truth)
-}
-```
-
-**The required export.** This is the only function the node actually calls.
-It reads the ground truth and miner answer out of memory, rejects a blank
-answer outright (per the required interface above), and otherwise defers to
-`score`. Note the question (`_q_ptr`/`_q_len`) is received but unused here,
-this simple example doesn't need it, but the node always passes it.
-
-```rust
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rank_answer(
-    _q_ptr: i32,
-    _q_len: i32,
-    gt_ptr: i32,
-    gt_len: i32,
-    ma_ptr: i32,
-    ma_len: i32,
-) -> f32 {
-    unsafe {
-        let ground_truth = read_str(gt_ptr, gt_len);
-        let miner_answer = read_str(ma_ptr, ma_len);
-        if miner_answer.trim().is_empty() {
-            return 0.0;
-        }
-        score(ground_truth, miner_answer)
-    }
-}
-```
-
-Add this in cargo.toml
-```
-[lib]
-crate-type = ["cdylib"]
-```
-
-Build it with:
-
-```bash
-rustup target add wasm32-unknown-unknown
-cargo build --release --target wasm32-unknown-unknown
-```
-
-**Make sure you upload the `wasm32-unknown-unknown` build.**
-
-If you have multiple WASM targets installed, Cargo can produce files with the same
-filename for different targets. Telegraph scoring modules must use the
-**`wasm32-unknown-unknown`** target.
-
-Do **not** upload a `wasm32-wasip1` build. WASI builds contain imports for
-operating-system functionality such as `fd_write`, `environ_get`,
-`environ_sizes_get`, and `proc_exit`. Telegraph scoring modules run without WASI
-or OS access, so a WASI module will fail to instantiate during registration.
-
-Build the module with:
-
-```bash
-cargo build --release --target wasm32-unknown-unknown
-```
-
-The resulting file will be at:
-
-```text
-target/wasm32-unknown-unknown/release/<your_module>.wasm
-```
-
-Before registering, verify that the file has **no imports**:
+**Build for `wasm32-unknown-unknown`, not WASI.** The module runs with no
+operating-system imports, so a `wasm32-wasip1` build (which imports functions
+like `fd_write` or `proc_exit`) fails to load at registration. Check the build
+has no imports before you register:
 
 ```bash
 wasm-tools print target/wasm32-unknown-unknown/release/<your_module>.wasm | grep -c '(import'
+# 0
 ```
 
-This should print:
+If you have several targets installed, make sure you upload the file from
+`target/wasm32-unknown-unknown/release/`, not the similarly named file under
+`target/wasm32-wasip1/release/`.
 
-```text
-0
+### Testing it before you register
+
+Before you register, run your module against the reference rule above on
+inputs like these:
+
+- every code, at several tolerances, including `0`;
+- truths from `1` up to `1e18`, and negative values;
+- miner values at an exact match, one unit off, at the half-score point, at the
+  edge of the `2 × tolerance` window, and past it, on both sides of the truth.
+
+Every result must match the rule within ±10 basis points, and a second run must
+give exactly the same results.
+
+## Wide adapter packages (judgment and hybrid intents)
+
+A wide adapter is a reward model that runs in the node's fixed-point (Q32.32)
+interpreter. It judges a miner's answer to a question and returns a score; a
+better answer should get a higher score. You register it as **one
+self-contained `.wasm` file** that carries both the interpreter and the model,
+so the hash you register covers both.
+
+Answers reach your model as tokens from the network's pinned ModernBERT
+tokenizer, so build the model for that vocabulary.
+
+This page lists what the node checks. It does not document the model image
+format or the argument layout of the `imwq_*` exports.
+
+### What the node checks
+
+| Requirement | Detail |
+|---|---|
+| Exports | `imwq_embedded`, `imwq_embed_desc_addr`, `imwq_score`, `imwq_debug_counts`, `imwq_alloc` and `imwq_free`. A hybrid package also exports `imwq_score_hybrid`. A package must **not** export `imw_score_deterministic`. |
+| Class | Read from the exports: with `imwq_score_hybrid` it is a hybrid package, without it a judgment package. It must match the class of the intent you register for, or it is rejected. |
+| Memory | One memory, with an initial size of at most 65,536 pages (4 GiB). |
+| Embedded model | The last data segment holds the model image (it starts with the bytes `IMWQ`) and fits inside the initial memory. |
+| Size | Just under 4 GB at most, and the node must be able to download it within 30 minutes (node defaults). A typical package is about 1.2 GB. |
+
+The node recognises a wide package from its export section, which it reads from
+the first MiB of the download. A file it doesn't recognise as wide is held to
+the 32 MB limit instead.
+
+When the package reaches [Stage 2](#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool),
+the node loads it, checks that the embedded model matches the checksum the
+package carries for it, and checks the model parses.
+
+### The `telegraph.adapter` section
+
+A package (or a comparator module) can carry a WASM custom section named
+`telegraph.adapter`, holding JSON that says which scoring version it was built
+for. It is inside the module, so the registered hash covers it.
+
+```json
+{
+  "abi_version": 1,
+  "class": "judgment",
+  "tool": "my-builder 0.3",
+  "training": {
+    "family": "CODE_REVIEW",
+    "children": [
+      { "intent": "CODE_REVIEW", "pairs": 4000, "accuracy": 0.81, "spearman": 0.62, "held_out": false },
+      { "intent": "CODE_REVIEW_PYTHON", "pairs": 1200, "accuracy": 0.77, "spearman": 0.55, "held_out": true }
+    ]
+  }
+}
 ```
 
-If it prints a value greater than `0`, inspect the module before registering it.
-In particular, make sure you did not accidentally upload the similarly named file
-from:
+| Field | Required | Meaning |
+|---|---|---|
+| `abi_version` | Yes, when the section is present | The scoring version the module was built for. The node runs version `1`; any other value is rejected. |
+| `class` | No | `judgment`, `hybrid` or `comparator`. If set, it must agree with what the exports say. |
+| `tool` | No | The builder that wrote the section. Informational. |
+| `training` | No | A self-reported record of what the adapter was trained on. |
 
-```text
-target/wasm32-wasip1/release/
+`training` fields: `family` (required), `children` (at least one), and
+optionally `trainer`, `backbone` and `backbone_version`. Each child has
+`intent`, `pairs`, `accuracy`, `spearman`, `held_out` and an optional
+`dataset_version`.
+
+The node checks the training record's shape only: `family` is set, `children` is
+not empty, every child is the family itself or a `_`-child of it, no child is
+listed twice, `pairs` is not negative, `accuracy` is between 0 and 1, and
+`spearman` is between −1 and 1. It never uses the numbers to decide anything;
+the hidden evaluation is the real test.
+
+A module without the section is accepted. A section that is present but wrong is
+rejected with `adapter metadata: …` (or `adapter metadata: training record: …`).
+
+## Families: one module for many intents
+
+Some intents are very specific, like `WEATHER_FORECAST_LAHORE` and
+`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. For
+judgment and hybrid intents, one module registered on a **family** intent
+serves every **child** whose name extends it with `_`.
+
+- **Longest prefix wins.** `WEATHER_FORECAST_LAHORE` uses the module on
+  `WEATHER_FORECAST` before the one on `WEATHER`. A child with its own live
+  module uses its own.
+- **The `_` is part of the rule.** `WEATHERX` is not a child of `WEATHER`.
+- **Same class only.** A judgment family never serves a hybrid child, or the
+  other way round.
+- **Deterministic intents have no families.** A comparator serves exactly the
+  intent it is registered for.
+- **Only the module is shared.** Each child keeps its own miners, ranking and
+  evaluation data.
+
+**Register on the family, not on a child.** A registration on a child is
+rejected when a family above it already has a live module of the same class:
+
+```
+served by family WEATHER_FORECAST: register the adapter on WEATHER_FORECAST, not on its child WEATHER_FORECAST_LAHORE
 ```
 
-A WASM module with WASI imports is not a valid Telegraph scoring module and may
-result in an instantiation error such as `module[env] not instantiated`.
+The check runs at registration and again just before the child's evaluation,
+so a child registered while the family's module was still pending is rejected
+once the family's module goes live.
 
-That gives you a working `.wasm` file you can test (see the section below)
-and then register. From there, the best way to do well is to make the
-scoring logic smarter: real semantic understanding will always beat simple
-word-matching.
+A family module is tested across its children: the hidden sample is split
+between them, and on top of the usual rules it must reach a **60%** win rate on
+every child with at least 10 scored pairs. A rejection names the child that
+failed.
 
-## Testing your module before you register
-
-Don't wait until you've registered on-chain to find out if your module
-works. You don't need any of Telegraph's own code for this, just
-[wazero](https://wazero.io), the same open-source WASM runtime library the
-node itself uses under the hood, which anyone can pull in independently.
-
-A ready-to-run CLI that does exactly this — loads your `.wasm` file the same
-way the node does (writing your question/ground-truth/answer strings into
-its memory via `alloc`, then calling `rank_answer`) and prints back the
-score — lives alongside the example module at
-[telegraph-examples/wasm-scoring-module/go-tester](https://github.com/telegraphprotocol/telegraph-examples/tree/master/wasm-scoring-module/go-tester).
-Clone the repo, then:
+To see which module scores an intent right now:
 
 ```bash
-cd wasm-scoring-module/go-tester
-go run . my_module.wasm \
-  "What is the capital of France?" \
-  "Paris is the capital of France." \
-  "The capital of France is Paris."
+curl -s "https://devnode.telegraphprotocol.com/api/wasm?resolve=WEATHER_FORECAST_LAHORE"
 ```
 
-It prints the score your module gave that answer. Try it with a few kinds of
-input before you register anything on-chain:
+```json
+{
+  "count": 3,
+  "intents": { "...": "the usual listing" },
+  "resolve": {
+    "intent": "WEATHER_FORECAST_LAHORE",
+    "class": "judgment",
+    "served_by": "WEATHER_FORECAST",
+    "inherited": true,
+    "scorer": "judgment",
+    "routed": true
+  }
+}
+```
 
-- The exact correct answer (should score very high, close to `1`).
-- A clearly wrong or unrelated answer (should score low, close to `0`).
-- An empty string as the answer (must score exactly `0`).
-- A reworded version of the correct answer that says the same thing
-  differently (a good scorer should still recognize this as correct).
-- A couple of answers of different quality for the same question, to check
-  that better answers actually score higher than worse ones.
-
-If your module loads without errors and behaves sensibly across cases like
-these, you're in good shape to register it.
+`served_by` is the intent whose module scores it (`null` if nothing does), and
+`inherited` is `true` when that is a family rather than the intent itself.
+`routed: false` means the name resolves to a family module but the intent is not
+set up on the node to be scored by it. If `served_by` names a family, register
+your improved module on that family.
 
 ## What checks your module must pass
 
 Registering on-chain is only the first step. Before your module is allowed to
-score real traffic, the node runs it through a set of automatic checks. If it
-fails any of them, it's rejected and won't serve traffic (the rejection reason
-is recorded, so you can see exactly what went wrong). There are two stages,
-and you have to clear both.
+score real traffic, the node runs it through automatic checks. If it fails, it's
+rejected and won't serve traffic (the rejection reason is recorded, so you can
+see exactly what went wrong). There are two stages, and you have to clear both.
 
 ### Stage 1: structural checks
 
-These make sure your module is well-formed and behaves sanely. Each is a
-requirement your module has to meet, how you meet it is up to you:
+Run as soon as the node has downloaded your file.
 
-1. **It loads and exports the required functions.** Your `.wasm` must expose
-   `rank_answer` (with the six parameters described
-   [above](#understanding-rank_answers-parameters)), `alloc`, and `dealloc`,
-   and load in the sandbox.
-2. **An empty or blank answer scores exactly `0`.** Whether the miner's answer
-   is empty or only whitespace, `rank_answer` has to return `0`.
-3. **A correct answer scores higher than an unrelated one.** For the same
-   question, a known-correct answer must score strictly above a known-unrelated
-   answer. The rejection `self-match (0.0000) did not beat unrelated
-   cross-match (0.0000)` means your module failed this one, it returned the
-   same score for both.
-4. **Awkward input doesn't crash it.** Your module will be given very long
-   answers (tens of KB) and text full of emoji and non-English characters, and
-   it has to handle both without crashing or trapping.
+1. **It is a kind the node accepts.** A wide package, or a comparator module
+   registered for a deterministic intent. Anything else is rejected with the
+   retirement message above.
+2. **It passes the checks for its kind.** For a wide package, the table in
+   [What the node checks](#what-the-node-checks); reasons start with
+   `wide package: …`. A comparator module must load, with its three exports.
+3. **Its `telegraph.adapter` section, if any, is valid.**
+4. **It is not a child registration under a live family** (judgment and hybrid
+   intents only).
 
-### Stage 2: it has to beat the current champion
+Running out of time is not a rejection. A check that times out, or a download or
+evaluation that fails with an error, is retried; after 3 failed attempts the
+registration is rejected with `gave up after 3 failed evaluation attempts: …`.
+A hash mismatch is rejected immediately.
 
-Passing Stage 1 only proves your module isn't *broken*, not that it's *good*.
-Each intent has exactly one active "champion" scoring module at a time, and to
-go live your module has to be at least as good as that champion at telling good
-answers from bad ones.
+### Stage 2 for comparator modules: correctness
 
-To decide, the node uses a built-in **benchmark set**: a fixed set of
-questions, each with a known-**good** answer and a known-**bad** answer. It
-scores both your module and the current champion on that same benchmark and
-compares them head to head.
+The node runs your module on about 1,260 test cases: the intent's own
+comparison code and tolerance, plus all four codes at several tolerances, over
+truths from `1` to wei scale (`1e18`) and negative values, with miner values on
+both sides of the truth.
 
-Your module is promoted only if it clears all of these:
+- On **every** case your score must be within **±10 basis points** (0.1% of a
+  full score) of the reference rule.
+- A second identical run must return **exactly** the same results.
+- The module must finish within the evaluation time limit.
 
-1. **It recognizes a perfect answer.** For every benchmark question, scoring the
-   correct answer against itself (`rank_answer(question, ground_truth,
-   ground_truth)`) must be at least **0.75**. A good scorer rates a perfect
-   answer near `1.0`.
-2. **Its scores actually vary.** Across the benchmark your scores must have real
-   spread. A module that returns the same number for everything can't tell
-   answers apart, and is rejected.
-3. **It separates good from bad at least as well as the champion.** On the
-   benchmark questions both modules were scored on, your module must order the
-   good answer above the bad one on **at least as many questions** as the
-   champion, separate good from bad by **at least as large an average margin** as
-   the champion, and clear an absolute margin floor. You don't have to be perfect
-   on every question, but you can't lose to the champion on either count.
+Any miss rejects the module, and the reason names the first case it got wrong.
+A module that passes becomes the intent's comparator, replacing the previous
+one.
 
-If the intent has enough real traffic (several miners with scoring history), the
-node also checks that your module's ranking of those real answers broadly agrees
-with the champion's.
+### Stage 2 for wide adapters: competition on the hidden evaluation pool
 
-#### The numbers you'll see
+A new wide adapter replaces the current one **only by beating it**. Passing a
+threshold is not enough.
+
+The test material is the intent's [evaluation pool](contribute-evaluation-data.md):
+questions, each with a better and a worse answer, contributed by the public. The
+half of the pool used here is hidden from everyone outside the validators. An
+adapter **wins** a pair when it scores the better answer strictly above the
+worse one. Its **win rate** is wins divided by scored pairs.
+
+**One round, one sample.** Every pending candidate for the intent and the
+current module are scored on exactly the same sample (200 pairs by default). The
+sample is picked with a seed taken from an epoch that is confirmed after the
+last candidate in the round registered, so nobody can know it when they
+register. The current module's score on a sample is computed once and reused.
+
+**The rules:**
+
+| Situation | What it takes to win |
+|---|---|
+| The intent has a current module | The best candidate must reach the current module's win rate **plus 2 points**, **and** at least **70%** overall, **and** (for a family) at least **60%** on each child with 10 or more scored pairs. If the best candidate fails, the next best is tried. If none qualifies, the current module stays. |
+| The intent has no module yet | The best candidate that reaches 70% (and the per-child floor) becomes the first canonical module. |
+| Every round | At least 10 pairs must be scored, or the round waits for more material. |
+| Ties | Higher win rate first, then more scored pairs, then the lower registration ID. |
+
+These are protocol parameters: every validator uses the same values, so they all
+reach the same decision.
+
+**Outcomes.** The winner becomes the intent's module and the previous one is
+marked `superseded`. Every other candidate in the round is `rejected`, with a
+reason naming both win rates and the margin, or the floor it missed. A package
+that fails to load or errors while scoring is `rejected` too.
+
+**Waiting for material.** If there is nothing fair to compete on yet, nothing is
+promoted or rejected. The candidates stay `pending`, nothing is charged against
+their attempts, and there is no time limit. This happens when:
+
+- the intent has no frozen evaluation-pool snapshot for the round yet;
+- fewer than 5 different contributors have material in it;
+- the sample has fewer than 10 usable pairs;
+- no epoch has been confirmed since the last registration in the round; or
+- the node does not classify the intent as judgment or hybrid.
+
+Waiting candidates are tried again when new material is frozen, and after every
+epoch rollover. Evaluation-pool material is frozen once per epoch, so a module
+registered for an intent with little material can wait for a while. You can
+help by [contributing data](contribute-evaluation-data.md).
+
+#### The numbers on your registration
 
 Whether your module is promoted or rejected, the node records a **score** and a
-**breakdown** on your registration (queryable via the API), and the rejection
-reason spells out exactly which bar you missed. The breakdown fields:
+**breakdown** on your registration, and the rejection reason spells out which
+bar you missed.
+
+For a **wide adapter**, the score is its win rate on the round's sample. The
+breakdown fields:
 
 | Field | What it means |
 |---|---|
-| `candidate_margin` | Your module's average "good-answer score minus bad-answer score" across the benchmark. This is your headline **score**: how clearly you separate good from bad. Higher is better. |
-| `champion_margin` | The same number for the current champion. You must match or beat it. |
-| `candidate_wins` | How many benchmark questions your module scored the good answer above the bad one. |
-| `champion_wins` | The same, for the champion. You must win on at least as many. |
-| `comparable_cases` | How many benchmark questions both modules were scored on (the denominator for the wins and margins above). |
-| `worst_self_match` | The lowest score your module gave a perfect answer anywhere in the benchmark. Must be at least `0.75`. |
-| `score_stddev` | How much your scores varied across the benchmark. Must be above a small floor (the "your scores actually vary" check). |
-| `historical_rows_evaluated` | How many real past answers the extra traffic check looked at (`0` when there wasn't enough traffic to run it). |
+| `decision` | `won` (beat the current module), `first_canonical` (there was no current module), `lost`, `invalid` (failed to load or errored while scoring), or `awaiting_material` (still pending). |
+| `reason` | The decision in words. For `lost` it names both rates and the margin, or the floor or child that failed. |
+| `candidate_win_rate` / `candidate_pairs` | Your win rate and how many pairs it was measured on. |
+| `candidate_child_win_rates` / `candidate_child_pairs` | The same per child, for a family. |
+| `incumbent_registration_id` / `incumbent_win_rate` / `incumbent_pairs` | The current module and its result on the same sample. |
+| `replacement_margin` / `min_win_rate` / `child_min_win_rate` | The rules applied: `0.02`, `0.7` and `0.6`. |
+| `rank` / `round_candidates` | Your place in the round and how many candidates it had. |
+| `corpus_version` / `sample_root` | Which snapshot and which sample the round used. Two results with the same `sample_root` were measured on the same pairs. |
+| `seed` | The inputs the round's sample was drawn with, recorded so the round can be checked afterwards. |
 
-For example, a promoted module might record a `candidate_margin` of `0.37`
-against a `champion_margin` of `0.05`, winning `32/32` benchmark questions to the
-champion's `19/32`: it separates good answers from bad ones far more sharply
-than the champion it replaced.
+For example, a challenger that reaches `0.765` against a current module at
+`0.75` on the same 200 pairs **loses**: it is better, but not by the 2-point
+margin.
 
-So there are two bars: pass the structural checks (Stage 1), then match or beat
-the incumbent on the benchmark (Stage 2). A module can be perfectly valid and
-still not go live, simply because a better one already holds that intent.
+For a **comparator module**, the score is the fraction of test cases within the
+margin (`1.0` when promoted). The breakdown has `gate: "comparator"`, `cases`,
+`mismatches`, `margin_bps` (`10`), `max_deviation_bps`, `deterministic`, the
+intent's own `intent_spec`, and up to five `first_mismatches`, each with the
+expected (`want`) and returned (`got`) score.
 
 ## How to submit / register your module
 
@@ -463,11 +426,13 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
   registration is rejected. So hash the same bytes you upload — if your host
   re-encodes the file after upload, that breaks the match.
 - **`wasmUrl`** — a public `https://` or `ipfs://` URL the node can fetch,
-  32 MB or smaller.
+  within the size limit for your module's kind.
 - **`intent`** — the one canonical intent your module scores for (for example
-  `CHAT_COMPLETION`). It has to be one of the network's canonical intents, or
+  `CODE_REVIEW`). It has to be one of the network's canonical intents, or
   the call reverts with `unsupported intent`. You can read the current list from
-  the chain with `getCanonicalIntents`.
+  the chain with `getCanonicalIntents`. For a judgment or hybrid intent, register
+  on the family if one serves it (see
+  [Families](#families-one-module-for-many-intents)).
 - **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
   reverts with `zero fee address`. This is the same field miners and collectors
   have always had. It is deliberately a separate argument rather than being
@@ -497,9 +462,14 @@ export WASM_FEE_ADDRESS=0xYourPayoutAddress
 
 cast send "$DIAMOND" \
   "registerWasm(bytes32,string,string,address)(uint256)" \
-  "$WASM_HASH" "$WASM_URL" "CHAT_COMPLETION" "$WASM_FEE_ADDRESS" \
+  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
+
+The `xxd` one-liner suits a comparator module. A wide package (about 1.2 GB) is
+far too large to pass as a shell argument; hash it with a tool that reads the
+file directly and computes Ethereum's Keccak-256 (not NIST SHA3-256, which gives
+a different result).
 
 Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
@@ -615,7 +585,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/addresses/<you
   "address": "0xffe8...",
   "count": 1,
   "wasm": [
-    { "RegistrationID": 5, "IntentID": "CHAT_COMPLETION", "ActivationStatus": "rejected", "...": "..." }
+    { "RegistrationID": 5, "IntentID": "CODE_REVIEW", "ActivationStatus": "pending", "...": "..." }
   ]
 }
 ```
@@ -641,40 +611,53 @@ Your module doesn't go live instantly. It moves through a handful of states:
 
 | Status | Meaning |
 |---|---|
-| `pending` | Registered, being fetched and evaluated. |
-| `active` | Passed the checks and is the live champion for its intent. |
-| `rejected` | Failed a structural or benchmark check; the reason is recorded. |
+| `pending` | Registered, being fetched and evaluated, or waiting for evaluation material. |
+| `active` | Won (or passed, for a comparator) and is the live module for its intent. |
+| `rejected` | Failed a check or lost its competition round; the reason is recorded. |
 | `superseded` | Was active, then a better module took over the intent. |
 | `deregistered` | Taken down by its author (see the next section). |
 
-`pending` can last a few minutes while the node downloads the binary and runs
-the Stage 2 benchmark. A module that fails validation ends up `rejected` and
-never serves traffic — which is why it's worth testing first (above): every
-re-registration is another transaction.
+`GET /api/wasm` adds a `stage` field that splits these into the module
+lifecycle:
+
+| `stage` | When |
+|---|---|
+| `registered_eligible` | `pending`: passed the registration checks, waiting for its evaluation. |
+| `awaiting_compatible_material` | `pending`: the intent has no usable evaluation material yet (`decision: "awaiting_material"`). |
+| `canonical` | `active`: the module scoring the intent. |
+| `replaced` | `superseded`: a competition winner took over. |
+| `rejected` | `rejected`. |
+| `deactivated` | `deregistered`. |
+
+A comparator module is usually decided within minutes. A wide package takes
+longer: the download alone can take up to 30 minutes, its round waits for an
+epoch to be confirmed after it registered, and it can wait for evaluation
+material with no time limit. A rejection is final — which is why it's worth
+testing first: every re-registration is another transaction.
 
 ### Checking your module's status
 
 Poll any node by your `registrationId`:
 
 ```bash
-curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/5
+curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 ```
 
 ```json
 {
   "wasm": {
-    "RegistrationID": 5,
+    "RegistrationID": 12,
     "AuthorAddress": "0xffe89e1f0a77c600ad938b57180e5be3e3119f40",
-    "WasmURL": "https://gateway.pinata.cloud/ipfs/QmTHHdpnUAwEXfaReukEzWUZt8vL7W4ohgdyHcrK8oYuto",
+    "WasmURL": "ipfs://bafybei...",
     "WasmHash": "34220f7244084b2542c34b114189963db5924812e170e54997f9241c9b6807ac",
     "ActivationStatus": "rejected",
-    "IntentID": "CHAT_COMPLETION",
-    "RejectionReason": "rank agreement below threshold (0.60), got: map[AGENT_TASK:0.11178552 ...]",
-    "EvalScore": null,
-    "EvalDetails": null,
+    "IntentID": "CODE_REVIEW",
+    "RejectionReason": "lost the competition for CODE_REVIEW: win rate 76.50% did not beat the incumbent (registration 5) at 75.00% by the replacement margin 2.00 points on the same 200-pair sample",
+    "EvalScore": 0.765,
+    "EvalDetails": "{\"decision\":\"lost\",\"candidate_win_rate\":0.765,\"candidate_pairs\":200,...}",
     "EvalErrorCount": 0,
-    "RegisteredAt": "2026-08-15T17:28:47Z",
-    "UpdatedAt": "2026-08-15T17:28:47Z"
+    "RegisteredAt": "2026-10-14T17:28:47Z",
+    "UpdatedAt": "2026-10-14T18:02:11Z"
   }
 }
 ```
@@ -683,50 +666,54 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/5
 |---|---|
 | `ActivationStatus` | The state from the table above. This is what you poll for. |
 | `RejectionReason` | Exactly which bar you missed, in the evaluator's own words. `null` unless rejected. |
-| `EvalScore` | Your headline `candidate_margin`. `null` on a module that never got as far as being benchmarked. |
-| `EvalDetails` | The full [breakdown](#the-numbers-youll-see) as a JSON string — `candidate_margin`, `champion_margin`, `candidate_wins`, `worst_self_match`, and the rest. |
-| `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator panicked). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. `0` on a `pending` record just means it hasn't been reached yet. |
+| `EvalScore` | Your win rate (wide adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
+| `EvalDetails` | The full [breakdown](#the-numbers-on-your-registration) as a JSON string. On a waiting module it carries `decision: "awaiting_material"` and the reason. |
+| `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator errored). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. Waiting for material is not an error and is not counted. |
 
-Three lookups, depending on what you have:
+Lookups, depending on what you have:
 
 | Endpoint | Use it when |
 |---|---|
 | `GET /engine/validator/v1/wasm/{registrationId}` | You have the ID and want one module's status. |
 | `GET /engine/validator/v1/addresses/{yourAddress}/wasm` | You lost the ID, or want everything you have ever registered. |
 | `GET /engine/v1/intents/{INTENT}/wasm` | You want every module registered for an intent — including whichever one is currently `active`. |
+| `GET /api/wasm?intent={INTENT}` | The same per-intent list with snake_case keys, the `stage` field and `eval` as a parsed object. `GET /api/wasm/{registrationId}` is the single-record view. |
 
-All three are free, unauthenticated `GET`s.
+All are free, unauthenticated `GET`s.
 
 `400` means a non-numeric or out-of-range id · `404` no registration with that
 id · `503` the node has no WASM store configured.
 
 ### Knowing what you're up against
 
-Before you build, look at who currently holds the intent you're targeting. Stage
-2 is a head-to-head against exactly that module:
+Before you build, look at who currently holds the intent you're targeting:
 
 ```bash
-curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/CHAT_COMPLETION/wasm
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/CODE_REVIEW/wasm
 ```
 
 ```json
 {
   "count": 5,
-  "intent_id": "CHAT_COMPLETION",
+  "intent_id": "CODE_REVIEW",
   "wasm": [
-    { "RegistrationID": 5, "ActivationStatus": "rejected", "EvalScore": null, "...": "..." }
+    { "RegistrationID": 5, "ActivationStatus": "active", "EvalScore": 0.75, "...": "..." }
   ]
 }
 ```
 
-The entry with `ActivationStatus: "active"` is the champion — its `EvalScore` is
-roughly the `champion_margin` you have to match or beat.
+The entry with `ActivationStatus: "active"` is the current module. For a wide
+adapter, its `EvalScore` is the win rate from the round it won. That is a guide,
+not your target: your round uses a new sample, and the current module is scored
+again on that same sample. You need its win rate there plus 2 points.
 
-**An intent with no active module is not an empty seat.** Scoring falls back to
-Telegraph's built-in default scorer, and that is what you are benchmarked
-against instead. There is always an incumbent; on an unclaimed intent it is just
-a generic baseline rather than a module someone tuned for that intent, which is
-usually an easier margin to beat.
+For a judgment or hybrid intent, also check `GET /api/wasm?resolve=<INTENT>`: if
+a family module serves the intent, that is the module you are up against, and
+the family is where you register.
+
+**An intent with no live module isn't scored.** For a judgment or hybrid intent
+with no module (its own or a family's), your module only has to reach the 70%
+floor to become the first canonical module.
 
 The `rejected` entries are worth reading too. Their `RejectionReason` strings are
 a free list of the ways modules have already failed on that intent.
@@ -775,25 +762,23 @@ Once the network sees the deregistration:
 - **Your module is marked `deregistered`.** That's a final state — a
   deregistered module won't start scoring again on its own. (You can register
   it again from scratch, though — see below.)
-- **If your module was the live champion for its intent, scoring doesn't stop.**
-  The network automatically falls back to the *previous* champion for that
-  intent — the module yours had replaced — and if there isn't one, to
-  Telegraph's built-in default scorer. That intent keeps getting scored either
-  way; there's never a gap.
-- **If your module wasn't the current champion** (it was still pending, was
-  rejected, or had already been beaten by a newer one), deregistering it just
-  marks it inactive. Nothing that's live changes.
-
-So deregistering is safe: the worst case for the network is that an intent
-quietly reverts to whatever was scoring it before you.
+- **If your module was the live module for its intent,** the network puts back
+  the module yours had replaced, if it still has it (it keeps one previous
+  module per intent). If there is none, a judgment or hybrid intent falls back to
+  its family's module if one serves it, and otherwise isn't scored until a new
+  module wins; its miners keep their last ranking in the meantime.
+- **If your module wasn't the live one** (it was still pending, was rejected, or
+  had already been replaced), deregistering it just marks it inactive. Nothing
+  that's live changes.
 
 ### Replacing a module
 
 You usually **don't** need to deregister to upgrade. Just register the new
-module — if it beats the current champion (see
-[What checks your module must pass](#what-checks-your-module-must-pass)), it
-takes over the intent automatically. Deregistering the old one afterwards is
-optional tidy-up, not a required step.
+module. A wide adapter takes over only if it wins its competition round against
+the current module (see
+[Stage 2 for wide adapters](#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool));
+a comparator module takes over once it passes the correctness gate.
+Deregistering the old one afterwards is optional tidy-up, not a required step.
 
 ### Putting the same module back
 
@@ -810,13 +795,15 @@ removes it from service.
 
 ## Tips for building a good scorer
 
-- Reward answers that are actually **semantically correct**, not just ones
-  that repeat words from the question.
-- An answer that exactly matches the correct answer should score very high.
-- A completely empty or nonsense answer should score at, or very near, zero.
-- Your scores should behave *consistently*: similar quality answers should
-  get similar scores, and better answers should reliably score higher than
-  worse ones. Wildly inconsistent or random scoring is easy to spot and
-  won't hold up well.
+- **Comparator modules:** reproduce the reference rule exactly, including the
+  awkward parts — truth first, saturating multiplication, 128-bit RelTol, unknown
+  codes treated as Exact. Test at the window edges and at wei scale.
+- **Wide adapters:** the test is ordering. On every pair your model should score
+  the better answer above the worse one. A model that gives everything the same
+  score wins nothing.
+- **Families:** a family module has to hold up on each child, not just on
+  average. Train and check it on every child you expect it to serve.
+- **Margins:** a small improvement isn't enough to replace a current module. Aim
+  to clear it by more than 2 points on material you haven't trained on.
 
 Good luck!

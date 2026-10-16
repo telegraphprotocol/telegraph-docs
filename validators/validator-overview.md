@@ -13,7 +13,7 @@ Every validator runs the same evaluation pipeline against every miner response f
 For each active Intent in each epoch, validators:
 
 1. **Verify ground truth** — receive the Leader's zkTLS-proven scrape of the canonical data source and independently confirm the proof is valid.
-2. **Execute the Canonical Script** — run the WASM evaluation program against the ground truth and the miner's response to produce a Local Score (0 to 1).
+2. **Execute the Canonical Script** — run the Intent's WASM scoring module on the miner's response to produce a Local Score (0 to 1). A deterministic Intent's module compares the response with the true value; a judgment Intent's module judges the response on its own (see [How answers are scored](../using/intents.md#how-answers-are-scored)).
 3. **Commit** — broadcast a cryptographic commitment (hash of score + nonce) to prevent copying.
 4. **Reveal** — after the commit phase closes, reveal the plaintext score and nonce.
 5. **Reach consensus** — the stake-weighted median of all revealed scores becomes the Canonical Score.

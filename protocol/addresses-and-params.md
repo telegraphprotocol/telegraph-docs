@@ -107,12 +107,15 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Parameter | Value |
 |---|---|
 | Consensus deviation threshold (δ_c) | 0.15 scoring units |
-| Catch-rate promotion threshold (δ_promote) | 0.10 |
-| Minimum test epochs for script promotion | 3 epochs |
+| Scoring module replacement margin | Challenger's win rate ≥ Canonical's + 2 points, on the same hidden sample |
+| Scoring module minimum win rate | 70% overall; 60% on each family child with ≥ 10 scored pairs |
+| Minimum scored pairs per competition | 10 |
+| Competition sample size | 200 pairs |
+| Evaluation Pool minimum contributors | 5 per Intent |
 | Testing Cohort size | 10% of active Validators |
 | Internal Audit Fee | 2% of epoch Validator emission pool |
 | Spot check frequency | ~every 20 seconds (Base L2 ~2s blocks) |
-| Routing revocation trigger | Score drop >20% vs. last leaderboard |
+| Routing revocation trigger | Consecutive failed spot checks (no response or an empty answer) |
 | Category A ejection (continuous offline) | 7 days unbroken |
 | Category A ejection (rolling missed) | >50% of rounds in 7 days |
 | Category B fraud slash | 20% of stake → Treasury (permanent ban) |

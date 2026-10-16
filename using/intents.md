@@ -28,17 +28,38 @@ There are **108** canonical intents as of 2026-09-08. The tables below group the
 
 ## How answers are scored
 
-Each intent is scored one of two ways. This affects how a miner wins traffic
+Each intent is scored one of three ways. This affects how a miner wins traffic
 for it, and it's worth knowing if you're building either side.
 
 | Tier | How it's judged | What wins |
 |---|---|---|
-| **Tier A — Deterministic** | WASM exact match | There is one right answer. Miners are graded on getting it exactly right. |
-| **Tier B — LLM-Judge** | LLM context + WASM | The answer is open-ended. A language model supplies context and the WASM module scores quality against it. |
-| **A/B — Hybrid** | Both | Part of the answer is checkable and part is judgment (a CVE hit is a lookup; its severity in context is not). Scored with a comparator for the mechanical part and an LLM judge for the rest. |
+| **Tier A — Deterministic** | Comparator module | There is one right answer. The value in each miner's answer is compared with the true value fetched from a real source, within the intent's tolerance. |
+| **Tier B — Judgment** | Model-based scoring module | The answer is open-ended. A reward model judges each answer on its own merits; there is no reference answer. Miners are ranked on questions drawn from the [evaluation pool](../scoring/contribute-evaluation-data.md). |
+| **A/B — Hybrid** | Both | Part of the answer is checkable and part is judgment (a CVE hit is a lookup; its severity in context is not). A comparator scores the checkable part and a model judges the rest, and the two are combined. |
 
 Scoring runs inside a sandboxed WASM module, and anyone can write a better
-one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
+one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md). An
+intent with no scoring module for its tier isn't scored, and its miners keep
+their previous ranking.
+
+### Intent families
+
+Some intents are narrower versions of another, named by extending it with `_`:
+`WEATHER_FORECAST_LAHORE` and `WEATHER_FORECAST_TOKYO` are children of
+`WEATHER_FORECAST`. For judgment and hybrid intents, one scoring module
+registered on the family scores every child of the same tier. The longest
+matching name wins, so a module on `WEATHER_FORECAST` is used before one on
+`WEATHER`, and a child with its own module uses its own. Each child keeps its
+own miners and its own ranking.
+
+Deterministic intents have no families. To see which module scores an intent:
+
+```bash
+curl "https://devnode.telegraphprotocol.com/api/wasm?resolve=WEATHER_FORECAST_LAHORE"
+```
+
+See [Families](../scoring/build-a-scoring-module.md#families-one-module-for-many-intents)
+for the details.
 
 ## Financial & On-Chain
 
@@ -87,14 +108,14 @@ one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
 
 | Intent | Tier | Typical use |
 |---|---|---|
-| `WEB_SEARCH` | B — LLM-Judge | General research agents, scrapers |
-| `NEWS_HEADLINES` | B — LLM-Judge | News trading algorithms |
-| `NEWS_SEARCH` | B — LLM-Judge | Due diligence agents |
-| `RESEARCH_SYNTHESIS` | B — LLM-Judge | Academic and corporate research bots |
-| `RESEARCH_QUERY` | B — LLM-Judge | Deep-dive analysis agents |
-| `ACADEMIC_SEARCH` | B — LLM-Judge | Literature review bots |
-| `FACT_CHECK` | B — LLM-Judge | Misinformation filtering agents |
-| `TWITTER_SEARCH` | B — LLM-Judge | Social sentiment tracking agents |
+| `WEB_SEARCH` | B — Judgment | General research agents, scrapers |
+| `NEWS_HEADLINES` | B — Judgment | News trading algorithms |
+| `NEWS_SEARCH` | B — Judgment | Due diligence agents |
+| `RESEARCH_SYNTHESIS` | B — Judgment | Academic and corporate research bots |
+| `RESEARCH_QUERY` | B — Judgment | Deep-dive analysis agents |
+| `ACADEMIC_SEARCH` | B — Judgment | Literature review bots |
+| `FACT_CHECK` | B — Judgment | Misinformation filtering agents |
+| `TWITTER_SEARCH` | B — Judgment | Social sentiment tracking agents |
 
 ## AI Reasoning & Content
 
@@ -102,11 +123,11 @@ one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md).
 
 | Intent | Tier | Typical use |
 |---|---|---|
-| `LANGUAGE_GENERATION` | B — LLM-Judge | Creative writing agents |
-| `CHAT_COMPLETION` | B — LLM-Judge | Customer support bots |
-| `TEXT_GENERATION` | B — LLM-Judge | Automated blogging agents |
-| `TASK_COMPLETION` | B — LLM-Judge | Autonomous personal assistants |
-| `AGENT_TASK` | B — LLM-Judge | Multi-step autonomous agents |
+| `LANGUAGE_GENERATION` | B — Judgment | Creative writing agents |
+| `CHAT_COMPLETION` | B — Judgment | Customer support bots |
+| `TEXT_GENERATION` | B — Judgment | Automated blogging agents |
+| `TASK_COMPLETION` | B — Judgment | Autonomous personal assistants |
+| `AGENT_TASK` | B — Judgment | Multi-step autonomous agents |
 
 ### Media Authenticity
 
@@ -124,20 +145,20 @@ models, so the input you send is a media URL or upload rather than a prompt.
 
 | Intent | Tier | Typical use |
 |---|---|---|
-| `TELEGRAPH_KNOWLEDGE` | B — LLM-Judge | Agents answering questions about Telegraph itself |
+| `TELEGRAPH_KNOWLEDGE` | B — Judgment | Agents answering questions about Telegraph itself |
 
 ### Text Analysis
 
 | Intent | Tier | Typical use |
 |---|---|---|
-| `SENTIMENT_ANALYSIS` | B — LLM-Judge | Brand monitoring bots |
-| `TEXT_CLASSIFICATION` | B — LLM-Judge | Support ticket routing agents |
-| `CONTENT_MODERATION` | B — LLM-Judge | Community safety bots |
-| `CONTENT_VERIFICATION` | B — LLM-Judge | Plagiarism checking agents |
-| `AI_TEXT_DETECTION` | B — LLM-Judge | Academic integrity agents |
-| `TEXT_AUTHENTICITY_CHECK` | B — LLM-Judge | SEO quality control bots |
-| `CONTENT_EXTRACTION` | B — LLM-Judge | Data ingestion pipelines |
-| `LANGUAGE_TRANSLATION` | B — LLM-Judge | Real-time localisation agents |
+| `SENTIMENT_ANALYSIS` | B — Judgment | Brand monitoring bots |
+| `TEXT_CLASSIFICATION` | B — Judgment | Support ticket routing agents |
+| `CONTENT_MODERATION` | B — Judgment | Community safety bots |
+| `CONTENT_VERIFICATION` | B — Judgment | Plagiarism checking agents |
+| `AI_TEXT_DETECTION` | B — Judgment | Academic integrity agents |
+| `TEXT_AUTHENTICITY_CHECK` | B — Judgment | SEO quality control bots |
+| `CONTENT_EXTRACTION` | B — Judgment | Data ingestion pipelines |
+| `LANGUAGE_TRANSLATION` | B — Judgment | Real-time localisation agents |
 
 ## Added 2026-09-08
 
@@ -168,8 +189,8 @@ them, and a miner can register for them right now.
 | `FX_NOW` | A — Deterministic | Treasury and cross-border pricing agents |
 | `MACRO_ECONOMIC_INDICATOR` | A — Deterministic | Macro research and rates agents |
 | `PAYMENT_METHOD_VERIFY` | A — Deterministic | Checkout and onboarding flows |
-| `FRAUD_RISK` | B — LLM-Judge | Signup and account-takeover defence |
-| `TRANSACTION_RISK` | B — LLM-Judge | Payment authorisation and chargeback scoring |
+| `FRAUD_RISK` | B — Judgment | Signup and account-takeover defence |
+| `TRANSACTION_RISK` | B — Judgment | Payment authorisation and chargeback scoring |
 
 ### Software & Security
 
@@ -177,12 +198,12 @@ them, and a miner can register for them right now.
 
 | Intent | Tier | Typical use |
 |---|---|---|
-| `CODE_REVIEW` | B — LLM-Judge | PR review bots |
+| `CODE_REVIEW` | B — Judgment | PR review bots |
 | `SECURITY_REVIEW` | A/B — Hybrid | Dependency, secret and config scanning in CI |
 | `CODE_PATCH_VERIFY` | A — Deterministic | Autonomous bug-fix agents proving a patch builds |
 | `REGRESSION_VERIFY` | A — Deterministic | Release gates and pre-merge suites |
-| `TASK_EXECUTION_QUALITY` | B — LLM-Judge | Agent benchmarking and grading harnesses |
-| `LLM_OUTPUT_EVALUATION` | B — LLM-Judge | Model comparison and hallucination monitoring |
+| `TASK_EXECUTION_QUALITY` | B — Judgment | Agent benchmarking and grading harnesses |
+| `LLM_OUTPUT_EVALUATION` | B — Judgment | Model comparison and hallucination monitoring |
 
 #### Threat & Abuse
 
@@ -193,8 +214,8 @@ them, and a miner can register for them right now.
 | `EMAIL_SECURITY` | A/B — Hybrid | SPF/DKIM/DMARC and phishing checks |
 | `MALWARE_DETECTION` | A/B — Hybrid | File and hash screening pipelines |
 | `THREAT_INTELLIGENCE` | A/B — Hybrid | SIEM enrichment and IOC lookups |
-| `SOCIAL_BOT_DETECTION` | B — LLM-Judge | Platform integrity and campaign analysis |
-| `MEDIA_FORENSIC_VERIFY` | B — LLM-Judge | Newsroom and moderation forensics |
+| `SOCIAL_BOT_DETECTION` | B — Judgment | Platform integrity and campaign analysis |
+| `MEDIA_FORENSIC_VERIFY` | B — Judgment | Newsroom and moderation forensics |
 
 ### Commerce, Travel & Logistics
 
@@ -232,7 +253,7 @@ them, and a miner can register for them right now.
 | `WAREHOUSE_INVENTORY` | A — Deterministic | Fulfilment and replenishment agents |
 | `LIVE_PORT_CONGESTION` | A/B — Hybrid | Freight planning and ETA adjustment |
 | `VESSEL_TELEMETRY_VERIFY` | A — Deterministic | Maritime tracking and demurrage analysis |
-| `SHIPMENT_DELAY_RISK` | B — LLM-Judge | Supply chain risk scoring |
+| `SHIPMENT_DELAY_RISK` | B — Judgment | Supply chain risk scoring |
 
 ### Enterprise, Compliance & Infrastructure
 
@@ -250,10 +271,10 @@ them, and a miner can register for them right now.
 | Intent | Tier | Typical use |
 |---|---|---|
 | `B2B_IDENTITY_ENRICHMENT` | A/B — Hybrid | CRM and lead enrichment agents |
-| `CONTRACT_OBLIGATION_AUDIT` | B — LLM-Judge | Contract lifecycle and milestone tracking |
+| `CONTRACT_OBLIGATION_AUDIT` | B — Judgment | Contract lifecycle and milestone tracking |
 | `DOCUMENT_AUTHENTICITY` | A/B — Hybrid | Signature and notarization verification |
 | `INVOICE_LEDGER_RECONCILE` | A/B — Hybrid | Accounts-payable automation |
-| `CUSTOMER_TICKET_RESOLUTION` | B — LLM-Judge | Support quality assurance |
+| `CUSTOMER_TICKET_RESOLUTION` | B — Judgment | Support quality assurance |
 | `SLA_COMPLIANCE` | A — Deterministic | Uptime and service-credit reporting |
 
 #### Energy, Sensing & Climate
@@ -264,7 +285,7 @@ them, and a miner can register for them right now.
 | `MINING_HASHPRICE_VERIFY` | A — Deterministic | Mining profitability agents |
 | `DATACENTER_TELEMETRY_VERIFY` | A — Deterministic | Facility monitoring and capacity planning |
 | `SENSOR_TELEMETRY_VERIFY` | A — Deterministic | IoT fleet integrity checks |
-| `SATELLITE_IMAGERY_ANALYSIS` | B — LLM-Judge | Agriculture, insurance and infrastructure monitoring |
+| `SATELLITE_IMAGERY_ANALYSIS` | B — Judgment | Agriculture, insurance and infrastructure monitoring |
 | `WEATHER_FORECAST_VERIFY` | A — Deterministic | Parametric insurance and forecast scoring |
 
 ## Using an intent

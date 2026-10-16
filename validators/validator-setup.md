@@ -26,7 +26,14 @@ sudo -u postgres psql -c "CREATE USER telegraph WITH PASSWORD 'telegraph';"
 sudo -u postgres psql -c "CREATE DATABASE telegraph OWNER telegraph;"
 ```
 
-The node creates all required tables on first startup — no manual schema migration needed.
+Then load the schema from the node source (Step 2): `schema.sql` first, then every file in `migrations/`, in filename order. Every migration is written to be safe to run more than once.
+
+```bash
+psql "$POSTGRES_DSN" -f schema.sql
+for f in migrations/*.sql; do psql "$POSTGRES_DSN" -f "$f"; done
+```
+
+The node reads and writes the tables and columns these migrations create, so apply them **before** you start the node. Migration `0009_v2_eval_pipeline.sql` in particular adds the evaluation pool, the scoring-module competition and new columns on epoch scores. A node started without it fails to write epoch scores, and every evaluation-pool and competition query fails.
 
 ## Step 2: Get the Node Binary
 
@@ -111,6 +118,56 @@ INTERNAL_SECRET=<random-secret>    # Used for internal API calls (e.g., /validat
 VALIDATOR_KEY=0x...                # Optional separate validator signing key
 OPERATOR_KEY=0x...                 # Optional separate operator key
 ```
+
+### Scoring and Evaluation Pool Settings
+
+Judgment and hybrid Intents are scored by wide adapter packages of about 1.2 GB each, with the model inside. The node keeps them on disk and loads them in batches each epoch, inside a RAM budget, so more Intents make the epoch longer rather than using more memory. All of these are optional unless noted.
+
+```bash
+# ─── Scoring modules ─────────────────────────────────────────────────────────
+TOKENIZER_JSON=/path/to/tokenizer.json   # needed to run judgment/hybrid adapters
+ADAPTER_RAM_BUDGET_BYTES=8GiB            # default: half the memory available to the process
+ADAPTER_BYTES_DIR=/var/lib/telegraph/adapters
+WASM_COMPILE_CACHE_DIR=/var/lib/telegraph/wasm_compile_cache
+```
+
+| Variable | Default | What it does |
+|---|---|---|
+| `TOKENIZER_JSON` | none | The ModernBERT `tokenizer.json` that adapters are scored with. Without a usable tokenizer the node cannot run judgment or hybrid adapters and logs `no usable tokenizer for the wide promote path` at startup. |
+| `TOKENIZER_SHA256` | The network's pinned tokenizer hash | The tokenizer file must have this sha256 or it is refused, because a different vocabulary would score confidently against the wrong tokens. Leave it unset. |
+| `ADAPTER_RAM_BUDGET_BYTES` | Half the memory available to the process (Linux `MemTotal`, capped by a cgroup limit); `4GiB` if it can't be read | RAM loaded adapters may hold at once. Accepts bytes or `KiB`/`MiB`/`GiB`. A loaded 1.2 GB package counts as about 2.4 GB. An adapter larger than the whole budget loads alone. The effective value is logged at startup (`adapter RAM budget`). |
+| `ADAPTER_BYTES_DIR` | `CANDIDATE_WASM_DIR` (`data/wasm_candidates`) | Where downloaded scoring modules are stored, one file per hash, re-read each epoch. Size it for every live adapter (about 1.2 GB each). |
+| `WASM_COMPILE_CACHE_DIR` | In memory | Directory for compiled module code, so reloading an adapter each epoch, and after a restart, skips compiling. Safe to delete; it is rebuilt on demand. |
+| `WIDE_WASM_MAX_BYTES` | Just under 4 GiB | Largest wide package the node will download. |
+| `WIDE_WASM_FETCH_BUDGET` | `30m` | Time allowed to download one wide package (a Go duration). |
+
+**Evaluation pool.** Uploads are curated as they arrive, and the pool is frozen once per epoch at the rollover; there is no timer to set.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `EVALPOOL_REQUIRE_SIGNATURE` | `true` | Uploads must be signed. `false` attributes rows to whatever address the uploader claims; local testing only, never on a public node. |
+| `EVALPOOL_MIN_PROMPT_CHARS` / `EVALPOOL_MIN_ANSWER_CHARS` | `16` / `8` | Minimum lengths, in characters. |
+| `EVALPOOL_MAX_PROMPT_CHARS` / `EVALPOOL_MAX_ANSWER_CHARS` | `16000` / `32000` | Maximum lengths. |
+| `EVALPOOL_NEAR_DUP_THRESHOLD` | `0.85` | Similarity at which a prompt counts as a near-duplicate of an existing question. |
+| `EVALPOOL_MAX_ROWS_PER_DAY` / `EVALPOOL_MAX_BYTES_PER_DAY` | `5000` / `33554432` | Per contributor, per intent, per UTC day. Overflow waits for a later day. |
+| `EVALPOOL_MAX_POOL_SHARE` / `EVALPOOL_SHARE_MIN_POOL` | `0.5` / `200` | Once an intent's pool has this many rows, one contributor may hold at most this share. |
+| `EVALPOOL_RANKING_SPLIT_BPS` | `5000` | Share of questions, in basis points, used for miner ranking; the rest are kept hidden for testing scoring modules. |
+| `JUDGMENT_QUESTIONS_FROM_POOL` | `true` | Judgment Intents take their ranking question from the evaluation pool when they have an active snapshot. |
+| `JUDGMENT_POOL_STRICT` | `false` | `true`: a judgment Intent with no active snapshot is not ranked that epoch, and its miners keep their previous ranking. `false`: it falls back to a stored question, if the node has one. |
+
+**Protocol parameters.** `EVALPOOL_REPLACEMENT_MARGIN` (default `0.02`), `EVALPOOL_MIN_WINRATE` (`0.70`) and `EVALPOOL_BATCH_SIZE` (`200`) decide which scoring module wins a competition. Every validator must use the same values, so leave them at their defaults.
+
+**Optional model servers.** Each runs on its own server and is off unless configured.
+
+| Variables | What it does |
+|---|---|
+| `REQUEST_BUILDER_LLM_URL`, `REQUEST_BUILDER_LLM_MODEL`, `REQUEST_BUILDER_LLM_KEY` | A dedicated OpenAI-compatible model that turns a question into each miner's HTTP request, for live routing and epoch scoring. Unset, requests are built on `OPENAI_API_URL` with `ROUTER_MODEL`. `URL` and `MODEL` must be set together: one without the other, `KEY` alone, or a malformed URL stops the node at startup with `request builder LLM config: …`. The key never falls back to `OPENAI_API_KEY`. |
+| `INTENT_CLASSIFIER_ENABLED`, `INTENT_CLASSIFIER_URL`, `INTENT_CLASSIFIER_MODEL`, `INTENT_CLASSIFIER_KEY`, `INTENT_CLASSIFIER_MIN_CONF`, `INTENT_CLASSIFIER_SECONDARY_MIN_CONF`, `INTENT_CLASSIFIER_TIMEOUT_SECONDS`, `INTENT_CLASSIFIER_LABELS_PATH` | A fine-tuned classifier for the intent step of live routing (`INTENT_CLASSIFIER_ENABLED=true`; server default `http://127.0.0.1:8090`). When its top answer is below `INTENT_CLASSIFIER_MIN_CONF` (default `0.5`), out of scope, or the server is unreachable, the request takes the normal LLM route. A malformed value leaves the LLM classifier in place. |
+| `PARSER_LLM_ENABLED`, `PARSER_LLM_URL`, `PARSER_LLM_MODEL`, `PARSER_LLM_KEY`, `PARSER_LLM_TIMEOUT_SECONDS`, `PARSER_LLM_SHADOW`, `PARSER_LLM_MAX_BODY_CHARS`, `PARSER_LLM_USER_ENABLED`, `PARSER_LLM_USER_TIMEOUT_SECONDS` | A small OpenAI-compatible model that reads the scored value out of a miner's raw answer for deterministic and hybrid Intents (`PARSER_LLM_ENABLED=true`; server default `http://127.0.0.1:8000/v1`). With `PARSER_LLM_USER_ENABLED` (default `true`) the value is also returned to callers as `parsed` on `POST /engine/v1/ask` and WebSocket `ask`. `PARSER_LLM_SHADOW=true` logs the model's value next to the older parsers but still scores with the older parsers. A malformed value turns the parser off. |
+
+The request builder and the parser can share one server.
+
+**Removed settings.** The node no longer generates questions or reference answers with an LLM, so `GROUNDTRUTH_MODEL`, `GROUNDTRUTH_LLM_TIMEOUT_SECONDS`, `GROUNDTRUTH_MAX_TOKENS` and `SEARXNG_URL` are no longer read. `SCORING_WASM_PATH`, `WASM_POOL_SIZE` and `CONVERTER_MODEL` went with the retired `rank_answer` scorer. `EVALPOOL_SNAPSHOT_INTERVAL` is ignored (a node that still sets it logs a warning once at startup). Remove them from your `.env`.
 
 ### Ports the Node Listens On
 
@@ -241,11 +298,13 @@ When a new version is released:
 sudo systemctl stop telegraph
 sudo mv /usr/local/bin/telegraph /usr/local/bin/telegraph.bak
 # Download/build new binary
+# Apply the database migrations BEFORE starting it (safe to re-run all of them)
+for f in migrations/*.sql; do psql "$POSTGRES_DSN" -f "$f"; done
 sudo mv telegraph-linux-amd64 /usr/local/bin/telegraph
 sudo systemctl start telegraph
 ```
 
-The node rehydrates its state from PostgreSQL and the on-chain registry on restart — no manual migration needed.
+The node rehydrates its state from PostgreSQL and the on-chain registry on restart. It does not apply database migrations itself: apply every file in `migrations/` **before** starting a new binary, because the new code reads and writes the columns they add. Re-running a migration that is already applied is harmless. After the update, remove any [removed settings](#scoring-and-evaluation-pool-settings) from your `.env`.
 
 ## Troubleshooting
 
@@ -257,3 +316,8 @@ The node rehydrates its state from PostgreSQL and the on-chain registry on resta
 | DB errors on startup | PostgreSQL not running or wrong DSN | Verify `psql` works with the configured DSN |
 | Port 7044 already in use | Another process on that port | Change `PORT=` in `.env` or stop the conflicting process |
 | `intent_registry` table missing | Known schema gap on current testnet | Non-critical; `/engine/v1/intents` returns error but other endpoints work |
+| Epoch score writes fail with a missing column (`case_id`, `corpus_version`), or evaluation-pool queries fail | The new binary started before `migrations/0009_v2_eval_pipeline.sql` was applied | Apply the migrations in `migrations/`, in order, then restart |
+| Node stops at startup with `request builder LLM config: …` | `REQUEST_BUILDER_LLM_URL` and `REQUEST_BUILDER_LLM_MODEL` not set together, `REQUEST_BUILDER_LLM_KEY` set alone, or a malformed URL | Set both URL and model, or unset all three to build requests on `OPENAI_API_URL` |
+| `no usable tokenizer for the wide promote path` at startup | `TOKENIZER_JSON` unset, unreadable, or not the pinned tokenizer (sha256 mismatch) | Point `TOKENIZER_JSON` at the ModernBERT `tokenizer.json`; leave `TOKENIZER_SHA256` unset |
+| `epoch is on course to OVERRUN` warning | Model-scored Intents don't fit the epoch at the current RAM budget | Raise `ADAPTER_RAM_BUDGET_BYTES` (fewer, larger batches) or `EPOCH_INTENT_CONCURRENCY` if CPU allows. Intents whose batch never ran are logged as `intents NOT REACHED this epoch` and keep their previous ranking |
+| `EVALPOOL_SNAPSHOT_INTERVAL no longer exists and is ignored` | The setting was removed; the pool freezes once per epoch at rollover | Remove it from `.env` |

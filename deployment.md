@@ -38,6 +38,12 @@ Copy `.env.example` to `.env` and configure:
 | `PORT` | HTTP server port (default: 7044) |
 | `DAEMON_CYCLE_INTERVAL` | (Optional) Daemon poll interval (e.g., `30m`) |
 | `INTERNAL_SECRET` | Operator secret for `/validate` and the operator key-install path |
+| `TOKENIZER_JSON` | Path to the ModernBERT `tokenizer.json`. Needed to run judgment and hybrid scoring modules |
+| `ADAPTER_RAM_BUDGET_BYTES` | (Optional) RAM loaded scoring adapters may hold at once (default: half the memory available to the process) |
+| `ADAPTER_BYTES_DIR` | (Optional) Where downloaded scoring modules are stored (about 1.2 GB per judgment or hybrid adapter) |
+| `WASM_COMPILE_CACHE_DIR` | (Optional) Cache for compiled module code, so adapters reload without recompiling |
+
+Evaluation-pool limits, the optional request-builder, intent-classifier and response-parser model servers, and the settings that were removed are listed in [Scoring and Evaluation Pool Settings](validators/validator-setup.md#scoring-and-evaluation-pool-settings).
 
 Miner API keys are **not** environment variables. The node reads none from the environment — per-miner variables such as `LITELLM_API_KEY` or `ZEUS_API_KEY` are inert and should be removed. Install each miner's key against its slug instead:
 
@@ -57,7 +63,14 @@ sudo -u postgres psql -c "CREATE USER telegraph WITH PASSWORD 'telegraph';"
 sudo -u postgres psql -c "CREATE DATABASE telegraph OWNER telegraph;"
 ```
 
-The node auto-creates tables on first run via the schema migration.
+The node does not apply the schema itself. Load `schema.sql`, then every file in `migrations/` in filename order, **before** starting the node (and again before starting any new binary). Each file is safe to re-run:
+
+```bash
+psql "$POSTGRES_DSN" -f schema.sql
+for f in migrations/*.sql; do psql "$POSTGRES_DSN" -f "$f"; done
+```
+
+The node reads and writes what the migrations add. Starting a binary before `migrations/0009_v2_eval_pipeline.sql` is applied makes epoch score writes and every evaluation-pool query fail.
 
 ## 4. Deploy Contracts
 

@@ -255,10 +255,14 @@ curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/<INTENT>/wasm
 ```
 
 `ActivationStatus` is the state, `RejectionReason` says exactly which check
-failed, and `EvalDetails` carries the benchmark breakdown. A module that stays
-`pending` for more than a few minutes is usually a binary the node cannot fetch
-or re-hash — check `EvalErrorCount`, which reaches `3` before the record is
-rejected outright. Full field reference:
+failed, and `EvalDetails` carries the evaluation breakdown. For a wide adapter,
+first look at `decision` in `EvalDetails`: `awaiting_material` means it is
+pending **by design** until its intent has evaluation material (see
+[A wide adapter stays pending, waiting for material](#a-wide-adapter-stays-pending-waiting-for-material)).
+Otherwise a module that stays `pending` for a long time is usually a binary the
+node cannot fetch or re-hash — check `EvalErrorCount`, which reaches `3` before
+the record is rejected outright. `GET /api/wasm/<registrationId>` shows the same
+record with a `stage` field and `eval` as a parsed object. Full field reference:
 [Checking your module's status](scoring/build-a-scoring-module.md#checking-your-modules-status).
 
 Remember scoring modules hash with **keccak256**, not the SHA-256 used for miner
@@ -308,6 +312,169 @@ prepared stay valid.
 `getWasm` now returns **eight** values, with `address feeAddress` last. An ABI
 still declaring seven decodes the first seven correctly and silently never sees
 the payout address. Update the ABI rather than the call.
+
+### "MiniLM rank_answer scoring modules are retired"
+
+```
+MiniLM rank_answer scoring modules are retired and are no longer accepted: …
+```
+
+The file you registered is neither a wide adapter package nor a comparator
+module for a deterministic intent. The node no longer runs `rank_answer`
+modules, so it rejects one without loading it. Register a wide adapter
+(judgment or hybrid intent) or a comparator module (deterministic intent)
+instead — see [Build a Scoring Module](scoring/build-a-scoring-module.md).
+
+### A wide adapter stays pending, waiting for material
+
+`EvalDetails` (or `eval` on `GET /api/wasm/<registrationId>`) shows
+`decision: "awaiting_material"`, and `stage` is `awaiting_compatible_material`.
+Nothing is wrong with the module: its intent has nothing fair to compete on yet.
+It is not rejected, nothing is charged against its attempts, and there is no
+time limit. The `reason` says which case applies:
+
+- `no published snapshot` — the intent (or a child of the family) has no frozen
+  evaluation-pool snapshot for the round yet. Material is frozen once per epoch,
+  so upload some and wait for the next epoch.
+- `too few distinct submitters` — fewer than 5 different contributors have
+  material in the pool.
+- `awaiting_seed_epoch: no confirmed epoch recorded after the latest
+  registration in the round` — the sample is drawn from an epoch confirmed after
+  every candidate registered. It clears when the next epoch is confirmed.
+- `only N usable pairs in the sampled batch (need 10)` — too little of the
+  sample could be scored.
+- `intent is not on the eval-pool path` — the node does not classify the intent
+  as judgment or hybrid.
+
+Check the pool with `GET /api/evalpool/status?intent_id=<INTENT>`. Waiting
+candidates are tried again when new material is frozen and after every epoch
+rollover. See [Contribute Evaluation Data](scoring/contribute-evaluation-data.md).
+
+### `lost the competition` or `rejected in competition`
+
+A wide adapter replaces the current module only by beating it on the same hidden
+sample. The `RejectionReason` names the bar it missed:
+
+- `win rate A% did not beat the incumbent (registration N) at B% by the
+  replacement margin 2.00 points on the same P-pair sample` — it needed the
+  current module's rate plus 2 points.
+- `win rate A% on P pairs is below the absolute floor 70.00%` — this floor also
+  applies to the first module for an intent.
+- `child intent C of family F: win rate … is below the per-child floor 60.00%`
+  — a family module must hold up on every child with 10 or more scored pairs.
+- `A% vs winning candidate N at B% on the same sample` — another candidate in the
+  same round won. A round has at most one winner.
+- `rejected in competition for X: …` (`decision: "invalid"`) — the package failed
+  to load or errored while scoring.
+
+A rejection is final. Improve the module and register it again under its new
+hash.
+
+### `served by family K: register the adapter on K, not on its child X`
+
+You registered a judgment or hybrid module on a child intent `X`, and the family
+`K` above it already has a live module of the same class that serves `X`. Only
+the family registers. Register your improved module on `K`, where it competes
+against `K`'s current module on every child's data. A child registered while the
+family's module was still pending is rejected this way once that module goes
+live. Check with `GET /api/wasm?resolve=X`.
+
+### `wide package: …` or `adapter metadata: …`
+
+Stage 1 refused the file:
+
+- `wide package: missing required export "…"`, `no data segments - no embedded
+  model`, `the last data segment is not an embedded .imwq model`, or a memory
+  error — the package is not a complete self-contained wide package, or the
+  download was truncated.
+- `WASM from … exceeds the 32 MB limit` on a wide package — the node did not
+  recognise it as wide, so the comparator limit applied. A wide package must
+  export `imwq_embedded`.
+- `adapter metadata: built for scoring ABI version N, this node implements
+  version 1` — the `telegraph.adapter` section names another version. Rebuild
+  for version 1.
+- `adapter metadata: declares class "X" but its exports make it a "Y" adapter`
+  — the section and the exports disagree, for example a judgment build labelled
+  hybrid.
+- `adapter metadata: training record: …` — the optional `training` record is
+  malformed (no `family`, empty `children`, a child that is not the family or a
+  `_`-child of it, a duplicate, negative `pairs`, or `accuracy`/`spearman` out of
+  range).
+
+A package with no `telegraph.adapter` section is accepted. See
+[The telegraph.adapter section](scoring/build-a-scoring-module.md#the-telegraphadapter-section).
+
+### Comparator module rejected
+
+A comparator module for a deterministic intent must match the reference rule
+within ±10 basis points on every test case:
+
+- `comparator disagrees with the reference by more than ±10 bps on N of M cases;
+  first: …` — the named case is the first one it got wrong, and `EvalDetails`
+  lists up to five in `first_mismatches`. Common causes: treating Exact or
+  PassFail as a tolerance band, passing truth and miner in the wrong order (truth
+  comes first), dividing RelTol by the miner value instead of
+  `max(|truth|, 1)`, or computing `difference × 10000` in 64 bits.
+- `returned different results for identical inputs across two runs` — the module
+  keeps state between calls. A comparator must be a pure function.
+- `comparator evaluation exceeded its time budget` — it did not finish in time.
+- `comparator module failed to load` — not a valid module, or it is missing
+  `imw_score_deterministic`, `imw_alloc` or `imw_free`.
+
+A rejected comparator leaves the intent on its previous module.
+
+## Evaluation Data
+
+### Upload refused on `POST /api/evalpool/submissions`
+
+Errors are `{"error": "…", "code": "…"}`:
+
+- `401 signature_required` — send both `X-Evalpool-Signature` and
+  `X-Evalpool-Nonce`.
+- `401 signer_mismatch` — the signature recovers to a different address than
+  `submitter`. Either the wrong key signed, or the message the node rebuilt
+  differs from the one you signed. Sign the sha256 of the **exact** bytes you
+  send (use `curl --data-binary`, not `-d`, which strips newlines), with the same
+  `intent_id`, nonce and the node's chain ID.
+- `401 bad_signature` — not 65-byte hex, or no address can be recovered.
+- `409 nonce_reused` — use a fresh nonce (8 to 128 characters) for every upload.
+- `400 missing_submitter` / `missing_intent_id` / `bad_nonce`.
+- `413 body_too_large` — the body is over 32 MB. Split the file on whole lines and
+  upload each part with its own nonce.
+
+Rows over 64 KiB, invalid JSON, or an `intent_id` that doesn't match are refused
+one by one and listed in `errors`; the rest of the upload is stored. See
+[Contribute Evaluation Data](scoring/contribute-evaluation-data.md#signing-and-uploading).
+
+### Evaluation rows held in quarantine or rejected
+
+`GET /api/evalpool/submissions/mine?submitter=<yourAddress>` shows each row's
+`status` and `reason_code`:
+
+- `quarantine` with `rate_limited` — over the daily limit (5,000 rows or 32 MiB per
+  intent per UTC day, by default) or over the pool-share cap. Held, not deleted:
+  it is admitted automatically on a later day, or once others add to the pool.
+- `quarantine` with no reason — not checked yet.
+- `superseded` with `duplicate_case` — another row already holds that question.
+  The first valid upload wins.
+- `rejected` with `near_duplicate` — the prompt is too similar to an existing
+  question.
+- `rejected` with `too_short`, `too_long`, `missing_field`, `identical_answers`,
+  `invalid_utf8`, `control_chars` or `schema_mismatch` — see the
+  [reason codes](scoring/contribute-evaluation-data.md#what-happens-to-your-rows).
+- `admitted` — fine. It becomes `eligible` at the next freeze.
+
+### Uploaded evaluation rows are not used yet
+
+Expected. The pool is frozen **once per epoch, at the epoch rollover**, and a
+frozen snapshot is used from the epoch that starts then. Rows you upload during
+epoch N are used from epoch N+1. The running epoch keeps the snapshot it started
+with, so every validator scores an epoch on the same material.
+
+`GET /api/evalpool/status?intent_id=<INTENT>` shows `snapshot` (the latest frozen
+one, with the epoch it is active from) next to `active_snapshot` (what
+`current_epoch` uses). An intent's pool is used only once at least 5 different
+contributors have material in it (`min_submitters`).
 
 ## WebSocket Signals
 

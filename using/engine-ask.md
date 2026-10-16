@@ -67,8 +67,34 @@ The endpoint is gated by x402: your first request returns a `402 Payment Require
 | `intent` | The Intent the router classified your query as. Omitted when empty. |
 | `signal_hash` | The hash this result was recorded under. Look it up at `GET /engine/v1/signal/{hash}`. Omitted when the ask failed. |
 | `warnings` | Advisory notes, e.g. your body is larger than the miner declared it accepts. The request still ran. Omitted when empty. |
+| `parsed` | The Intent's main value read out of `result` — see below. Omitted when the node doesn't provide it. |
 
 The `reasoning` field is useful for understanding and debugging routing decisions — it tells you, in plain language, why your query landed where it did.
+
+### `parsed`: the value read out of the answer
+
+For some deterministic and hybrid Intents (an exchange rate, a CVE score, a yes/no check), a node that runs the response-parser model also reads the Intent's main value out of the miner's answer and returns it next to the raw `result`:
+
+```json
+{
+  "miner_id": "41",
+  "miner_name": "fx-frankfurter",
+  "result": { "amount": 1.0, "base": "USD", "date": "2026-10-01", "rates": { "EUR": 0.8712, "CAD": 1.4243 } },
+  "parsed": { "field": "rate", "status": "parsed", "value": 0.8712, "unit": "{key} per USD", "copied": "0.8712" },
+  "intent": "FX_NOW",
+  "...": "other fields as above"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `field` | Which value was read, e.g. `rate`. |
+| `status` | `parsed` (value read), `not_found` (no such value in `result`), `rejected` (the model's reply was unusable: not present word for word in `result`, not a number, or out of range), or `unavailable` (the parser didn't answer in time or is down, or `result` was too long). |
+| `value` | The value, after unit conversion (a number, or `true`/`false`). `null` unless `status` is `parsed`. |
+| `unit` | The unit, as written in the Intent's format. It can contain placeholders such as `{key}`. Omitted if none. |
+| `copied` | The exact text the model copied out of `result`, also when it was rejected. Omitted if none. |
+
+`parsed` never changes the status code or what you pay: a `not_found`, `rejected` or `unavailable` parse still returns `200` with the full `result`. It is not part of the stored result, and `signal_hash` covers `result` only. Treat it as a convenience next to `result`, which stays the authoritative answer. The direct path (`POST /engine/v1/ask/{minerId}`) never returns `parsed`.
 
 ## Direct Ask
 

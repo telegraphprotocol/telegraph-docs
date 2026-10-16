@@ -85,10 +85,9 @@ For the full setup guide, see [Node Setup](../validators/validator-setup.md).
 Script Authors write the WASM programs that define how miner responses are scored. They are the intelligence behind the evaluation layer.
 
 **What Script Authors do:**
-- Write a WASM scoring script that takes a ground truth payload and a miner response and outputs a score between 0 and 1.
+- Write a WASM scoring script for an Intent's tier: a comparator for a deterministic Intent, or a model-based adapter that judges answers for a judgment or hybrid Intent.
 - Post the script on-chain. There is no bond or fee — submission costs gas only.
-- The script enters the Testing Cohort — a 10% sample of Validator rounds where it runs alongside the Canonical Script.
-- If the script demonstrably outperforms the current Canonical (the Catch-Rate condition), it autonomously becomes the new Canonical after a minimum of 3 test epochs.
+- A judgment or hybrid script competes with the current Canonical on a hidden sample from the Evaluation Pool. It becomes the new Canonical only if it beats the Canonical's win rate by the replacement margin and clears the minimum win rate. A comparator becomes Canonical only if it reproduces the reference comparison exactly. See [Build a Scoring Module](../scoring/build-a-scoring-module.md).
 
 **How Script Authors earn:**
 Script Authors earn **20% of daily MACHINA emissions** via Hash-Math — proportional to how often their script's hash is used as the Canonical across all active Intents. A script that becomes Canonical for a high-volume Intent captures a significant share of this pool.
