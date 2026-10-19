@@ -33,14 +33,16 @@ for it, and it's worth knowing if you're building either side.
 
 | Tier | How it's judged | What wins |
 |---|---|---|
-| **Tier A — Deterministic** | Comparator module | There is one right answer. The value in each miner's answer is compared with the true value fetched from a real source, within the intent's tolerance. |
+| **Tier A — Deterministic** | Comparator module | There is one right answer. The value in each miner's answer is compared with a reference value, within the intent's tolerance. The reference is the median answer of up to 3 public APIs (**truth sources**) that contributors uploaded to the [evaluation pool](../scoring/contribute-evaluation-data.md#truth-sources-deterministic-intents). |
 | **Tier B — Judgment** | Model-based scoring module | The answer is open-ended. A reward model judges each answer on its own merits; there is no reference answer. Miners are ranked on questions drawn from the [evaluation pool](../scoring/contribute-evaluation-data.md). |
-| **A/B — Hybrid** | Both | Part of the answer is checkable and part is judgment (a CVE hit is a lookup; its severity in context is not). A comparator scores the checkable part and a model judges the rest, and the two are combined. |
+| **A/B — Hybrid** | Both | Part of the answer is checkable and part is judgment (a CVE hit is a lookup; its severity in context is not). A comparator scores the checkable part against a reference from truth sources, a model judges the rest, and the two are combined. |
 
 Scoring runs inside a sandboxed WASM module, and anyone can write a better
 one — see [Build a Scoring Module](../scoring/build-a-scoring-module.md). An
 intent with no scoring module for its tier isn't scored, and its miners keep
-their previous ranking.
+their previous ranking. The same goes for a deterministic or hybrid intent with
+no truth source in the evaluation pool: it isn't ranked that epoch, and its
+miners keep their previous ranking.
 
 ### Intent families
 

@@ -70,7 +70,9 @@ psql "$POSTGRES_DSN" -f schema.sql
 for f in migrations/*.sql; do psql "$POSTGRES_DSN" -f "$f"; done
 ```
 
-The node reads and writes what the migrations add. Starting a binary before `migrations/0009_v2_eval_pipeline.sql` is applied makes epoch score writes and every evaluation-pool query fail.
+The node reads and writes what the migrations add. Starting a binary before `migrations/0009_v2_eval_pipeline.sql` is applied makes epoch score writes and every evaluation-pool query fail. Starting one before `migrations/0024_truth_source_material.sql` makes every reference-value query fail, so deterministic and hybrid Intents are not ranked, and truth-source uploads are refused.
+
+Deterministic and hybrid Intents get their reference value from truth sources in the evaluation pool, read by the response parser. Set `PARSER_LLM_ENABLED=true` on a scoring node, or none of them is ranked. `TRUTH_SOURCE_ALLOW_PRIVATE` is for local testing only; a mainnet node refuses to start with it set. See [Scoring and Evaluation Pool Settings](validators/validator-setup.md#scoring-and-evaluation-pool-settings).
 
 ## 4. Deploy Contracts
 

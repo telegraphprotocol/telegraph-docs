@@ -23,7 +23,7 @@ it (see [How answers are scored](../using/intents.md#how-answers-are-scored)):
 
 | Intent class | Module you register | What it does |
 |---|---|---|
-| Deterministic | **Comparator module** | Compares the value read from a miner's answer with the true value fetched from a real source, using the intent's comparison rule and tolerance. |
+| Deterministic | **Comparator module** | Compares the value read from a miner's answer with the epoch's reference value (the median of up to 3 truth sources from the [evaluation pool](contribute-evaluation-data.md#truth-sources-deterministic-intents)), using the intent's comparison rule and tolerance. |
 | Judgment | **Wide adapter package** | A reward model judges each answer on its own merits. No reference answer is needed. |
 | Hybrid | **Wide adapter package**, hybrid build | A comparator score for the checkable part, combined with the model's judgment of the rest. |
 
@@ -59,9 +59,12 @@ untrusted, third-party code.
 
 ## Comparator modules (deterministic intents)
 
-A deterministic intent has one right answer: a price, a count, a yes or no. The
-node fetches the true value from the intent's data source, reads the value out
-of each miner's answer, and asks the comparator module how close they are.
+A deterministic intent has one right answer: a price, a count, a yes or no. Each
+epoch the node builds a reference value from the intent's truth sources in the
+evaluation pool (public APIs that contributors upload, see
+[Truth sources](contribute-evaluation-data.md#truth-sources-deterministic-intents)),
+reads the value out of each miner's answer, and asks the comparator module how
+close they are. Your module only sees the two numbers; it never calls anything.
 
 A comparator has no model, so there is no "better" comparator to build. What
 the node checks is that yours computes the network's **reference rule**

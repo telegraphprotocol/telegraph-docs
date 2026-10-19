@@ -24,12 +24,12 @@ A newly registered miner enters a **7-day grace period** during which it receive
 
 When a miner returns a response, it isn't taken at face value. Validators run a multi-step verification pipeline:
 
-**1. Ground Truth Scraping (via zkTLS)**
-The elected Leader Validator scrapes the canonical data source for the Intent from a whitelisted URL. A zkTLS proof is generated, cryptographically attesting that the scraped data came from a real TLS connection to that endpoint — not a fabricated payload. Non-leader Validators verify this proof independently without making any external API calls.
+**1. Reference Values from Truth Sources**
+Deterministic Intents (and the checkable part of hybrid Intents) are checked against a reference value. There is no built-in data source per Intent. Instead, contributors upload **truth sources** to the Evaluation Pool (below): descriptions of public, key-less APIs that answer the Intent's question, in the same format as a miner YAML. Each epoch, for each question, the node picks up to 3 of them, calls each one, reads the value out of each answer, and takes the median. That median is fixed once for the epoch, so every miner is scored against the same value. An Intent with no usable truth source is not ranked that epoch, and its miners keep their previous ranking.
 
 **2. Canonical Script Execution (WASM)**
 Every Intent has at most one Canonical Script at a time — a WASM scoring module that defines how to score a miner response. Which kind depends on the Intent's tier (see [Intents](../using/intents.md#how-answers-are-scored)):
-- **Deterministic** Intents use a comparator: the value in the miner's answer is compared with the true value from a real source, within the Intent's tolerance.
+- **Deterministic** Intents use a comparator: the value in the miner's answer is compared with the epoch's reference value from truth sources (step 1), within the Intent's tolerance.
 - **Judgment** Intents use a reward model that judges each answer on its own merits. The question miners are asked comes from the Evaluation Pool (below).
 - **Hybrid** Intents combine a comparator score with a model's judgment.
 
@@ -57,9 +57,9 @@ The contract verifies the BLS signature in one operation and accepts the State R
 
 ## The Evaluation Pool
 
-Judgment and hybrid Intents have no single right answer to check against, so the network keeps an **Evaluation Pool** per Intent: questions, each with a better and a worse answer, contributed by anyone who signs an upload. The pool is used two ways:
+The network keeps an **Evaluation Pool** per Intent, contributed by anyone who signs an upload. For judgment and hybrid Intents, which have no single right answer to check against, it holds questions, each with a better and a worse answer. For deterministic and hybrid Intents, it also holds truth sources (step 1). The pool is used two ways:
 - A hidden half tests challenger scoring modules against the Canonical. It is never shown to miners or to module authors.
-- The other half supplies the question each judgment Intent's miners are asked when they are ranked each epoch. Each use is recorded against the contributor's address.
+- The other half supplies the question each judgment Intent's miners are asked when they are ranked each epoch, and the truth sources that reference values are built from. Each use is recorded against the contributor's address.
 
 The pool is frozen once per epoch, at the epoch rollover, and each frozen snapshot is used from the epoch that starts then. Material uploaded during one epoch is used from the next, and every Validator scores an epoch on the same material. A competition sample is drawn with a seed taken from an epoch confirmed after the challengers registered, so no one can predict it. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
 

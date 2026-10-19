@@ -443,7 +443,9 @@ Errors are `{"error": "…", "code": "…"}`:
   upload each part with its own nonce.
 
 Rows over 64 KiB, invalid JSON, or an `intent_id` that doesn't match are refused
-one by one and listed in `errors`; the rest of the upload is stored. See
+one by one and listed in `errors`; the rest of the upload is stored. A
+`truth_source` row with no `source`, or with `prompt`, `chosen` or `rejected`,
+is refused the same way. See
 [Contribute Evaluation Data](scoring/contribute-evaluation-data.md#signing-and-uploading).
 
 ### Evaluation rows held in quarantine or rejected
@@ -464,12 +466,55 @@ one by one and listed in `errors`; the rest of the upload is stored. See
   [reason codes](scoring/contribute-evaluation-data.md#what-happens-to-your-rows).
 - `admitted` — fine. It becomes `eligible` at the next freeze.
 
+For a truth source (`label_kind: truth_source`):
+
+- `rejected` with `source_unparseable` — not YAML or JSON, or not a valid miner
+  YAML document. The schema error is the same one a miner YAML would get. Compare
+  it with the [example](scoring/contribute-evaluation-data.md#writing-one).
+- `rejected` with `source_no_endpoint` — no endpoint lists the intent you
+  uploaded it under (or `"*"`) in `intents`.
+- `rejected` with `source_url_rejected` — `base_url` and `endpoint_base_url`
+  must be absolute `https://` URLs to a public host: no `localhost`, `*.local`,
+  `*.internal`, metadata hosts, private, loopback or link-local IPs, or
+  `user:pass@`.
+- `rejected` with `source_auth_unsupported` — the source declares credentials
+  (`auth.type` other than `none`, `auth.inject` or `auth.env_var`). Only APIs
+  that need no key are accepted.
+- `rejected` with `source_too_large` — over 32 KB or 32 endpoints.
+- `superseded` with `duplicate_case` — the same endpoints and parameters are
+  already uploaded for that intent. A different name or slug does not make it a
+  different source.
+
+### A deterministic intent is not ranked
+
+A deterministic intent (or the checkable part of a hybrid one) is scored against
+a reference value built each epoch from truth sources in the evaluation pool.
+When it gets no reference, it is not ranked that epoch and its miners keep their
+previous ranking. Nothing is held against them. Validators log one of two
+warnings:
+
+- `[truth-source] no truth-source material for this intent in its active
+  snapshot` — the intent has no truth source in the ranking half of the
+  snapshot the epoch uses. Upload one (see
+  [Truth sources](scoring/contribute-evaluation-data.md#truth-sources-deterministic-intents)).
+  It is used from the epoch after the next freeze.
+- `[truth-source] every sampled truth source failed` — up to 3 sources were
+  picked and none gave a usable value: an error status, a timeout, an answer
+  over 1 MB, a host that resolves to a non-public address, or an answer the
+  node could not read. On a node, a parse failure on every source usually means
+  the response parser is off (see
+  [Node Setup](validators/validator-setup.md#scoring-and-evaluation-pool-settings)).
+
+Check the pool with `GET /api/evalpool/status?intent_id=<INTENT>` and your rows
+with `GET /api/evalpool/submissions/mine?submitter=<yourAddress>`.
+
 ### Uploaded evaluation rows are not used yet
 
 Expected. The pool is frozen **once per epoch, at the epoch rollover**, and a
 frozen snapshot is used from the epoch that starts then. Rows you upload during
 epoch N are used from epoch N+1. The running epoch keeps the snapshot it started
-with, so every validator scores an epoch on the same material.
+with, so every validator scores an epoch on the same material. Truth sources
+follow the same rule.
 
 `GET /api/evalpool/status?intent_id=<INTENT>` shows `snapshot` (the latest frozen
 one, with the epoch it is active from) next to `active_snapshot` (what
