@@ -47,3 +47,17 @@ You can subscribe to this feed over WebSocket instead of polling for it: authent
 | Connect an AI agent with zero crypto code | [MCP Server](using/mcp-server.md) |
 | Run a miner and earn MACHINA | [What Miners Do](miners/miner-overview.md) |
 | Run a validator node | [What Validators Do](validators/validator-overview.md) |
+
+## Reading These Docs With an AI
+
+Every page is also available as plain Markdown, which AI assistants read more
+reliably than a web page:
+
+| What you want | Use |
+|---|---|
+| Give an AI the whole documentation at once | [`/llms-full.txt`](https://docs.telegraphprotocol.com/llms-full.txt): every page in one file. Paste the link, or download the file and attach it. |
+| Let an AI pick the pages it needs | [`/llms.txt`](https://docs.telegraphprotocol.com/llms.txt): a list of every page with a one-line summary and a link to its Markdown |
+| Share one page | Add `.md` to the page's address (for example `/docs/using/intents.md`), click **View as Markdown**, or click **Copy for LLM** at the top of the page |
+
+Links inside the Markdown point to the full address of the other pages, so a
+copied page still works when your AI reads it on its own.

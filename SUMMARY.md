@@ -34,6 +34,8 @@
 ## Building a Scoring Module
 
 * [Build a Scoring Module](scoring/build-a-scoring-module.md)
+* [Train a Scoring Adapter](scoring/train-a-scoring-adapter.md)
+* [Contribute Evaluation Data](scoring/contribute-evaluation-data.md)
 
 ## Running a Validator
 

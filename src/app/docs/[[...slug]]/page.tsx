@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Clock, Calendar, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Calendar, Pencil, FileText } from 'lucide-react'
 import { getDocContent, getNavigation, getAllSlugs, getPrevNext } from '@/lib/docs'
 import { DocsLayout }       from '@/components/DocsLayout'
 import { MDXContent }       from '@/components/MDXContent'
@@ -9,6 +9,7 @@ import { PageFeedback }     from '@/components/PageFeedback'
 import { CodeCopyButtons }  from '@/components/CodeCopyButtons'
 import { HeadingAnchors }   from '@/components/HeadingAnchors'
 import { CopyPageButton }   from '@/components/CopyPageButton'
+import { pageMarkdown, mdPathForHref } from '@/lib/llms'
 
 
 interface Props {
@@ -27,9 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const doc  = getDocContent(slug)
   if (!doc) return { title: 'Not Found' }
 
+  const href = slug.length === 0 ? '/docs' : `/docs/${slug.join('/')}`
   return {
     title: doc.title,
     description: (doc.frontmatter.description as string | undefined) ?? undefined,
+    // Points AI tools and crawlers at the plain-Markdown copy of this page.
+    alternates: { types: { 'text/markdown': mdPathForHref(href) } },
   }
 }
 
@@ -84,7 +88,15 @@ export default function DocsPage({ params }: Props) {
             <Pencil size={12} />
             Suggest an Edit
           </a>
-          <CopyPageButton content={doc.content} title={doc.title} />
+          <a
+            href={mdPathForHref(href)}
+            title="Open this page as plain Markdown"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] border border-[var(--tg-line)] hover:border-[var(--tg-line-strong)] bg-transparent hover:bg-[var(--tg-line-soft)] text-[var(--tg-fg-faint)] hover:text-[var(--tg-fg-dim)] transition-all duration-150"
+          >
+            <FileText size={12} />
+            View as Markdown
+          </a>
+          <CopyPageButton text={pageMarkdown(slug) ?? doc.content} />
         </div>
       </div>
 

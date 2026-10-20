@@ -24,13 +24,20 @@ A newly registered miner enters a **7-day grace period** during which it receive
 
 When a miner returns a response, it isn't taken at face value. Validators run a multi-step verification pipeline:
 
-**1. Ground Truth Scraping (via zkTLS)**
-The elected Leader Validator scrapes the canonical data source for the Intent from a whitelisted URL. A zkTLS proof is generated, cryptographically attesting that the scraped data came from a real TLS connection to that endpoint — not a fabricated payload. Non-leader Validators verify this proof independently without making any external API calls.
+**1. Reference Values from Truth Sources**
+Deterministic Intents (and the checkable part of hybrid Intents) are checked against a reference value. There is no built-in data source per Intent. Instead, contributors upload **truth sources** to the Evaluation Pool (below): descriptions of public, key-less APIs that answer the Intent's question, in the same format as a miner YAML. Each epoch, for each question, the node picks up to 3 of them, calls each one, reads the value out of each answer, and takes the median. That median is fixed once for the epoch, so every miner is scored against the same value. An Intent with no usable truth source is not ranked that epoch, and its miners keep their previous ranking.
 
 **2. Canonical Script Execution (WASM)**
-Every Intent has exactly one Canonical Script — a WASM program that defines how to score a miner response. Each Validator independently executes this script against the ground truth and the miner's response, producing a Local Score between 0 and 1.
+Every Intent has at most one Canonical Script at a time — a WASM scoring module that defines how to score a miner response. Which kind depends on the Intent's tier (see [Intents](../using/intents.md#how-answers-are-scored)):
+- **Deterministic** Intents use a comparator: the value in the miner's answer is compared with the epoch's reference value from truth sources (step 1), within the Intent's tolerance.
+- **Judgment** Intents use a reward model that judges each answer on its own merits. The question miners are asked comes from the Evaluation Pool (below).
+- **Hybrid** Intents combine a comparator score with a model's judgment.
 
-Canonical Scripts are not chosen by humans. They evolve autonomously: challenger scripts run alongside the Canonical in a 10% testing cohort. If a challenger script proves it catches quality issues the Canonical misses (a defined Catch-Rate condition), it automatically becomes the new Canonical after a minimum of 3 test epochs. The previous Canonical is demoted but remains available for future testing.
+Each Validator independently executes this script on the miner's response, producing a Local Score between 0 and 1.
+
+For judgment and hybrid Intents, one module registered on a family Intent (for example `WEATHER_FORECAST`) also scores its children (`WEATHER_FORECAST_LAHORE`). An Intent that no module serves is not scored that epoch, and its miners keep their previous ranking.
+
+Canonical Scripts are not chosen by humans. Anyone can register a challenger on-chain. A challenger for a judgment or hybrid Intent replaces the Canonical only by beating it in a competition on a hidden sample from the Evaluation Pool: both are scored on the same sample, and the challenger must win by a set margin and clear a minimum win rate. A comparator replaces the Canonical only if it reproduces the reference comparison exactly. The previous Canonical is kept as a fallback. See [Build a Scoring Module](../scoring/build-a-scoring-module.md#what-checks-your-module-must-pass).
 
 **3. BFT Consensus (Commit-Reveal)**
 Validators do not share scores openly — that would allow copying. Instead they use a commit-reveal scheme:
@@ -48,11 +55,19 @@ Scoring and consensus happen entirely off-chain. The Block Builder submits a sin
 
 The contract verifies the BLS signature in one operation and accepts the State Root as truth. This keeps gas costs minimal while preserving cryptographic security.
 
+## The Evaluation Pool
+
+The network keeps an **Evaluation Pool** per Intent, contributed by anyone who signs an upload. For judgment and hybrid Intents, which have no single right answer to check against, it holds questions, each with a better and a worse answer. For deterministic and hybrid Intents, it also holds truth sources (step 1). The pool is used two ways:
+- A hidden half tests challenger scoring modules against the Canonical. It is never shown to miners or to module authors.
+- The other half supplies the question each judgment Intent's miners are asked when they are ranked each epoch, and the truth sources that reference values are built from. Each use is recorded against the contributor's address.
+
+The pool is frozen once per epoch, at the epoch rollover, and each frozen snapshot is used from the epoch that starts then. Material uploaded during one epoch is used from the next, and every Validator scores an epoch on the same material. A competition sample is drawn with a seed taken from an epoch confirmed after the challengers registered, so no one can predict it. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
+
 ## Spot Checks: Continuous Mid-Epoch Validation
 
 Validators don't only grade miners at epoch boundaries. Spot checks run continuously throughout the epoch — approximately once every 20 seconds, triggered deterministically by the hash of the latest Base L2 block combined with the Intent ID.
 
-If any miner's spot check score drops more than 20% relative to their last leaderboard score, the protocol issues a **Routing Revocation**: that miner is removed from the routing table immediately and their traffic share redistributed to remaining eligible miners. The revocation is recorded immutably in the epoch block.
+Spot checks test liveness, not answer quality: a miner passes by returning a non-empty answer. If a miner fails consecutive spot checks (no response, or an empty answer), the protocol issues a **Routing Revocation**: that miner is removed from the routing table for that Intent and their traffic share redistributed to remaining eligible miners. The revocation is recorded immutably in the epoch block. Answer quality is judged only by the epoch ranking.
 
 ## Signal Delivery
 

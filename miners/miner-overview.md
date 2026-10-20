@@ -65,10 +65,10 @@ After 7 days, the miner's score from the grace period is used to rank them on th
 
 ## Spot Checks and Revocation
 
-Validators run spot checks continuously throughout each epoch — approximately every 20 seconds, triggered deterministically by the latest Base L2 block hash. If a miner's spot check score drops more than 20% relative to their leaderboard score:
+Validators run spot checks continuously throughout each epoch — approximately every 20 seconds, triggered deterministically by the latest Base L2 block hash. A spot check tests liveness, not answer quality: any non-empty answer passes. If a miner fails consecutive spot checks for an Intent (no response, or an empty answer):
 
 - A **Routing Revocation** is issued immediately.
-- The miner is removed from the routing table.
+- The miner is removed from the routing table for that Intent.
 - Their traffic share is redistributed to remaining eligible miners.
 - The revocation is recorded immutably in the epoch block.
 

@@ -35,7 +35,10 @@ function resolveDocHref(dir: string, relHref: string): string {
 marked.use({
   renderer: {
     heading(text: string, depth: number): string {
-      const plain = text.replace(/<[^>]+>/g, '')
+      // marked hands over escaped HTML (module's -> module&#39;s). Drop entities
+      // before slugifying, or the id becomes "module39s" while the TOC and every
+      // link (built from the raw Markdown in lib/docs.ts) say "modules".
+      const plain = text.replace(/<[^>]+>/g, '').replace(/&#?[a-z0-9]+;/gi, '')
       const id    = slugify(plain)
       return `<h${depth} id="${id}">${text}</h${depth}>\n`
     },
