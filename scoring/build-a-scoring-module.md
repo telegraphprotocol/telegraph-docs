@@ -1,8 +1,8 @@
 ---
-description: Write, test and register your own WASM module that scores how good a miner's answer is. Start here — no prior Telegraph knowledge needed.
+description: Write, test and register your own evaluator adapter (a WASM module) that scores how good a miner's answer is. Start here — no prior Telegraph knowledge needed.
 ---
 
-# Build a Scoring Module
+# Build an Evaluator Adapter
 
 This guide is for anyone who wants to build their own **scoring module** for
 Telegraph — the piece of code that judges how good a miner's answer is and
@@ -10,7 +10,7 @@ decides its ranking. If you're building a *miner* (something that answers
 questions), see the [YAML Configuration](../miners/yaml-config.md) guide
 instead: this page is about the judge, not the contestant.
 
-## What is a scoring module?
+## What is an evaluator adapter?
 
 When someone asks the network a question, several miners may answer it. The
 network needs a way to decide which answer was best. That job is done by a
@@ -159,7 +159,7 @@ tokenizer, so build the model for that vocabulary.
 
 The tools to train one and package it into that file are in the adapter kit,
 [telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
-[Train a Scoring Adapter](train-a-scoring-adapter.md) walks through them step by
+[Train an Evaluator Adapter](train-a-scoring-adapter.md) walks through them step by
 step, and lists the exact input format, arithmetic and export signatures the
 node expects. This section lists what the node checks when a package arrives.
 

@@ -268,7 +268,7 @@ record with a `stage` field and `eval` as a parsed object. Full field reference:
 Remember scoring modules hash with **keccak256**, not the SHA-256 used for miner
 YAMLs. A hash mismatch rejection right after registering is almost always this.
 
-## Scoring Modules
+## Evaluator Adapters
 
 ### `zero fee address` when registering a module
 
@@ -281,7 +281,7 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
 
 If you are still sending the three-argument form the call fails earlier, because
 that signature no longer exists on the Diamond. Either way, add the payout
-address. See [Build a Scoring Module](scoring/build-a-scoring-module.md).
+address. See [Build an Evaluator Adapter](scoring/build-a-scoring-module.md).
 
 Modules registered before this field existed read back `address(0)` from
 `getWasm`. That means no payout address was ever set for them — it does not
@@ -323,7 +323,7 @@ The file you registered is neither a wide adapter package nor a comparator
 module for a deterministic intent. The node no longer runs `rank_answer`
 modules, so it rejects one without loading it. Register a wide adapter
 (judgment or hybrid intent) or a comparator module (deterministic intent)
-instead — see [Build a Scoring Module](scoring/build-a-scoring-module.md).
+instead — see [Build an Evaluator Adapter](scoring/build-a-scoring-module.md).
 
 ### A wide adapter stays pending, waiting for material
 

@@ -31,10 +31,10 @@
 * [Validation API](miners/validation-api.md)
 * [Registering as a Miner](miners/miner-registration.md)
 
-## Building a Scoring Module
+## Building an Evaluator Adapter
 
-* [Build a Scoring Module](scoring/build-a-scoring-module.md)
-* [Train a Scoring Adapter](scoring/train-a-scoring-adapter.md)
+* [Build an Evaluator Adapter](scoring/build-a-scoring-module.md)
+* [Train an Evaluator Adapter](scoring/train-a-scoring-adapter.md)
 * [Contribute Evaluation Data](scoring/contribute-evaluation-data.md)
 
 ## Running a Validator

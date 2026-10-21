@@ -37,7 +37,7 @@ Each Validator independently executes this script on the miner's response, produ
 
 For judgment and hybrid Intents, one module registered on a family Intent (for example `WEATHER_FORECAST`) also scores its children (`WEATHER_FORECAST_LAHORE`). An Intent that no module serves is not scored that epoch, and its miners keep their previous ranking.
 
-Canonical Scripts are not chosen by humans. Anyone can register a challenger on-chain. A challenger for a judgment or hybrid Intent replaces the Canonical only by beating it in a competition on a hidden sample from the Evaluation Pool: both are scored on the same sample, and the challenger must win by a set margin and clear a minimum win rate. A comparator replaces the Canonical only if it reproduces the reference comparison exactly. The previous Canonical is kept as a fallback. See [Build a Scoring Module](../scoring/build-a-scoring-module.md#what-checks-your-module-must-pass).
+Canonical Scripts are not chosen by humans. Anyone can register a challenger on-chain. A challenger for a judgment or hybrid Intent replaces the Canonical only by beating it in a competition on a hidden sample from the Evaluation Pool: both are scored on the same sample, and the challenger must win by a set margin and clear a minimum win rate. A comparator replaces the Canonical only if it reproduces the reference comparison exactly. The previous Canonical is kept as a fallback. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md#what-checks-your-module-must-pass).
 
 **3. BFT Consensus (Commit-Reveal)**
 Validators do not share scores openly — that would allow copying. Instead they use a commit-reveal scheme:

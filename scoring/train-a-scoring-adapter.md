@@ -1,8 +1,8 @@
 ---
-description: Train a scoring adapter for a judgment or hybrid intent, turn it into the one .wasm file you register, and know what the node expects of it.
+description: Train an evaluator adapter for a judgment or hybrid intent, turn it into the one .wasm file you register, and know what the node expects of it.
 ---
 
-# Train a Scoring Adapter
+# Train an Evaluator Adapter
 
 A **scoring adapter** is the scoring module for a judgment or hybrid intent: a
 small AI model that reads a question and a miner's answer and scores how good
@@ -17,7 +17,7 @@ register, in four steps:
 | 4. Package | Wrap the model and the node's interpreter into one file | `<INTENT>.wasm` plus its keccak256 hash |
 
 Then you host the `.wasm` and register it, as described in
-[Build a Scoring Module](build-a-scoring-module.md#how-to-submit-register-your-module).
+[Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit-register-your-module).
 
 If your intent is deterministic (a price, a rate, a yes/no fact), you don't need
 any of this: deterministic intents use a comparator module instead. See
