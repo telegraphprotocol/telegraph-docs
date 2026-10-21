@@ -799,7 +799,7 @@ Nothing but gas, in every direction. There's no bond and no fee to register or
 to deregister, so there's also nothing to refund — taking a module down simply
 removes it from service.
 
-## Tips for building a good scorer
+## Tips for building a good evaluator adapter
 
 - **Comparator modules:** reproduce the reference rule exactly, including the
   awkward parts — truth first, saturating multiplication, 128-bit RelTol, unknown

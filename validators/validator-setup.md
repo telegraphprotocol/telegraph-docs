@@ -170,7 +170,7 @@ WASM_COMPILE_CACHE_DIR=/var/lib/telegraph/wasm_compile_cache
 
 The request builder and the parser can share one server.
 
-**Removed settings.** The node no longer generates questions or reference answers with an LLM, so `GROUNDTRUTH_MODEL`, `GROUNDTRUTH_LLM_TIMEOUT_SECONDS`, `GROUNDTRUTH_MAX_TOKENS` and `SEARXNG_URL` are no longer read. `SCORING_WASM_PATH`, `WASM_POOL_SIZE` and `CONVERTER_MODEL` went with the retired `rank_answer` scorer. `EVALPOOL_SNAPSHOT_INTERVAL` is ignored (a node that still sets it logs a warning once at startup). Remove them from your `.env`.
+**Removed settings.** The node no longer generates questions or reference answers with an LLM, so `GROUNDTRUTH_MODEL`, `GROUNDTRUTH_LLM_TIMEOUT_SECONDS`, `GROUNDTRUTH_MAX_TOKENS` and `SEARXNG_URL` are no longer read. `SCORING_WASM_PATH`, `WASM_POOL_SIZE` and `CONVERTER_MODEL` went with the retired `rank_answer` evaluator adapter. `EVALPOOL_SNAPSHOT_INTERVAL` is ignored (a node that still sets it logs a warning once at startup). Remove them from your `.env`.
 
 ### Ports the Node Listens On
 
