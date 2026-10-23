@@ -30,7 +30,7 @@ per row, and you don't choose it.
 
 | Half | Used for | Who sees it |
 |---|---|---|
-| **Testing** | Deciding whether a new scoring module replaces the current one. Both are scored on the same hidden sample, and the module that orders your better and worse answers correctly more often wins. See [Stage 2 for wide adapters](build-a-scoring-module.md#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool). Truth sources in this half are not used. | Nobody outside the validators. It is never sent to a miner or to a module author's endpoint. |
+| **Testing** | Deciding whether a new scoring module replaces the current one. Both are scored on the same hidden sample, and the module that orders your better and worse answers correctly more often wins. See [Stage 2 for model adapters](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool). Truth sources in this half are not used. | Nobody outside the validators. It is never sent to a miner or to a module author's endpoint. |
 | **Ranking** | The question miners are asked when a judgment intent is ranked each epoch, and the truth sources a deterministic or hybrid intent's reference value comes from. | Miners, since they have to answer it. |
 
 An intent's questions are used only once the pool holds material from **at

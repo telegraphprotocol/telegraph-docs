@@ -1,20 +1,22 @@
 ---
-description: Train a scoring adapter for a judgment or hybrid intent, turn it into the one .wasm file you register, and know what the node expects of it.
+description: Train a scoring adapter for a judgment or hybrid intent, bake it into the one .wasm file you register, and know what the node expects of it.
 ---
 
 # Train a Scoring Adapter
 
 A **scoring adapter** is the scoring module for a judgment or hybrid intent: a
 small AI model that reads a question and a miner's answer and scores how good
-the answer is. This page takes you from example data to the `.wasm` file you
-register, in four steps:
+the answer is. You register it as **one `.wasm` file** that contains both the
+model and the engine that runs it. This page takes you from example data to
+that file:
 
 | Step | What you do | What you get |
 |---|---|---|
 | 1. Prepare data | Collect questions, each with a better and a worse answer | `pairs.jsonl` |
 | 2. Train | Fine-tune the model on your pairs | an adapter folder |
-| 3. Convert | Turn the adapter into the node's fixed-point format | `<INTENT>.imwq` (about 1.2 GB) |
-| 4. Package | Wrap the model and the node's interpreter into one file | `<INTENT>.wasm` plus its keccak256 hash |
+| 3. Export | Turn the trained adapter into one standard model file | `model_fp32.onnx` (about 600 MB) |
+| 4. Bake | Build the model and its engine into one WebAssembly file | `baked.wasm` (about 574 MB) |
+| 5. Package | Add the version label, check it the way a node will, get its hash | `<INTENT>.wasm` plus its keccak256 hash |
 
 Then you host the `.wasm` and register it, as described in
 [Build a Scoring Module](build-a-scoring-module.md#how-to-submit-register-your-module).
@@ -34,15 +36,20 @@ any of this: deterministic intents use a comparator module instead. See
   cd telegraph-wasm-baseline
   pip install -r requirements.txt
   ```
-- **Python 3.10+**. `requirements.txt` installs `torch`, `transformers`, `peft`
-  and `numpy`. For GPU training, install a CUDA build of `torch` first (see
+- **Python 3.10+**, for training and export. `requirements.txt` installs
+  `torch`, `transformers`, `peft`, `onnx` and the rest. For GPU training,
+  install a CUDA build of `torch` first (see
   [pytorch.org](https://pytorch.org/get-started/locally/)).
+- **Docker**, for the bake. If you can't use Docker, the bake also runs with
+  Rust installed through [rustup](https://rustup.rs) (`--local`); see
+  [Step 4](#step-4-bake).
 - **Go 1.25+**, for the packaging step.
-- **A GPU** for training. Training works on a CPU, but it is very slow.
-- About **5 GB of free disk** per intent: the converted model and the package
-  are about 1.2 GB each.
+- **A GPU** for training. Training works on a CPU, but it is very slow. Export,
+  bake and packaging run fine on a CPU.
+- About **3 GB of free disk** per intent, and several GB of RAM for the bake.
 
-Run every command from the root of the kit.
+Run every command from the root of the kit. On Windows, run the `bash` step from
+Git Bash.
 
 ## Step 1: Prepare your data
 
@@ -94,7 +101,7 @@ from each other, and about as long as the better answers.
 ## Step 2: Train
 
 ```bash
-python -m wide_runtime.train_adapter \
+python -m float_runtime.train_adapter \
   --intent CODE_REVIEW --data pairs.jsonl --out runs/CODE_REVIEW
 ```
 
@@ -113,7 +120,7 @@ held-out pairs **and** beats "pick the longer answer" by at least **10 points**.
 
 | Exit code | Meaning |
 |---|---|
-| `0` | Passed. The adapter is in `runs/<INTENT>/adapter`, and the next two commands are printed. |
+| `0` | Passed. The adapter is in `runs/<INTENT>/adapter`, and the next commands are printed. |
 | `1` | The data check or the test failed. The reason is printed. |
 | `2` | An error, such as a missing file or the GPU running out of memory. |
 
@@ -121,7 +128,7 @@ Results are also written to `runs/<INTENT>/result.json`.
 
 Passing here doesn't mean your adapter will be accepted. It is a minimum. The
 node decides with its own hidden test, and your adapter has to beat the current
-one there (see [Step 5](#step-5-register-and-compete)).
+one there (see [Step 6](#step-6-register-and-compete)).
 
 ### Options you may want
 
@@ -132,55 +139,76 @@ one there (see [Step 5](#step-5-register-and-compete)).
 | `--epochs` | `3` | Training stops early when it stops improving |
 | `--lr` | `0.0001` | Learning rate |
 | `--grad-accum` | `16` | Lower it on a small dataset; raise it if you run out of GPU memory |
-| `--max-length` | `256` | Tokens per answer. The node only reads the first 256, so going higher trains on text that is never scored |
+| `--max-length` | `512` | Tokens per question and answer. The node scores up to 512, so train at 512. If you train shorter, pass the same number to the export and packaging steps as `--max-tokens` (the commands the script prints already do) |
 | `--config` | none | A YAML or JSON file with any of the settings |
 
 Run with `--help` for the full list.
 
-## Step 3: Convert
+## Step 3: Export
 
-The node doesn't run normal (floating-point) models. It runs them in **Q32.32
-fixed-point**, whole-number arithmetic that gives exactly the same result on
-every validator. This step converts your adapter to that format:
+This step merges your adapter into the base model and saves it as one standard
+**ONNX** model file, in normal 32-bit floating point:
 
 ```bash
-python -m wide_runtime.convert_adapter \
-  --base answerdotai/ModernBERT-base \
-  --adapter runs/CODE_REVIEW/adapter \
-  --out runs/CODE_REVIEW/CODE_REVIEW.imwq
+python -m float_runtime.export_onnx --run runs/CODE_REVIEW
 ```
 
-It takes a few minutes and writes a file of about 1.2 GB.
+It writes `runs/CODE_REVIEW/model_fp32.onnx` (about 600 MB) and a
+`sample_input.json` for the packaging step. Before finishing, it checks that the
+exported file gives the same scores as the trained model at every input length
+the node can send. A CPU is fine for this step.
 
-## Step 4: Package
+## Step 4: Bake
 
-This step puts the converted model and the node's interpreter into **one
-`.wasm` file**. That file is what you register, and its hash covers both.
+This step builds the model **and** the engine that runs it into one
+WebAssembly file. The engine is [oxionnx](https://crates.io/crates/oxionnx), an
+ONNX engine written in Rust, and the model's weights are built into the file,
+so the file needs nothing else to run.
 
 ```bash
-go run ./cmd/adapterbuild --intent CODE_REVIEW \
-  --imwq runs/CODE_REVIEW/CODE_REVIEW.imwq --out runs/CODE_REVIEW
+bash float_runtime/bake_wasm.sh runs/CODE_REVIEW/model_fp32.onnx runs/CODE_REVIEW/baked.wasm
+```
+
+It writes `baked.wasm` (about 574 MB). It takes a few minutes and several GB of
+RAM.
+
+By default the bake runs in Docker with a pinned compiler, so **the same ONNX
+file always gives the same `.wasm`, byte for byte, on any machine**. That lets
+anyone rebuild your adapter from your ONNX file and check its hash. Without
+Docker, add `--local` to bake with Rust installed through rustup. A local bake
+is repeatable on the same operating system, but its bytes differ from a Docker
+bake.
+
+## Step 5: Package
+
+This step turns the baked file into the `.wasm` you register:
+
+```bash
+go run ./cmd/adapterbuild --intent CODE_REVIEW --wasm runs/CODE_REVIEW/baked.wasm \
+  --out runs/CODE_REVIEW --input runs/CODE_REVIEW/sample_input.json
 ```
 
 `adapterbuild`:
 
 - looks up whether the intent is judgment or hybrid, and refuses deterministic
   intents;
-- uses the network's fixed interpreter for that class, so the same model always
-  gives the same file and the same hash;
+- adds the version label the node requires (the `telegraph.adapter` section,
+  described below);
 - builds the package twice and checks both copies are identical;
-- loads the package the way a node would, and fails if the node would reject it.
+- runs the node's own registration checks on it, then loads it with the node's
+  own runtime and scores the sample input twice, requiring the exact same
+  result both times. It fails if a node would reject the package.
 
 It writes `runs/CODE_REVIEW/CODE_REVIEW.wasm` and a manifest next to it, and
 prints one JSON line:
 
 ```json
-{"intent":"CODE_REVIEW","class":"judgment","keccak256":"0x…","sha256":"…","bytes":1203456789,"wasm_path":"runs/CODE_REVIEW/CODE_REVIEW.wasm", …}
+{"intent":"CODE_REVIEW","class":"judgment","keccak256":"0x…","sha256":"…","bytes":601882624,"wasm_path":"runs/CODE_REVIEW/CODE_REVIEW.wasm","score_hex":"0x…", …}
 ```
 
 The `keccak256` value is the hash you register.
 
-## Step 5: Register and compete
+## Step 6: Register and compete
 
 1. Upload the `.wasm` file somewhere the nodes can download it: an `https://`
    or `ipfs://` URL. Nodes must be able to fetch it within 30 minutes.
@@ -189,7 +217,7 @@ The `keccak256` value is the hash you register.
 3. The node checks the package, then puts it in a **competition** on the
    intent's hidden evaluation pool. It replaces the current adapter only if it
    wins by at least 2 points and scores at least 70%. See
-   [Stage 2 for wide adapters](build-a-scoring-module.md#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool).
+   [Stage 2 for model adapters](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).
 
 Check how it is doing with
 [Checking your module's status](build-a-scoring-module.md#checking-your-modules-status).
@@ -197,53 +225,70 @@ Check how it is doing with
 ## What the node expects
 
 Use the tools above and all of this is handled for you. If you build your own
-tooling, it must match exactly, because every validator must compute the same
-score to the last bit.
+tooling, it must match exactly, because every validator must get the same score
+to the last bit.
 
 ### The model and its input
 
 | Rule | Value |
 |---|---|
-| Base model | ModernBERT-base, with a one-number scoring head |
-| Tokenizer | ModernBERT's BPE tokenizer: text normalised to NFC, `[CLS]` (id `50281`) and `[SEP]` (id `50282`) added |
-| Input length | 256 tokens at most; the closing `[SEP]` is always kept |
-| Input text | `### Task:\n` + question + `\n\n### Answer:\n` + answer |
-| Arithmetic | Q32.32 fixed point: 64-bit integers with 32 fractional bits, no floating point anywhere |
-| Rules | No imports beyond what the interpreter declares, no clock, no randomness, no network, no state kept between calls |
-| Memory | 32-bit WebAssembly, so the model and its working memory must fit in 4 GiB |
+| Base model | ModernBERT-base, with a one-number scoring head, as a float32 ONNX graph |
+| Tokenizer | ModernBERT's tokenizer: `[CLS]` (id `50281`) and `[SEP]` (id `50282`) added |
+| Input text | `### Task:\n` + question + `\n\n### Answer:\n` + answer. For a hybrid intent the question is the request sent to the miner and the answer is the miner's whole response |
+| Input length | Up to 512 tokens, or the adapter's `max_tokens` if lower; the closing `[SEP]` is always kept. Every text is sent at its own length, with no padding |
 
-### The functions the package exports
+### The file
 
-A judgment package scores an answer with:
+| Rule | Value |
+|---|---|
+| Kind | A WASI **command**: exports `_start` and one memory. A module exporting `_initialize` (a reactor) is refused |
+| Imports | Only functions from `wasi_snapshot_preview1` on the node's allow-list (arguments, environment, clocks, random, file reads and writes, `path_open`, `proc_exit` and a few more). No sockets, no other import modules |
+| Memory | One memory, at most 3 GiB |
+| Size | At most 1 GiB by default (a node setting, hard maximum 2 GiB) |
+| Version label | A `telegraph.adapter` custom section: `{"abi_version":2,"runtime":"onnx_f32","class":"judgment"}` (or `"hybrid"`, matching the intent), plus optional `max_tokens` (1–512) and `training`. Without it the file is refused. `abi_version` 1 is the retired Q32.32 format and is refused too |
+
+### One score
+
+For each score the node starts the file fresh (nothing carries over from one
+score to the next) and runs it with:
+
+- the arguments `baked /in/input.json 1`;
+- one read-only folder, `/in`, holding `input.json`:
+
+  ```json
+  {"input_ids":[50281,4118,17526,27,187,18658,436,13814,1818,50282],"attention_mask":[1,1,1,1,1,1,1,1,1,1]}
+  ```
+
+- an empty environment, a frozen clock, a fixed random stream and no network.
+
+The file must print **exactly one** line on standard output of the form
 
 ```
-imwq_score(imw_ptr: i32, imw_len: i32, tok_ptr: i32, n_tokens: i32) -> i64
+HEX         : 0x<8 hex digits>
 ```
 
-- `imw_ptr`/`imw_len`: where the model is in memory. `imwq_embedded()` returns
-  it as `(ptr << 32) | len`.
-- `tok_ptr`/`n_tokens`: the token ids, as little-endian `i64` values, written
-  by the node through `imwq_alloc` and freed with `imwq_free`.
-- Returns the model's raw output as a Q32.32 number (`value = result / 2^32`).
-  The value `i64::MIN` means the package refused to score.
+holding the 32 bits of the model's output value (the reward logit). Anything
+else on the line is ignored. A score fails, and never becomes a number, if the
+file exits with an error, prints no HEX line or more than one, prints more than
+16 KB, or the value is not a finite number.
 
-A hybrid package also exports:
+### Why the result is the same on every validator
 
-```
-imwq_score_hybrid(imw_ptr, imw_len, tok_ptr, n_tokens,
-                  ground_truth_value: i64, miner_value: i64, spec_ptr: i32) -> i64
-```
-
-The true value comes before the miner's value, both on the intent's fixed-point
-scale. `spec_ptr` points to ten `i64` values describing how the comparison and
-the model's judgement are combined. It returns a score from `0` to `10000`, or a
-negative number for an error.
-
-The full list of required exports is in
-[What the node checks](build-a-scoring-module.md#what-the-node-checks).
+WebAssembly defines float arithmetic exactly, with no chip-specific shortcuts,
+and the node fixes everything else the file could see (files, environment,
+clock, randomness). So the same file and the same text give the same 32 bits on
+every validator. This has been measured across repeated runs and across
+different x86 machines; a check on ARM machines is still open.
 
 ### How the output becomes a score
 
-For a judgment package, the node turns the raw output into a score from `0` to
-`10000` (100.00%): it applies a sigmoid in fixed point, then scales and clamps
-the result. Your model should simply give a higher number to a better answer.
+The node never does arithmetic on the float itself. It keeps the 32 bits and:
+
+- **ranks** answers by comparing them in exact numeric order;
+- turns them into a **score from `0` to `10000`** (100.00%) with a sigmoid
+  computed in whole-number arithmetic, for display and for the hybrid
+  combination.
+
+For a hybrid intent, the node combines that score with the comparator's score
+itself; the adapter only judges the answer. Your model should simply give a
+higher number to a better answer.

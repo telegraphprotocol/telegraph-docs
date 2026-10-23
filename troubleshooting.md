@@ -255,10 +255,10 @@ curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/<INTENT>/wasm
 ```
 
 `ActivationStatus` is the state, `RejectionReason` says exactly which check
-failed, and `EvalDetails` carries the evaluation breakdown. For a wide adapter,
+failed, and `EvalDetails` carries the evaluation breakdown. For a model adapter,
 first look at `decision` in `EvalDetails`: `awaiting_material` means it is
 pending **by design** until its intent has evaluation material (see
-[A wide adapter stays pending, waiting for material](#a-wide-adapter-stays-pending-waiting-for-material)).
+[A model adapter stays pending, waiting for material](#a-model-adapter-stays-pending-waiting-for-material)).
 Otherwise a module that stays `pending` for a long time is usually a binary the
 node cannot fetch or re-hash — check `EvalErrorCount`, which reaches `3` before
 the record is rejected outright. `GET /api/wasm/<registrationId>` shows the same
@@ -319,13 +319,13 @@ the payout address. Update the ABI rather than the call.
 MiniLM rank_answer scoring modules are retired and are no longer accepted: …
 ```
 
-The file you registered is neither a wide adapter package nor a comparator
-module for a deterministic intent. The node no longer runs `rank_answer`
-modules, so it rejects one without loading it. Register a wide adapter
-(judgment or hybrid intent) or a comparator module (deterministic intent)
+The file you registered is neither a model adapter nor a comparator module
+for a deterministic intent. The node no longer runs `rank_answer` modules, so
+it rejects one without loading it. Register a model adapter (judgment or hybrid
+intent) or a comparator module (deterministic intent)
 instead — see [Build a Scoring Module](scoring/build-a-scoring-module.md).
 
-### A wide adapter stays pending, waiting for material
+### A model adapter stays pending, waiting for material
 
 `EvalDetails` (or `eval` on `GET /api/wasm/<registrationId>`) shows
 `decision: "awaiting_material"`, and `stage` is `awaiting_compatible_material`.
@@ -352,7 +352,7 @@ rollover. See [Contribute Evaluation Data](scoring/contribute-evaluation-data.md
 
 ### `lost the competition` or `rejected in competition`
 
-A wide adapter replaces the current module only by beating it on the same hidden
+A model adapter replaces the current module only by beating it on the same hidden
 sample. The `RejectionReason` names the bar it missed:
 
 - `win rate A% did not beat the incumbent (registration N) at B% by the
@@ -379,29 +379,46 @@ against `K`'s current module on every child's data. A child registered while the
 family's module was still pending is rejected this way once that module goes
 live. Check with `GET /api/wasm?resolve=X`.
 
-### `wide package: …` or `adapter metadata: …`
+### `Q32.32 wide adapters are retired`, `float adapter: …` or `adapter metadata: …`
 
 Stage 1 refused the file:
 
-- `wide package: missing required export "…"`, `no data segments - no embedded
-  model`, `the last data segment is not an embedded .imwq model`, or a memory
-  error — the package is not a complete self-contained wide package, or the
-  download was truncated.
-- `WASM from … exceeds the 32 MB limit` on a wide package — the node did not
-  recognise it as wide, so the comparator limit applied. A wide package must
-  export `imwq_embedded`.
+- `Q32.32 wide adapters are retired; rebuild as a float adapter (abi_version 2)`
+  — the file is an adapter in the old Q32.32 format (a bare `.imwq`, a package
+  exporting `imwq_*` functions, or one whose `telegraph.adapter` section says
+  `abi_version` 1). Rebuild it with the current
+  [adapter kit](https://github.com/telegraphprotocol/telegraph-wasm-baseline);
+  see [Train a Scoring Adapter](scoring/train-a-scoring-adapter.md).
+- `float adapter: no telegraph.adapter section` — you registered the raw baked
+  file. Run it through the kit's `adapterbuild`, which adds the section, and
+  register its output.
 - `adapter metadata: built for scoring ABI version N, this node implements
-  version 1` — the `telegraph.adapter` section names another version. Rebuild
-  for version 1.
-- `adapter metadata: declares class "X" but its exports make it a "Y" adapter`
-  — the section and the exports disagree, for example a judgment build labelled
-  hybrid.
+  version 2`, `… declares runtime "X"; this node runs only "onnx_f32" adapters`,
+  `… declares no class`, `… declares class "hybrid" but the intent is a
+  "judgment" intent` (or the reverse), or `… max_tokens N is outside [1, 512]` —
+  fix the section and package again.
+- `float adapter: imports the host does not provide: …` — the module imports
+  something outside the node's fixed sandbox (sockets, file writes, another
+  import module). Rebuild for `wasm32-wasip1` without the extra dependency.
+- `… not a WASI command: no "_start" function export` or `… exports
+  "_initialize": a WASI reactor, not a command` — the node runs an adapter as a
+  command.
+- `… above this host's limit of 49152 pages (3072 MiB)` — the model needs more
+  than the node's 3 GiB memory cap.
+- `float adapter: N bytes exceeds the M-byte adapter limit
+  (ADAPTER_WASM_MAX_BYTES)` — larger than the node allows (1 GiB by default).
+  `WASM from … exceeds the 32 MB limit` means the start of the file did not
+  identify it as a model adapter (no `_start` export), so the comparator limit
+  applied.
+- `float adapters score judgment and hybrid intents; X is a deterministic intent
+  and takes a comparator module` — registered for the wrong intent.
 - `adapter metadata: training record: …` — the optional `training` record is
   malformed (no `family`, empty `children`, a child that is not the family or a
   `_`-child of it, a duplicate, negative `pairs`, or `accuracy`/`spearman` out of
   range).
 
-A package with no `telegraph.adapter` section is accepted. See
+A model adapter must carry the `telegraph.adapter` section; a comparator module
+may leave it out. See
 [The telegraph.adapter section](scoring/build-a-scoring-module.md#the-telegraphadapter-section).
 
 ### Comparator module rejected
