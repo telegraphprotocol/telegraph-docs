@@ -65,7 +65,7 @@ After 7 days, the miner's score from the grace period is used to rank them on th
 
 ## Spot Checks and Revocation
 
-Validators run spot checks continuously throughout each epoch — approximately every 20 seconds, triggered deterministically by the latest Base L2 block hash. A spot check tests liveness, not answer quality: any non-empty answer passes. If a miner fails consecutive spot checks for an Intent (no response, or an empty answer):
+Validators run spot checks continuously throughout each epoch, on average about once per hour for each Intent (the node default), at randomised times. A spot check tests liveness, not answer quality: any non-empty answer passes. If a miner fails consecutive spot checks for an Intent (no response, or an empty answer):
 
 - A **Routing Revocation** is issued immediately.
 - The miner is removed from the routing table for that Intent.

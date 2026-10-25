@@ -46,7 +46,9 @@ The endpoint is gated by x402: your first request returns a `402 Payment Require
   "miner_id": "18",
   "miner_name": "zeus",
   "endpoint": "/predict",
-  "result": { "...miner's raw output..." },
+  "result": { "...the answer, in the Intent's shape or the miner's raw output..." },
+  "result_shape": "raw",
+  "shape_error": "no_format",
   "cost_usd": 0.01,
   "duration_ms": 412,
   "timestamp": "2026-06-26T19:24:42Z",
@@ -60,41 +62,57 @@ The endpoint is gated by x402: your first request returns a `402 Payment Require
 |---|---|
 | `miner_id` / `miner_name` | The miner that served the request (numeric ID and slug). May be the fallback rather than the router's first pick. |
 | `endpoint` | The upstream path that was called. |
-| `result` | The miner's raw output. Shape varies per miner — always null-check before rendering. |
+| `result` | The answer. When the node can read it into the Intent's response format, `result` has the same keys whichever miner answered (`result_shape` is `intent`). Otherwise it is the miner's raw output, whose shape varies per miner, so always null-check before rendering (`result_shape` is `raw`). See [The answer's shape](#the-answers-shape). |
+| `result_shape` | `intent` or `raw`. Omitted on older nodes. |
+| `shape_error` | Why `result` is raw. Only present when `result_shape` is `raw`. |
+| `format_version` | The version of the Intent's response format. Omitted when the Intent has no format. |
+| `field_status` | The status of each field in `result`, in the format's order. Only present when `result_shape` is `intent`. |
 | `cost_usd` | What the call cost, in USD (a number). |
 | `duration_ms` | Execution time in milliseconds. |
 | `reasoning` | Why the router chose this miner. Omitted when empty. |
 | `intent` | The Intent the router classified your query as. Omitted when empty. |
 | `signal_hash` | The hash this result was recorded under. Look it up at `GET /engine/v1/signal/{hash}`. Omitted when the ask failed. |
 | `warnings` | Advisory notes, e.g. your body is larger than the miner declared it accepts. The request still ran. Omitted when empty. |
-| `parsed` | The Intent's main value read out of `result` — see below. Omitted when the node doesn't provide it. |
 
 The `reasoning` field is useful for understanding and debugging routing decisions — it tells you, in plain language, why your query landed where it did.
 
-### `parsed`: the value read out of the answer
+### The answer's shape
 
-For some deterministic and hybrid Intents (an exchange rate, a CVE score, a yes/no check), a node that runs the response-parser model also reads the Intent's main value out of the miner's answer and returns it next to the raw `result`:
+Different miners for the same Intent answer in different formats. So that your code can read one shape, a node that runs the response-parser model reads the miner's answer into the Intent's response format and returns it as `result`. Every field of the format is read from the answer, and the keys are the same whichever miner answered:
 
 ```json
 {
   "miner_id": "41",
   "miner_name": "fx-frankfurter",
-  "result": { "amount": 1.0, "base": "USD", "date": "2026-10-01", "rates": { "EUR": 0.8712, "CAD": 1.4243 } },
-  "parsed": { "field": "rate", "status": "parsed", "value": 0.8712, "unit": "{key} per USD", "copied": "0.8712" },
+  "result": { "rate": 0.8712, "base": "USD", "quote": "EUR" },
+  "result_shape": "intent",
+  "format_version": 1,
+  "field_status": { "rate": "ok", "base": "ok", "quote": "ok" },
   "intent": "FX_NOW",
   "...": "other fields as above"
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `field` | Which value was read, e.g. `rate`. |
-| `status` | `parsed` (value read), `not_found` (no such value in `result`), `rejected` (the model's reply was unusable: not present word for word in `result`, not a number, or out of range), or `unavailable` (the parser didn't answer in time or is down, or `result` was too long). |
-| `value` | The value, after unit conversion (a number, or `true`/`false`). `null` unless `status` is `parsed`. |
-| `unit` | The unit, as written in the Intent's format. It can contain placeholders such as `{key}`. Omitted if none. |
-| `copied` | The exact text the model copied out of `result`, also when it was rejected. Omitted if none. |
+The keys above are illustrative. The real ones come from the Intent's response format.
 
-`parsed` never changes the status code or what you pay: a `not_found`, `rejected` or `unavailable` parse still returns `200` with the full `result`. It is not part of the stored result, and `signal_hash` covers `result` only. Treat it as a convenience next to `result`, which stays the authoritative answer. The direct path (`POST /engine/v1/ask/{minerId}`) never returns `parsed`.
+| `field_status` value | Meaning |
+|---|---|
+| `ok` | The value was read from the answer. |
+| `missing` | The answer has no such value. |
+| `rejected` | The model's reply was unusable: it was not present word for word in the answer, not the expected type, or out of range. |
+| `unavailable` | The parser did not answer in time or is down. |
+
+When the node cannot produce the shape, `result` is the miner's raw output, `result_shape` is `raw`, and `shape_error` says why:
+
+| `shape_error` | Meaning |
+|---|---|
+| `parser_off` | The node does not run the parser (`PARSER_LLM_ENABLED` unset, or `PARSER_LLM_USER_ENABLED=false`). |
+| `no_format` | The Intent, and the family it inherits from, has no response format. |
+| `parser_unavailable` | The parser did not answer for any field (it is down, timed out, or the answer was too long). |
+| `no_fields_found` | The parser answered, but no field could be read from the answer. |
+| `answer_unreadable` | The miner's answer could not be rendered as text for the parser. |
+
+Shaping never changes the status code or what you pay: a raw fallback still returns `200`. What is stored and signed is always the miner's raw answer, and `signal_hash` covers that raw answer, so the shaped `result` is a convenience view of it. The direct path (`POST /engine/v1/ask/{minerId}`) never shapes: its `result` is always the miner's raw output.
 
 ## Direct Ask
 

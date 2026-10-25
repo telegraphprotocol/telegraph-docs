@@ -114,7 +114,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Evaluation Pool minimum contributors | 5 per Intent |
 | Testing Cohort size | 10% of active Validators |
 | Internal Audit Fee | 2% of epoch Validator emission pool |
-| Spot check frequency | ~every 20 seconds (Base L2 ~2s blocks) |
+| Spot check frequency | About once per Intent per hour on average (node default; a node operator can change it with `SPOT_CHECK_INTERVAL_SECONDS`) |
 | Routing revocation trigger | Consecutive failed spot checks (no response or an empty answer) |
 | Category A ejection (continuous offline) | 7 days unbroken |
 | Category A ejection (rolling missed) | >50% of rounds in 7 days |

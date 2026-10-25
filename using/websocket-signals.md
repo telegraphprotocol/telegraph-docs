@@ -129,7 +129,7 @@ For the full schema, endpoints, prices, `activation_status`, use `GET /api/miner
 
 The `ask` and `ask_direct` actions route inference through the Engine directly. These are live calls, not reads from the cached history.
 
-The final `result` message of an `ask` can carry the same optional `parsed` object as `POST /engine/v1/ask`, with the same fields and rules — see [`parsed`](engine-ask.md#parsed-the-value-read-out-of-the-answer). `ask_direct` results never carry it.
+The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). `ask_direct` results are never shaped and carry the miner's raw output.
 
 **They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
 

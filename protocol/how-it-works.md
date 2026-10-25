@@ -65,7 +65,7 @@ The pool is frozen once per epoch, at the epoch rollover, and each frozen snapsh
 
 ## Spot Checks: Continuous Mid-Epoch Validation
 
-Validators don't only grade miners at epoch boundaries. Spot checks run continuously throughout the epoch — approximately once every 20 seconds, triggered deterministically by the hash of the latest Base L2 block combined with the Intent ID.
+Validators don't only grade miners at epoch boundaries. Spot checks run continuously throughout the epoch, on average about once per hour for each Intent (the node default), at randomised times so a miner cannot predict them.
 
 Spot checks test liveness, not answer quality: a miner passes by returning a non-empty answer. If a miner fails consecutive spot checks (no response, or an empty answer), the protocol issues a **Routing Revocation**: that miner is removed from the routing table for that Intent and their traffic share redistributed to remaining eligible miners. The revocation is recorded immutably in the epoch block. Answer quality is judged only by the epoch ranking.
 

@@ -24,7 +24,7 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents
 That returns every canonical intent with a description and how many miners
 currently serve it.
 
-There are **108** canonical intents as of 2026-09-08. The tables below group them; the chain is what actually decides.
+There are **134** canonical intents as of 2026-10-25. The tables below group them; the chain is what actually decides.
 
 ## How answers are scored
 
@@ -165,9 +165,8 @@ models, so the input you send is a media URL or upload rather than a prompt.
 ## Added 2026-09-08
 
 The 63 intents below were added to the canonical set on 2026-09-08, taking it to 108.
-**None of them has a live miner yet** — see [A note on coverage](#a-note-on-coverage).
-They are listed here because they are routable targets today: the classifier can pick
-them, and a miner can register for them right now.
+When they were added none had a live miner. As of 2026-10-25 every one of them has at
+least one. See [A note on coverage](#a-note-on-coverage).
 
 ### Verification & Markets
 
@@ -289,6 +288,56 @@ them, and a miner can register for them right now.
 | `SENSOR_TELEMETRY_VERIFY` | A — Deterministic | IoT fleet integrity checks |
 | `SATELLITE_IMAGERY_ANALYSIS` | B — Judgment | Agriculture, insurance and infrastructure monitoring |
 | `WEATHER_FORECAST_VERIFY` | A — Deterministic | Parametric insurance and forecast scoring |
+
+## Added after 2026-09-08
+
+The live node reports 26 more canonical intents than the 108 above, taking the set to 134. Each of them has live miners, so you can route to them today. This page does not list a scoring tier for them yet, so check how one is scored with `GET /api/wasm?resolve=<INTENT>` before building against it.
+
+### Language & Text
+
+| Intent | What it does |
+|---|---|
+| `QUESTION_ANSWERING` | Answers open-domain and context-bounded questions with cited factual assertions |
+| `TEXT_SUMMARIZATION` | Concise, factual summaries of long documents |
+| `CHATBOT_CONVERSATION` | Multi-turn conversation that keeps context, tone and empathy |
+| `CODE_GENERATION` | Executable, type-safe code that meets a functional specification |
+| `ENTITY_EXTRACTION` | Named entities (people, organizations, locations, dates) with character offsets |
+| `KEYWORD_EXTRACTION` | Representative keywords, keyphrases and n-grams from body text |
+| `GRAMMAR_SPELL_CHECK` | Spelling, punctuation and grammar errors with correction offsets |
+| `PLAGIARISM_DETECTION` | Verbatim duplication, disguised paraphrase and uncredited citations |
+| `EMBEDDING_GENERATION` | Text turned into standard float vector embeddings for retrieval |
+| `SEMANTIC_SIMILARITY` | Cosine similarity and relatedness distance between sentence pairs |
+
+### Audio & Image
+
+| Intent | What it does |
+|---|---|
+| `SPEECH_TO_TEXT` | Punctuated, timestamped transcripts with speaker diarization |
+| `TEXT_TO_SPEECH` | Spoken voice audio from text, with adjustable emotion and cadence |
+| `IMAGE_CAPTIONING` | Alt-text captions describing the main subjects and scenes in an image |
+
+### Finance & On-Chain
+
+| Intent | What it does |
+|---|---|
+| `CRYPTO_TRANSFER_VERIFY` | On-chain transaction status, gas, addresses and block confirmations |
+| `CRYPTO_YIELD_RATE` | APY, staking reward and lending-pool yields across DeFi protocols |
+| `TOKEN_TOTAL_SUPPLY_VERIFY` | Circulating supply, burnt balances and total minted token counts |
+| `SMART_CONTRACT_AUDIT` | Bytecode and source checks for reentrancy, access control and overflows |
+| `CREDIT_SCORE_VERIFY` | Consumer credit score ranges, adverse factors and debt-to-income benchmarks |
+| `LOAN_INTEREST_RATE_QUOTE` | Mortgage APRs, prime rates and personal loan quotes |
+
+### Infrastructure & Environment
+
+| Intent | What it does |
+|---|---|
+| `API_HEALTH_CHECK` | REST/GraphQL responsiveness, JSON schema structure and HTTP status codes |
+| `SERVER_UPTIME_MONITOR` | HTTP/HTTPS availability, handshake latency and uptime from several regions |
+| `DNS_RECORD_LOOKUP` | A, AAAA, CNAME, MX and TXT records across global resolvers |
+| `PORT_SCAN_AUDIT` | Open ports, banners and listening protocols on a host |
+| `THREAT_IP_REPUTATION` | Malicious IP risk scores, botnet links and brute-force history |
+| `CLOUD_RESOURCE_USAGE` | VM and container compute, memory pressure and network throughput |
+| `AIR_QUALITY_INDEX` | PM2.5/PM10, ground ozone and composite AQI from monitoring stations |
 
 ## Using an intent
 

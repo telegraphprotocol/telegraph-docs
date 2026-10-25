@@ -18,7 +18,7 @@ For each active Intent in each epoch, validators:
 4. **Reveal** — after the commit phase closes, reveal the plaintext score and nonce.
 5. **Reach consensus** — the stake-weighted median of all revealed scores becomes the Canonical Score.
 
-This repeats continuously throughout each epoch. Spot checks run approximately every 20 seconds (triggered deterministically by Base L2 block hashes), meaning validators are active around the clock, not just at epoch boundaries.
+This repeats continuously throughout each epoch. Spot checks run on average about once per hour for each Intent (at randomised times; tune with `SPOT_CHECK_INTERVAL_SECONDS`), meaning validators are active around the clock, not just at epoch boundaries.
 
 ## How Validators Earn
 
