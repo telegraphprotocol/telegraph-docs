@@ -20,26 +20,49 @@ The EIP-712 domain name in the payment signature doesn't match. Base Sepolia USD
 
 ## ERC-8183 Jobs
 
-### Job stuck in Funded state — never resolved
+Jobs progress through states: Funded (`0`) then Terminal (`1`) when resolved, or Cancelled (`2`) when cancelled or failed. **A job can fail**: if no miner can answer, the validator quorum fails it, refunds the agent at once and calls the callback with `success = false`. See [On-Chain Jobs](using/erc8183-jobs.md#when-a-job-fails).
 
-Jobs progress through states: Funded (`0`) → Terminal (`1`), or Cancelled (`2`).
+### Job reverts when I create it
 
-**A job that stays Funded has failed, not stalled.** Resolution happens per job, within seconds of the miner answering — it is not batched into an epoch. If the miner is unreachable or returns an error, the listener deliberately does *not* resolve the job: there is no failed terminal state, your callback is never called, and the job sits in Funded indefinitely.
+| Revert | Cause and fix |
+|---|---|
+| `not a canonical intent` | `intentId` must be `keccak256` of a canonical **intent** name. A prefix (`FX_NOW`), a miner registration id, a removed or misspelled name all revert. Check `isCanonicalIntent("FX_NOW_EUR")` and hash with `cast keccak "FX_NOW_EUR"` |
+| `job price above maxBudget` | The price rose between your quote and inclusion (the demand multiplier moved, or the base price changed). Read `getJobBasePrice()`, raise `maxBudget`, or use `createJob` which takes no limit |
+| `insufficient escrow balance` | `createJob` and `createJobCapped` pay from escrow. Deposit first, or use `createJobAndPay` |
+| `USDC payment failed` or a token error | `createJobAndPay` pulls USDC with `transferFrom`: approve the Diamond for at least the price and hold the balance |
+| `callback has no code` | The callback must be a deployed contract. Pass the zero address for no callback |
+| `paused` | The protocol is paused (emergency). New jobs are refused until it is unpaused |
 
-1. Check the job state on-chain. Note the doubled parentheses — `getJob` returns a struct, and without them `cast` fails with `could not decode output`:
+### Job stuck in Funded state
+
+Resolution happens per job within seconds to a few minutes of a miner answering. It is not batched into an epoch.
+
+1. Look at the node's record. A failed attempt shows an `error_msg`:
+```bash
+curl https://<node>/engine/v1/job/<jobId>/result
+```
+2. Check the state on-chain. Note the doubled parentheses, because `getJob` returns a struct:
 ```bash
 cast call <diamond> "getJob(uint256)((address,bytes32,address,uint256,uint256,uint256,uint8,uint256))" <jobId> --rpc-url <rpc>
 # (agent, intentId, callback, budget, minerPayment, protocolFee, state, createdAt)
 ```
-
-2. Ensure a miner supporting your intent is registered and active.
-3. Verify your job's OnChainData format matches what the miner expects:
-   - `strings[0]` = model name (for LLM miners)
-   - `strings[1]` onward = alternating role/content pairs for the `chat_messages` format
-4. **Recover your funds with `cancelJob`.** Only the original agent can cancel, and it refunds the full budget to your escrow:
+3. Check the intent can be answered on-chain at all: `GET /engine/v1/intents/<intent>` must show `onchain.ready: true` and at least one live miner. If `ready` is `false`, a job for that intent fails at once with reason 3.
+4. Check that your `params` follow `onchain.request` (slot and index for each input, numbers as `value x 10^decimals`). A request that does not fit the intent's inputs fails with reason 2.
+5. If it is still `Funded` after the node's retry window (37 minutes for the node's own failures), cancel it. Only the original agent can, after `jobCancelDelay` (genesis 1 hour):
 ```bash
 cast send <diamond> "cancelJob(uint256)" <jobId> --rpc-url <rpc> --private-key <key>
 ```
+`cancelJob` reverts `job cancel lock` before the delay and `job not fundable` once the job is resolved, failed or cancelled.
+
+### A job was refunded without an answer (`JobFailed`)
+
+The quorum failed it: `JobFailed(jobId, reason)` from the Diamond, and your callback got `success = false` with the reason in words. You were refunded at once into your escrow (for a dapp that paid for its user, the **dapp's** escrow).
+
+| Reason | Meaning | What to do |
+|---|---|---|
+| 1 `no miner answered` | Every candidate was tried, or no live miner serves the intent | Check `GET /engine/v1/intents/<intent>/miners`. Retry later or pick another intent |
+| 2 `the request does not fit the intent's inputs` | A value was missing, out of range or not allowed | Re-read `onchain.request` and fix `params` |
+| 3 `the node could not process the answer` | The node's request builder or parser stayed down through its retries, or the intent has no on-chain answer format | Check `onchain.ready`. If the node is down, retry later |
 
 ### Job reached Terminal but the result looks wrong
 
@@ -49,11 +72,24 @@ Check the output hash committed on-chain:
 cast call <diamond> "getJobOutput(uint256)(bytes32)" <jobId> --rpc-url <rpc>
 ```
 
-A non-zero hash means the miner answered and the job resolved. If the *content* isn't what you expected, the usual cause is an `OnChainData` layout mismatch — the response is packed at the indexes the serving miner declares in its YAML `on_chain.fields` block, not in a fixed order. Check that block for the miner that served you.
+A non-zero hash means a miner answered and the job resolved. If the *content* is not what you expected, the usual cause is reading the wrong slot. The answer is laid out by the **intent's** answer layout, not by the serving miner, and is the same whichever miner answered. Read `onchain.response` from `GET /engine/v1/intents/<intent>` for the exact `slot`, `index` and `decimals` of each field. Numbers arrive as `value x 10^decimals` in `integers` (a negative as an int256, so cast with `int256(...)`).
 
-A reverting callback does not show up here: the protocol calls your callback inside `try … catch {}`, so the job reaches Terminal and the miner is paid even if delivery to your contract failed.
+A reverting callback does not show up here: the protocol calls your callback inside `try ... catch`, so the job reaches Terminal and the miner is paid even if delivery to your contract failed.
+
+### `transitionToTerminal` / `failJob` reverts: "not enough gas for the callback"
+
+Only relevant if you send a resolution by hand. The callback needs the stipend (`protocolParams().jobCallbackGas`, genesis 300k) with room to finish, so give the call at least the stipend plus about 1/63 of it on top of the rest. The node sizes this itself from its gas estimate.
 
 ## Miner Registration
+
+### Registration reverts: intents and prefixes
+
+| Revert or message | Cause and fix |
+|---|---|
+| `MinerRegistryFacet: unsupported intent` | An entry in `supportedIntents` is not a canonical intent. Check each with `isCanonicalIntent(string)`. Matching is exact and case-sensitive |
+| `MinerRegistryFacet: a prefix is not an intent` | You listed a family such as `FX_NOW`. List the intent, for example `FX_NOW_EUR`. Read the families with `getPrefixes()` |
+| `duplicate intent` | The same intent is listed twice. Each counts once |
+| `registration opens when the migration closes` | The network is being migrated and registration is not open. Existing miners were imported for you |
 
 ### "Schema validation failed"
 
@@ -602,6 +638,40 @@ The engine classifies your query to an intent, then routes to the best-scored mi
 ```bash
 curl http://<node>:7044/api/miners
 ```
+
+### `400 invalid_params` on /engine/v1/ask
+
+You sent `intent` + `params` and they do not fit the intent's request schema. Nothing was charged and no miner was called. The body lists every problem:
+
+```json
+{"error":"invalid_params","intent":"WEATHER_CHECK","schema_version":3,
+ "problems":[{"param":"location","code":"missing","message":"location is required (string)"}]}
+```
+
+Read the schema first with `GET /engine/v1/intents/<intent>` (`request.params`) and fix each problem. The codes are `missing`, `type`, `enum`, `range`, `pattern`, `unknown`, `size` and `conflict`. A `conflict` means your `params` (or `context`) disagree with what your `query` says, so remove the disagreement. See [Engine Inference](using/engine-ask.md#canonical-ask-intent--params).
+
+### `400 no_input_schema`, `400 intent_required`, `404 miner_not_found`
+
+- `no_input_schema`: you sent `params` for an intent with no request schema. Send a free-form `query` instead.
+- `intent_required`: you called `POST /engine/v1/ask/<miner>` in the canonical form and the miner serves several intents. Add `intent`. The body lists them.
+- `miner_not_found`: the miner id or slug is not registered. Take it from `/api/miners`.
+
+### `503 extraction_unavailable` / `503 no_compatible_miner`
+
+- `extraction_unavailable`: the node needed its parser model to read or complete your params and it is off, down or slow. Retry, or send a complete `intent` + `params`, which needs no model.
+- `no_compatible_miner`: no live miner can take your params, or no live miner serves the intent you named (an intent is never served by another intent's miner). Check `GET /engine/v1/intents/<intent>/miners`.
+
+### `429 too many requests, slow down`
+
+One client asked about too many **new** questions in a minute (default 60). A question quoted in the last 3 minutes is never refused this way, so a paid retry of the same body is fine. Wait and retry, or ask the node operator about `ROUTE_QUOTES_PER_MINUTE`.
+
+### `result_shape` is `raw` and I expected the Intent's fields
+
+The node could not read the miner's answer into the Intent's shape. `shape_error` says why: `parser_off` (the node does not run the parser), `no_format` (the intent has no response format), `parser_unavailable`, `no_fields_found` or `answer_unreadable`. The reply is still `200` and still billed, and `result` is the miner's raw answer. See [The answer's shape](using/engine-ask.md#the-answers-shape). A field that is `null` has a `field_status` of `missing` or `rejected`.
+
+### Escrow withdrawal reverts `Withdrawal locked: 2 blocks must settle first`
+
+A withdrawal unlocks once two more blocks settle after you request it (blocks are 24 hours), or after 7 days, whichever comes first. This replaced the old 4-hour timelock. Check `withdrawalUnlock(you)`, which returns `(unlockSequence, unlockTime, unlocked)`, and call `executeWithdraw` once `unlocked` is true. See [Withdrawing](using/escrow-inference.md#withdrawing).
 
 ### `422 request is predicted to fail` on /engine/v1/ask/{minerId}
 

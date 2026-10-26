@@ -212,7 +212,10 @@ The `keccak256` value is the hash you register.
 
 1. Upload the `.wasm` file somewhere the nodes can download it: an `https://`
    or `ipfs://` URL. Nodes must be able to fetch it within 30 minutes.
-2. Register it with `registerWasm(keccak256, url, intent, feeAddress)`. See
+2. Register it with `registerWasm(keccak256, url, prefix, feeAddress, runnableUrl)`:
+   the prefix is the family it scores, and the runnable URL is a hosted endpoint
+   serving the same module that the node checks before it downloads your file.
+   See
    [Registering directly](build-a-scoring-module.md#registering-directly).
 3. The node checks the package, then puts it in a **competition** on the
    intent's hidden evaluation pool. It replaces the current adapter only if it

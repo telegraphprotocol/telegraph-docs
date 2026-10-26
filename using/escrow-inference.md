@@ -1,5 +1,5 @@
 ---
-description: Fund once, then call as often as you like — no per-request settlement, no facilitator round trip, and a receipt for every call.
+description: Fund once, then call as often as you like. No per-request settlement, no facilitator round trip, and a receipt for every call.
 ---
 
 # Paying from Escrow
@@ -30,7 +30,7 @@ The trade-off is that escrow needs funding before the first call, and your balan
 
 - A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`).
 - A wallet that can sign an EIP-191 `personal_sign` message.
-- The Diamond address for the node you are calling — see [Addresses & Parameters](../protocol/addresses-and-params.md).
+- The Diamond address for the node you are calling. See [Addresses & Parameters](../protocol/addresses-and-params.md).
 
 **Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
@@ -43,7 +43,7 @@ IERC20(USDC).approve(DIAMOND, amount);
 EscrowFacet(DIAMOND).depositUSDC(amount);   // amount in 6-decimal uUSDC
 ```
 
-There is no minimum deposit for HTTP calls: your balance only has to cover the call itself plus whatever this epoch has already charged you. (The **1.00 USDC** floor is a WebSocket rule, enforced when the connection opens.) Deposit more than one call's worth anyway — a call refused for balance is a call you have to sign and send again.
+There is no minimum deposit for HTTP calls: your balance only has to cover the call itself plus whatever has already been billed to you and not yet charged on-chain. (The **1.00 USDC** floor is a WebSocket rule, enforced when the connection opens.) Deposit more than one call's worth anyway, because a call refused for balance is a call you have to sign and send again.
 
 Read your balance back at any time:
 
@@ -55,11 +55,11 @@ EscrowFacet(DIAMOND).agentDebt(you);          // unpaid deliveries, if any
 
 `effectiveBalance` is the one the node checks against: your deposit, minus anything pending withdrawal, minus any gas reserve.
 
-> If a settlement ever finds your escrow short, the shortfall is recorded on-chain as **debt** and delivery is suspended until you top up. The next deposit clears the debt first, before anything reaches spendable balance.
+> If a settlement ever finds your escrow short, the shortfall is recorded on-chain as **debt** and delivery is suspended until you top up. The next deposit clears the debt first, before anything reaches spendable balance. An x402 payment is treated the same way: its credit repays your debt first, and only the rest becomes escrow.
 
 ### Funding somebody else
 
-`depositUSDCFor(beneficiary, amount)` pays from your wallet and credits somebody else's escrow. No signature from them is required, because it grants you nothing — only they can ever spend or withdraw it.
+`depositUSDCFor(beneficiary, amount)` pays from your wallet and credits somebody else's escrow. No signature from them is required, because it grants you nothing: only they can ever spend or withdraw it.
 
 ```solidity
 IERC20(USDC).approve(DIAMOND, amount);
@@ -70,7 +70,7 @@ Useful for sponsoring your users' inference, topping up a fleet of agent wallets
 
 ## Step 2: Read the Challenge
 
-Escrow is priced on the same routes x402 is — `POST /engine/v1/ask` and `POST /engine/v1/ask/{minerId}`. Call one with no payment header and you get the usual 402, whose body lists the schemes it accepts. Look for the entry whose `scheme` is `escrow`:
+Escrow is priced on the same routes x402 is: `POST /engine/v1/ask` and `POST /engine/v1/ask/{minerId}`. Call one with no payment header and you get the usual 402, whose body lists the schemes it accepts. Look for the entry whose `scheme` is `escrow`:
 
 ```json
 {
@@ -82,15 +82,16 @@ Escrow is priced on the same routes x402 is — `POST /engine/v1/ask` and `POST 
     "description": "Deduct from the caller's Telegraph escrow balance at the next epoch close. Fund it once with EscrowFacet.depositUSDC(amount); no per-request settlement.",
     "resource": "/v1/ask",
     "signWith": "personal_sign (EIP-191)",
-    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x5a2324aa…\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
+    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x5a2324aa…\nNetwork: eip155:84532\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
   }
 }
 ```
 
-`extra.message` is the exact template you sign, with `{from}`, `{nonce}`, `{validAfter}` and `{validBefore}` to fill in. Three things about it trip people up:
+`extra.message` is the exact template you sign, with `{from}`, `{nonce}`, `{validAfter}` and `{validBefore}` to fill in. Things that trip people up:
 
-- **Read the amount off the message template.** The first challenge quotes a human `price` (`"$0.01"`), while the fresh challenge attached to a *refusal* carries `amount` in μUSDC instead. The `Amount:` line of `extra.message` is present in both, so that is the reliable place to read the figure for `authorization.value`. For a $0.01 call it is `10000`.
-- **`resource` is the path *inside* the engine** — `/v1/ask`, without the `/engine` prefix you actually called. Sign the template as given; do not rebuild it from your request URL.
+- **`Network:` is part of what you sign.** It names the chain the escrow lives on, so a signature cannot be replayed on another chain. A node on Ethereum mainnet refuses a signature without it. Do not rebuild the message: sign the template as given.
+- **Read the amount off the message template.** The first challenge quotes a human `price` (`"$0.01"`), while the fresh challenge attached to a *refusal* carries `amount` in μUSDC instead. The `Amount:` line of `extra.message` is present in both, so that is the reliable place to read the figure for `authorization.value`.
+- **`resource` is the path *inside* the engine**: `/v1/ask`, without the `/engine` prefix you actually called. Sign the template as given.
 - **Lowercase your address when you substitute `{from}`.** The node lowercases the wallet and payTo before it checks your signature, so a checksummed address signs different bytes and is rejected with `signature is from …, not authorization.from …`.
 
 ## Step 3: Sign and Send
@@ -116,17 +117,17 @@ Sign the reconstructed message with `personal_sign`, then send it back in `X-PAY
 }
 ```
 
-Send it in `X-PAYMENT`, **not** `PAYMENT-SIGNATURE` — that header belongs to the x402 `exact` rail and escrow is not read from it.
+Send it in `X-PAYMENT`, **not** `PAYMENT-SIGNATURE`. That header belongs to the x402 `exact` rail and escrow is not read from it.
 
 Rules the node enforces, all of them committed to by the signature:
 
 - `value` must equal the quoted amount **exactly**. Underpaying and overpaying are both refused.
 - `to` must be the Diamond.
-- The validity window (`validBefore` − `validAfter`) may be at most **2 minutes**.
-- `nonce` must not have been used before by this wallet.
-- The `resource` is inside the signed message, so a signature bought for one endpoint cannot be presented at another.
+- The validity window (`validBefore` minus `validAfter`) may be at most **2 minutes**.
+- `nonce` must not have been used before by this wallet. Nonces are remembered **across node restarts and across nodes** until the authorization expires, so a nonce you used yesterday is not reusable.
+- The `resource` and the `Network` are inside the signed message, so a signature bought for one endpoint or chain cannot be presented at another.
 
-> The signed message is deliberately **not** an EIP-3009 `TransferWithAuthorization`. A valid one of those is a bearer instrument — anyone who lifted it out of a log or a proxy could submit it to the USDC contract and actually move your money. Escrow proves intent, so it signs a human-readable message that no contract will ever accept.
+> The signed message is deliberately **not** an EIP-3009 `TransferWithAuthorization`. A valid one of those is a bearer instrument: anyone who lifted it out of a log or a proxy could submit it to the USDC contract and actually move your money. Escrow proves intent, so it signs a human-readable message that no contract will ever accept.
 
 ## Step 4: Read the Receipt
 
@@ -138,7 +139,7 @@ A served request returns `X-PAYMENT-RESPONSE` (base64 JSON) carrying the standar
   "rail": "escrow",
   "payer": "0xyourwallet…",
   "miner": "377",
-  "intent": "STOCK_PRICE",
+  "intent": "CRYPTO_PRICE_USD",
   "amount_uusdc": "10000",
   "epoch_id": 314,
   "settlement": "epoch",
@@ -147,17 +148,17 @@ A served request returns `X-PAYMENT-RESPONSE` (base64 JSON) carrying the standar
 }
 ```
 
-`receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch — so it identifies your call, and nothing else, permanently.
+`receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch, so it identifies your call, and nothing else, permanently. You can later prove the call was billed in a specific epoch block: see the block and delivery proof routes (`GET /v1/blocks/{epochId}/deliveries/{receiptHash}`).
 
-There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the `submitEpoch` transaction your charge will ride — that is what to look for on-chain.
+There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the `submitEpoch` transaction your charge will ride.
 
-The same receipt object, field for field, is returned by the x402 rail (in `X-TELEGRAPH-RECEIPT`) and by the WebSocket rail (as a `receipt` message). Whichever way you pay, you can treat the receipt identically.
+The same receipt object, field for field, is returned by the x402 rail (in `X-TELEGRAPH-RECEIPT`) and by the WebSocket rail (as a `receipt` message).
 
-**A request that fails is never billed and carries no receipt.** Treat a missing header on a non-2xx as "not charged" — and retry with a fresh nonce, never the one you just sent.
+**A request that fails is never billed and carries no receipt.** Treat a missing header on a non-2xx as "not charged", and retry with a fresh nonce, never the one you just sent.
 
 ## Putting It Together
 
-The whole rail is three fetches and a signature — no SDK, no facilitator, no on-chain call per request:
+The whole rail is three fetches and a signature, with no SDK, no facilitator, and no on-chain call per request:
 
 ```ts
 import { createWalletClient, http } from 'viem';
@@ -169,10 +170,10 @@ const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const wallet = createWalletClient({ account, chain: baseSepolia, transport: http() });
 
 export async function ask(question: string) {
-  const body = JSON.stringify({ query: question });   // the field is `query`
+  const body = JSON.stringify({ query: question });   // or { intent, params }
   const json = { 'Content-Type': 'application/json' };
 
-  // 1 — read the challenge
+  // 1: read the challenge
   const challenge = await fetch(`${NODE}/v1/ask`, { method: 'POST', headers: json, body })
     .then((r) => r.json());
   const escrow = challenge.accepts.find((a: any) => a.scheme === 'escrow');
@@ -189,7 +190,7 @@ export async function ask(question: string) {
     nonce: crypto.randomUUID(),                 // fresh every attempt
   };
 
-  // 2 — fill the template in place and sign it verbatim
+  // 2: fill the template in place and sign it verbatim (it already contains Network)
   const message = template
     .replace('{from}', authorization.from)
     .replace('{nonce}', authorization.nonce)
@@ -197,7 +198,7 @@ export async function ask(question: string) {
     .replace('{validBefore}', authorization.validBefore);
   const signature = await wallet.signMessage({ message });
 
-  // 3 — same request, now carrying the authorization
+  // 3: same request body, now carrying the authorization
   const payment = btoa(JSON.stringify({
     x402Version: 2,
     scheme: 'escrow',
@@ -244,7 +245,7 @@ curl -sS -D - -X POST "$NODE/v1/ask" -H 'Content-Type: application/json' \
   -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
 
-The body field is `query` — see [Engine Inference](engine-ask.md). Sending anything else is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent.
+The body is a `query`, or an `intent` with `params`. See [Engine Inference](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
 
 An unfunded wallet gets `insufficient escrow for delivery: committed=0 μUSDC + price=10000 μUSDC > available=0 μUSDC`, which is a useful signal on its own: it means the signature verified and only the balance is missing.
 
@@ -254,32 +255,41 @@ Every refusal is a `402` whose body carries a `reason` and a fresh challenge, so
 
 | `reason` contains | What happened |
 |---|---|
-| `costs N uUSDC, authorization offers M` | `value` disagrees with the quote — re-read the challenge |
-| `already been used` | Replayed nonce — mint a fresh one |
+| `costs N uUSDC, authorization offers M` | `value` disagrees with the quote. Re-read the challenge for the exact body you are sending |
+| `already been used` | Replayed nonce. Mint a fresh one |
+| `authorization could not be recorded; retry with a new nonce` | The node could not record your nonce, so it refused rather than accept a replayable authorization. Retry with a fresh nonce |
 | `expired at …` / `not valid yet` | Outside the validity window; check your clock |
 | `valid for …; the maximum is 2m0s` | Window longer than 2 minutes |
 | `escrow pays the diamond at …` | `to` is not the Diamond |
+| network or chain mismatch | The message names a different chain than the node's. Sign the template exactly as given |
 | `signature is from …, not authorization.from …` | Signer does not match the claimed payer |
-| `insufficient escrow for delivery: committed=… + price=… > available=…` | Balance too low — deposit more. `committed` is what this epoch has already charged you |
+| `insufficient escrow for delivery: committed=… + price=… > available=…` | Balance too low. Deposit more. `committed` counts calls billed but not yet charged on-chain, this epoch and any still settling |
 | `delivery suspended: outstanding debt of …` | A past settlement found you short; deposit at least the debt to clear it |
 
-**Whether a refusal burns your nonce depends on where it failed.** Everything checked before the signature — network, recipient, amount, timestamps, the signature itself — is rejected without recording the nonce, so it stays usable. Once the signature verifies the nonce is spent, and it stays spent even if the call is then refused for balance: handing back a reusable signature after a rejection would be a replay window. The simple rule is to mint a fresh nonce for every attempt.
+**Whether a refusal burns your nonce depends on where it failed.** Everything checked before the signature (network, recipient, amount, timestamps, the signature itself) is rejected without recording the nonce, so it stays usable. Once the signature verifies the nonce is spent, and it stays spent even if the call is then refused for balance. The simple rule is to mint a fresh nonce for every attempt.
 
 ## Withdrawing
 
-Withdrawals are timelocked, so an agent cannot drain its balance out from under deliveries already in flight:
+Withdrawals wait for settlement, so an agent cannot drain its balance out from under deliveries already in flight:
 
 ```solidity
-EscrowFacet(DIAMOND).requestWithdraw(amount);   // starts the timelock
-EscrowFacet(DIAMOND).executeWithdraw();         // after it expires
+EscrowFacet(DIAMOND).requestWithdraw(amount);   // starts the wait
+EscrowFacet(DIAMOND).withdrawalUnlock(you);     // (unlockSequence, unlockTime, unlocked)
+EscrowFacet(DIAMOND).executeWithdraw();         // once unlocked
 EscrowFacet(DIAMOND).cancelWithdraw();          // changed your mind
 ```
 
-While a withdrawal is pending, the requested amount is excluded from `effectiveBalance`, so it can no longer be spent on calls.
+**A withdrawal unlocks once two more blocks settle after you request it, or 7 days after, whichever comes first.** Blocks are 24 hours, so the usual wait is up to about two days. It waits for blocks rather than a clock so the blocks that charge what you already used settle before the money leaves. (This replaced an older fixed 4-hour timelock.)
+
+- `withdrawalUnlock(you).unlocked` tells you whether you can execute. `unlockSequence` is the `stateSequence()` value of the diamond that unlocks it, and `unlockTime` is the 7-day fallback.
+- Calling `executeWithdraw` early reverts `Withdrawal locked: 2 blocks must settle first`. Gate your button on `unlocked` instead of letting the user find out from a failed transaction.
+- While a withdrawal is pending, the requested amount is excluded from `effectiveBalance`, so it can no longer be spent on calls. A user who requests their whole balance cannot pay for anything while it waits.
+- Lowering the amount restarts the wait.
+- Calls you made before asking are still charged by the blocks that settle meanwhile, so you may receive less than you asked for. This is deliberate.
 
 ## Related
 
-- [Paying with x402](x402-inference.md) — the per-request rail escrow sits alongside
-- [Choosing an Inference Path](inference-paths.md) — which rail fits your workload
-- [WebSocket Signal Subscriptions](websocket-signals.md) — escrow is what funds streamed signals
+- [Paying with x402](x402-inference.md): the per-request rail escrow sits alongside
+- [Choosing an Inference Path](inference-paths.md): which rail fits your workload
+- [WebSocket Signal Subscriptions](websocket-signals.md): escrow is what funds streamed signals
 - [Troubleshooting](../troubleshooting.md)

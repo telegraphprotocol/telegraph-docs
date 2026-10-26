@@ -79,7 +79,7 @@ Subscription requires wallet authentication (Step 1). Once verified, send a subs
 ```json
 {
   "action": "subscribe",
-  "intents": ["WEATHER_FORECAST", "CLIMATE"],
+  "intents": ["WEATHER_CHECK_TEMPERATURE", "FX_NOW_EUR"],
   "spend_limit_usdc": 500000
 }
 ```
@@ -92,7 +92,7 @@ The server immediately confirms with a `subscribed` message:
   "data": {
     "subscription_id": "6ee741a1-5c5b-4c82-a29f-956d9e529fd9",
     "wallet_address": "0x...",
-    "intents": ["WEATHER_FORECAST", "CLIMATE"],
+    "intents": ["WEATHER_CHECK_TEMPERATURE", "FX_NOW_EUR"],
     "category": "",
     "min_interest": 0,
     "max_per_hour": 60,
@@ -115,8 +115,8 @@ Available actions on the WebSocket connection:
 | `unsubscribe` | Yes | Stop receiving signals for a subscription |
 | `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
-| `ask` | Yes | Request live on-demand inference (routed automatically). Billed $0.01 to escrow per call |
-| `ask_direct` | Yes | Route directly to a specific miner by ID. Billed $0.01 to escrow per call |
+| `ask` | Yes | Request live on-demand inference (routed automatically), from a `query` or from `intent` + `params`. Billed $0.01 to escrow per call |
+| `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed $0.01 to escrow per call |
 | `ping` | No | Keep the connection alive |
 
 `list_subnets` responds with the catalog under a `subnets`/`miners` key:
@@ -129,7 +129,16 @@ For the full schema, endpoints, prices, `activation_status`, use `GET /api/miner
 
 The `ask` and `ask_direct` actions route inference through the Engine directly. These are live calls, not reads from the cached history.
 
-The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). `ask_direct` results are never shaped and carry the miner's raw output.
+For an Intent with an [input schema](engine-ask.md#canonical-ask-intent--params) you can send canonical params instead of (or with) the query, and `ask_direct` accepts the same form next to the native one:
+
+```json
+{ "action": "ask", "intent": "WEATHER_CHECK", "params": { "location": "Tokyo" } }
+{ "action": "ask_direct", "subnet_id": "wx-openmeteo", "intent": "WEATHER_CHECK", "params": { "location": "Tokyo" } }
+```
+
+A request refused for its input gets an `error` message carrying the HTTP body (`invalid_params`, `no_input_schema`, `intent_required`, `no_compatible_miner`, ...) plus a `message`, before any routing and before the escrow check. Nothing is charged. Mixing native and canonical fields in one `ask_direct` is refused.
+
+The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). A native `ask_direct` result is the miner's raw output and carries `result_shape: "raw"`; a canonical `ask_direct` result is shaped like `ask`'s. Subscription pushes are raw and carry no `result_shape`.
 
 **They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
 
@@ -249,7 +258,7 @@ Every billed delivery is followed by a `receipt` message. It arrives **after** t
     "rail": "ws",
     "payer": "0xyourwallet…",
     "miner": "377",
-    "intent": "WEATHER_CHECK",
+    "intent": "WEATHER_CHECK_TEMPERATURE",
     "amount_uusdc": "10000",
     "epoch_id": 314,
     "settlement": "epoch",
@@ -323,7 +332,7 @@ Deposit more than the $1.00 minimum. That figure is only the gate to *connect* �
 both meters then draw against the same balance: every pushed subscription signal
 and every `ask`/`ask_direct` call. An escrow that runs dry mid-epoch silently
 stops subscription delivery rather than queueing, and starts refusing asks.
-Withdrawals carry a 4-hour timelock, so deposit what you will actually use.
+A withdrawal unlocks once two more blocks settle (blocks are 24 hours) or after 7 days, whichever comes first, so deposit what you will actually use. See [Withdrawing](escrow-inference.md#withdrawing).
 
 The same escrow funds [ERC-8183 jobs](erc8183-jobs.md) — one balance, both rails.
 

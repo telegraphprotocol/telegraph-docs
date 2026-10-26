@@ -17,6 +17,8 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 | **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
 | **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
 
+> **The V2 contracts are a fresh deployment.** `SubnetFacet` was removed and there is no in-place upgrade for jobs, so V2 is deployed to new addresses and existing miners are copied across by an admin import. If a call to the Diamond below reverts with an unknown selector, you are looking at the old deployment.
+
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
 > the value your client should use.

@@ -17,7 +17,7 @@ rows and post it to a node.
 ## What the pool is used for
 
 The pool holds two kinds of material (see
-[How answers are scored](../using/intents.md#how-answers-are-scored)):
+[How answers are scored](../using/intents.md#the-three-kinds)):
 
 - **Questions with answers** serve **judgment** and **hybrid** intents.
 - **Truth sources** serve **deterministic** intents and the checkable part of

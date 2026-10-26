@@ -29,7 +29,7 @@ GET /api/miners
 
 This returns a JSON array of every registered miner with its endpoints, input/output schemas, supported Intents, and minimum prices. The set of live miners changes as operators register and deregister on-chain, so treat this endpoint as the source of truth rather than any list written down elsewhere.
 
-Filter server-side instead of fetching the whole catalog: `GET /api/miners?intent=WEATHER_FORECAST` returns only miners that support that Intent. `status` and `limit` are also supported query params.
+Filter server-side instead of fetching the whole catalog: `GET /api/miners?intent=WEATHER_CHECK_TEMPERATURE` returns only miners that support that Intent. `status` and `limit` are also supported query params.
 
 You can also browse the live miner set and their output on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/).
 
@@ -162,7 +162,7 @@ The node forwards the payment proof to the PayAI facilitator (`https://facilitat
 
 ## Step 5: Receive the Response
 
-The miner's output comes back inside `result`, alongside the routing and cost metadata:
+On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Engine Inference](engine-ask.md#the-answers-shape).
 
 ```json
 {
@@ -177,6 +177,7 @@ The miner's output comes back inside `result`, alongside the routing and cost me
     "latitude": 25.2,
     "longitude": 55.3
   },
+  "result_shape": "raw",
   "cost_usd": 0.01,
   "duration_ms": 412,
   "signal_hash": "0x7a44569d..."
@@ -220,7 +221,7 @@ that payment bought.
   "rail": "x402",
   "payer": "0xyourwallet…",
   "miner": "377",
-  "intent": "STOCK_PRICE",
+  "intent": "STOCK_PRICE_US_EQUITY",
   "amount_uusdc": "10000",
   "epoch_id": 314,
   "settlement": "onchain",

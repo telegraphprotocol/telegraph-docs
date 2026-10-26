@@ -4,9 +4,11 @@ description: Step-by-step guide to running a Telegraph validator node on Base Se
 
 # Node Setup
 
-This guide walks through setting up a Telegraph validator node from scratch. The node is a single Go binary that handles: listening for on-chain events, routing inference requests to miners, participating in BFT consensus (once multiple validators are active), running the Daemon for autonomous signal generation, and serving the API for agents.
+This guide walks through setting up a Telegraph validator node from scratch. The node is a single Go binary that handles: listening for on-chain events, routing inference requests to miners, scoring miners each epoch, signing and submitting epoch blocks and job resolutions, running the keeper (emission minting, conversion tranches, entitlement roots), running the Daemon for autonomous signal generation, and serving the API for agents.
 
-**Note on testnet:** The current testnet runs as a single-signer genesis node. BFT consensus requires at least 43 of 64 validators and is not operational on testnet. All other protocol mechanics — miner routing, job creation, x402 payments, the Daemon, and the Engine — are fully functional.
+**Note on testnet:** The current testnet runs as a single-signer genesis node, so the quorum is one signature. A multi-validator round is not switched on. Every other protocol mechanic (miner routing, jobs, x402 and escrow payments, the Daemon, the Engine, epoch settlement, claims) is fully functional.
+
+**Running on mainnet?** Follow the operations runbook in the repository (`docs/mainnet-runbook.md`) for genesis, the Clef signer, the BLS key, RPC failover and release/rollback. This page is the testnet-focused setup guide.
 
 ## Prerequisites
 
@@ -26,14 +28,14 @@ sudo -u postgres psql -c "CREATE USER telegraph WITH PASSWORD 'telegraph';"
 sudo -u postgres psql -c "CREATE DATABASE telegraph OWNER telegraph;"
 ```
 
-Then load the schema from the node source (Step 2): `schema.sql` first, then every file in `migrations/`, in filename order. Every migration is written to be safe to run more than once.
+Then load the schema from the node source (Step 2): `schema.sql` first, then every file in `migrations/`, in filename order (currently `0001` through `0027`). Every migration is idempotent and wrapped in a transaction, so re-running the directory is safe. The node does not apply migrations itself.
 
 ```bash
 psql "$POSTGRES_DSN" -f schema.sql
 for f in migrations/*.sql; do psql "$POSTGRES_DSN" -f "$f"; done
 ```
 
-The node reads and writes the tables and columns these migrations create, so apply them **before** you start the node. Migration `0009_v2_eval_pipeline.sql` in particular adds the evaluation pool, the scoring-module competition and new columns on epoch scores. A node started without it fails to write epoch scores, and every evaluation-pool and competition query fails. Migration `0024_truth_source_material.sql` lets the evaluation pool hold truth sources and adds the columns where each epoch's reference value is stored with the answers it was built from. A node started without it fails every reference-value query, so no deterministic or hybrid Intent is ranked, and truth-source uploads are refused.
+The node reads and writes the tables and columns these migrations create, so apply them **before** you start the node. Migration `0009_v2_eval_pipeline.sql` in particular adds the evaluation pool, the scoring-module competition and new columns on epoch scores. A node started without it fails to write epoch scores, and every evaluation-pool and competition query fails. Migration `0024_truth_source_material.sql` lets the evaluation pool hold truth sources and adds the columns where each epoch's reference value is stored with the answers it was built from. A node started without it fails every reference-value query, so no deterministic or hybrid Intent is ranked, and truth-source uploads are refused. Other migrations the V2 release depends on: `0017` (remembered escrow authorization nonces), `0019` and `0020` (pending job resolutions, the x402 credit journal), `0022` (validator source), `0023` (`intent_response_formats`, which every answer and every job reads) and `0026` (job result formats). Apply them all before the new binary starts, or every query on the changed tables fails.
 
 ## Step 2: Get the Node Binary
 
@@ -78,10 +80,15 @@ MONIKER=my-telegraph-node
 PORT=7044
 P2P_PORT=4001
 
-# ─── Signing ──────────────────────────────────────────────────────────────────
-PRIVATE_KEY=0x<your-operator-private-key>
-# OR use Clef:
-# EXTERNAL_SIGNER_URL=/path/to/clef.ipc
+# ─── Signing (testnet / dev: a raw key) ───────────────────────────────────────
+VALIDATOR_KEY=0x<node-key>          # signs epochs, job resolutions, keeper calls
+OPERATOR_KEY=0x<operator-key>       # signs delivery logs; its address is your validator operator
+BLS_PRIVATE_KEY=0x<bls-key>         # signs the epoch state and job resolutions (see Key Management)
+# ─── Signing (mainnet: Clef, never a raw key) ─────────────────────────────────
+# VALIDATOR_SIGNER_URL=/path/to/clef.ipc      # or http://<private-ip>:8550
+# VALIDATOR_ADDRESS=0x<the Clef account>
+#
+# Older testnet setups used PRIVATE_KEY / EXTERNAL_SIGNER_URL for the same two choices.
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 POSTGRES_DSN=postgres://telegraph:telegraph@127.0.0.1:5432/telegraph?sslmode=disable
@@ -114,8 +121,17 @@ COLLECTORS_YAML_DIR=/path/to/collectors
 
 # ─── Internal Security ────────────────────────────────────────────────────────
 INTERNAL_SECRET=<random-secret>    # Used for internal API calls (e.g., /validate)
-VALIDATOR_KEY=0x...                # Optional separate validator signing key
-OPERATOR_KEY=0x...                 # Optional separate operator key
+
+# ─── Epochs and the keeper ────────────────────────────────────────────────────
+EPOCH_DURATION_SECONDS=86400       # default is now 24 h (it used to be 1 h). Read once at startup
+FLYWHEEL_KEEPER_INTERVAL_SECONDS=15
+X402_CREDIT_BATCH_SECONDS=60       # example value; > 0 batches x402 credits into escrow
+
+# ─── Answers and requests (V2) ────────────────────────────────────────────────
+PARSER_LLM_ENABLED=true            # reads miner answers into the Intent's shape and scores deterministic Intents
+INPUT_SCHEMA_MAPPING=off           # off | shadow | on (whether free-form asks are checked against the Intent's request schema)
+ROUTE_QUOTES_PER_MINUTE=60         # new questions one client may ask per minute
+TRUSTED_PROXIES=127.0.0.1,::1      # proxies whose X-Forwarded-For you trust
 ```
 
 ### Scoring and Evaluation Pool Settings
@@ -170,6 +186,21 @@ WASM_COMPILE_CACHE_DIR=/var/lib/telegraph/wasm_compile_cache
 The request builder and the parser can share one server.
 
 **Removed settings.** The node no longer generates questions or reference answers with an LLM, so `GROUNDTRUTH_MODEL`, `GROUNDTRUTH_LLM_TIMEOUT_SECONDS`, `GROUNDTRUTH_MAX_TOKENS` and `SEARXNG_URL` are no longer read. `SCORING_WASM_PATH`, `WASM_POOL_SIZE` and `CONVERTER_MODEL` went with the retired `rank_answer` evaluator adapter. `EVALPOOL_SNAPSHOT_INTERVAL` is ignored (a node that still sets it logs a warning once at startup). `PARSER_LLM_SHADOW` is gone: the parser is now the only reader, so there is no older parser to compare with. Remove them from your `.env`.
+
+**What the V2 release changed in the environment.**
+
+| Variable | Change |
+|---|---|
+| `EPOCH_DURATION_SECONDS` | Default `86400` (was `3600`). Blocks are 24 hours. |
+| `VOLUME_PUSH_INTERVAL` | Fallback is daily (was hourly). |
+| `VALIDATOR_SIGNER_URL`, `VALIDATOR_ADDRESS`, `VALIDATOR_SIGNER_TIMEOUT` | New. Clef signing for the node key; required on mainnet. |
+| `BLS_PRIVATE_KEY` | The BLS key that signs epochs and job resolutions. |
+| `PARSER_LLM_*`, `REQUEST_BUILDER_LLM_*`, `INTENT_CLASSIFIER_*`, `INTENT_MAPPING_ENABLED` | New. See the table above. |
+| `INPUT_SCHEMA_MAPPING`, `INPUT_EXTRACTION_TIMEOUT_SECONDS`, `ROUTE_QUOTES_PER_MINUTE`, `TRUSTED_PROXIES` | New. Request validation and rate limiting. |
+| `FLYWHEEL_*`, `X402_CREDIT_BATCH_SECONDS` | New. The keeper and x402 crediting. |
+| `OPENAI_API_KEY` | No longer used by epoch scoring or spot checks. |
+
+**Mainnet start-up checks.** With `CHAIN_ID=1` or `TELEGRAPH_NETWORK=mainnet` the node refuses to start with an open validator registration, the BLS bypass on, a raw `VALIDATOR_KEY`/`OPERATOR_KEY`/`PRIVATE_KEY`, a node key, Treasury and admin on the same address, a TWAP window under 15 minutes or a band over 5%, or the private-host switches for adapters and truth sources on.
 
 ### Ports the Node Listens On
 
@@ -234,46 +265,70 @@ curl http://localhost:7044/api/miners
 
 Check that the node is loading miners from the on-chain registry by watching startup logs — you should see `MinerRegistered` events being processed and integrations being hot-loaded.
 
-## Step 6: Register as a Validator Signer
+## Step 6: Register as a Validator
 
-Once your node is running and synced, register your Operator Key as a signer. Until this succeeds the node observes the chain but cannot submit anything — its transactions revert with `Caller must be a valid signer`.
+Until your node's key is a recognised signer, it observes the chain but cannot submit anything: its transactions revert with `Caller must be a valid signer`. There are two on-chain pieces.
+
+### 6a. The validator profile (stake and BLS key)
+
+Generate your BLS key and proof of possession, approve the Diamond for the stake, and register from your Manager Key:
 
 ```bash
-cast send 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
+go run ./scripts/mainnet/blskey -manager <manager-address>     # BLS_PRIVATE_KEY, BLS_PUBKEY, BLS_POP
+
+cast send $MACHINA "approve(address,uint256)" $DIAMOND <stake-in-wei> --rpc-url $RPC --private-key <MANAGER_KEY>
+cast send $DIAMOND "registerValidatorProfile(address,bytes,bytes,uint256)" \
+  <operator-key-address> $BLS_PUBKEY $BLS_POP <stake-in-wei> \
+  --rpc-url $RPC --private-key <MANAGER_KEY>
+```
+
+- **Registration is owner-only until the owner opens it** (`setValidatorRegistrationOpen`). On a network with one validator it stays closed. If you are not the owner, ask the owner to register you.
+- Then publish your details from the manager key (`domain` is `host:port`, because other nodes probe `<domain>/status`):
+
+```bash
+cast send $DIAMOND "setValidatorDescription((string,string,string,string,string,string))" \
+  '("my-moniker","your-node-host:7044","/ip4/<ip>/tcp/4001/p2p/<peer id>","https://your.site","security@your.site","")' \
+  --rpc-url $RPC --private-key <MANAGER_KEY>
+```
+
+Check the result:
+
+```bash
+cast call $DIAMOND "isActiveValidator(address)(bool)" <operator-key-address> --rpc-url $RPC   # true once you are in the frozen set
+cast call $DIAMOND "indexOf(address)(uint256,bool)"   <operator-key-address> --rpc-url $RPC   # your bit in signerBitmap
+cast call $DIAMOND "tau()(uint256)" --rpc-url $RPC                                           # the quorum
+cast call $DIAMOND "validatorSetId()(bytes32)" --rpc-url $RPC
+```
+
+You enter the **frozen active set** at the next accepted epoch (the set is re-picked from stake each time one is accepted).
+
+### 6b. The settlement signer
+
+The node key also has to be the diamond's settlement key, so its epoch submissions, job resolutions and keeper calls are accepted. Deployment sets it (`SETTLEMENT_ORACLE` in the deploy), and the owner can change it. The node-key signer used by the node must be that address, or the node refuses to start on mainnet (`accepts settlement from VALIDATOR_ADDRESS`).
+
+On a testnet deployment that still uses the signer set, register the key with `SignerFacet`:
+
+```bash
+cast send $DIAMOND \
   "addSigner(address,address,string,string,uint8[],bytes32[],bytes32[],bytes32[])" \
-  <operator-key-address> \
-  0x0000000000000000000000000000000000000000 \
-  "http://your-node-host:7044" \
-  "my-moniker" \
-  "[]" "[]" "[]" "[]" \
-  --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY> \
-  --private-key <MANAGER_KEY>
+  <operator-key-address> 0x0000000000000000000000000000000000000000 \
+  "http://your-node-host:7044" "my-moniker" "[]" "[]" "[]" "[]" \
+  --rpc-url $RPC --private-key <MANAGER_KEY>
 ```
 
 | Argument | Meaning |
 |---|---|
-| `_signer` | The Operator Key address being added — this is the wallet your node signs with, the same one `GET /status` reports as `publicKey` |
+| `_signer` | The Operator Key address being added. This is the wallet your node signs with, the same one `GET /status` reports as `publicKey` |
 | `_feeAddress` | Payout address. Pass the zero address on Base Sepolia |
-| `_domain` | **Where other validators reach your node, including the port.** Liveness probes hit `<domain>/status`, so a bare host without `:7044` probes port 80 and your node reads as unreachable |
+| `_domain` | Where other validators reach your node, **including the port**. Liveness probes hit `<domain>/status` |
 | `_moniker` | A human-readable label for your node |
-| `sigV`, `sigR`, `sigS`, `hashes` | Approval signatures from the existing signer set. Pass four empty arrays when adding the **first** signer to a deployment; after that the set must approve the addition and the call reverts with `Signer threshold not met` without enough signatures |
-
-Adding the first signer also stamps the deployment's `nodeStartTime`, which the signature threshold is measured against.
-
-After registration, confirm the node is a recognised signer:
+| `sigV`, `sigR`, `sigS`, `hashes` | Approval signatures from the existing signer set. Four empty arrays when adding the first signer; afterwards the set must approve the addition |
 
 ```bash
-cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
-  "isValidSigner(address)(bool)" <operator-key-address> \
-  --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
-# → true
-
-cast call 0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8 \
-  "getSigners()" \
-  --rpc-url https://base-sepolia.g.alchemy.com/v2/<KEY>
+cast call $DIAMOND "isValidSigner(address)(bool)" <operator-key-address> --rpc-url $RPC   # true
 ```
 
-`addSigner` reverts with `New signer cannot be an existing signer` if the address is already registered, so a repeat call is safe to attempt but will not succeed twice.
+`addSigner` reverts with `New signer cannot be an existing signer` if the address is already registered.
 
 ## Step 7: Monitor Liveness
 
@@ -288,8 +343,10 @@ curl http://localhost:7044/status
 ```
 
 Key things to monitor:
-- **BFT participation** — once multiple validators are live, watch for commit-reveal round participation in logs.
-- **zkTLS proofs** — if you're the elected Leader for a round, watch for successful zkTLS scrape + proof generation.
+- **Epoch settlement**: each accepted epoch should land on-chain. A block too large for one transaction settles in chunks, and a block stuck half-applied is recoverable by the owner (`closePendingEpochChunks`).
+- **Job resolutions**: every on-chain job should end in `transitionToTerminal` or `failJob`. `GET /engine/v1/job/{id}/result` shows the node's record, including `error_msg` for a failed job.
+- **The keeper**: emission days minted, conversion tranches executed, entitlement roots published, x402 payments credited. Watch for `X402CreditSkipped` events and uncredited-USDC reports.
+- **Epoch overrun**: model-scored Intents must fit the epoch at your RAM budget (see the table below).
 - **Database health** — PostgreSQL connectivity; the node logs DB errors at startup if connection fails.
 
 ## Updating the Binary
@@ -312,7 +369,9 @@ The node rehydrates its state from PostgreSQL and the on-chain registry on resta
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| Node fails to start with key error | Both `PRIVATE_KEY` and `EXTERNAL_SIGNER_URL` set | Use only one signing method |
+| Node fails to start with key error | A raw key and a signer URL are both set, or (on mainnet) any raw key is set | Use only one signing method; on mainnet only Clef (`VALIDATOR_SIGNER_URL` + `VALIDATOR_ADDRESS`) |
+| Node refuses to start: `accepts settlement from VALIDATOR_ADDRESS` | The Clef account is not the diamond's settlement key | Have the owner call `setSettlementOracle(<VALIDATOR_ADDRESS>)` |
+| Transactions revert with `Caller must be a valid signer` | The node key is not registered | Complete [Step 6](#step-6-register-as-a-validator) |
 | "No USDC accumulated — skipping submit" in logs | Normal on dev/testnet with no agent traffic | Expected behaviour; not an error |
 | Integrations not loading | Missing or invalid YAML at the declared URL | Check `MinerRegistered` event processing in logs |
 | DB errors on startup | PostgreSQL not running or wrong DSN | Verify `psql` works with the configured DSN |

@@ -19,7 +19,7 @@ binary format that runs safely inside the node without needing to trust your
 code.
 
 Every intent has a **class**, and the class decides which kind of module scores
-it (see [How answers are scored](../using/intents.md#how-answers-are-scored)):
+it (see [How answers are scored](../using/intents.md#the-three-kinds)):
 
 | Intent class | Module you register | What it does |
 |---|---|---|
@@ -245,9 +245,12 @@ record: …`).
 ## Families: one module for many intents
 
 Some intents are very specific, like `WEATHER_FORECAST_LAHORE` and
-`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. For
-judgment and hybrid intents, one module registered on a **family** intent
-serves every **child** whose name extends it with `_`.
+`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. A
+module is registered on a **prefix** (the family name, for example
+`WEATHER_FORECAST` or `FX_NOW`), and it serves every **child** intent whose name
+extends that prefix with `_`. The prefix must be a **registered prefix** in the
+catalog: `registerWasm` reverts with `not a registered prefix` otherwise. See
+[Intents](../using/intents.md#prefixes-and-intents) for how prefixes work.
 
 - **Longest prefix wins.** `WEATHER_FORECAST_LAHORE` uses the module on
   `WEATHER_FORECAST` before the one on `WEATHER`. A child with its own live
@@ -255,8 +258,9 @@ serves every **child** whose name extends it with `_`.
 - **The `_` is part of the rule.** `WEATHERX` is not a child of `WEATHER`.
 - **Same class only.** A judgment family never serves a hybrid child, or the
   other way round.
-- **Deterministic intents have no families.** A comparator serves exactly the
-  intent it is registered for.
+- **Comparators work the same way.** A comparator registered on `FX_NOW` scores
+  `FX_NOW_EUR`, `FX_NOW_CAD` and every other intent under it, each against its
+  own spec (tolerance, question, truth sources).
 - **Only the module is shared.** Each child keeps its own miners, ranking and
   evaluation data.
 
@@ -445,7 +449,7 @@ If you're wiring this into your own app, registration is a single call on the
 Diamond:
 
 ```solidity
-registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress)
+registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress, string wasmRunnableUrl)
 ```
 
 - **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
@@ -454,12 +458,18 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
   re-encodes the file after upload, that breaks the match.
 - **`wasmUrl`** — a public `https://` or `ipfs://` URL the node can fetch,
   within the size limit for your module's kind.
-- **`intent`** — the one canonical intent your module scores for (for example
-  `CODE_REVIEW`). It has to be one of the network's canonical intents, or
-  the call reverts with `unsupported intent`. You can read the current list from
-  the chain with `getCanonicalIntents`. For a judgment or hybrid intent, register
-  on the family if one serves it (see
-  [Families](#families-one-module-for-many-intents)).
+- **`intent`**: the **prefix** (family) your module scores, for example
+  `CODE_REVIEW` or `FX_NOW`. It must be a registered prefix or the call reverts
+  with `not a registered prefix`. Read the prefixes from the chain with
+  `getPrefixes()`. Your module then scores every intent under that prefix (see
+  [Families](#families-one-module-for-many-intents)). A model adapter's class
+  must match the prefix's kind.
+- **`wasmRunnableUrl`**: a **hosted, runnable endpoint** that serves the same
+  module as `wasmUrl`. It must be non-empty or the call reverts with
+  `IntentRegistryFacet: empty runnable URL`. The node scores a candidate at this
+  endpoint *before* it downloads the binary, so a module that would fail costs one
+  or two batch requests instead of a download of up to about 1 GB. See
+  [The runnable endpoint](#the-runnable-endpoint).
 - **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
   reverts with `zero fee address`. This is the same field miners and collectors
   have always had. It is deliberately a separate argument rather than being
@@ -487,9 +497,12 @@ export WASM_HASH=$(cast keccak "0x$(xxd -p -c 0 my_module.wasm)")
 # sign or hold gas.
 export WASM_FEE_ADDRESS=0xYourPayoutAddress
 
+# Your hosted, runnable endpoint (see "The runnable endpoint" below).
+export WASM_RUNNABLE_URL="https://your-host.example/runnable"
+
 cast send "$DIAMOND" \
-  "registerWasm(bytes32,string,string,address)(uint256)" \
-  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" \
+  "registerWasm(bytes32,string,string,address,string)(uint256)" \
+  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" "$WASM_RUNNABLE_URL" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
 
@@ -502,8 +515,52 @@ Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
-Registering costs only gas: there's no bond and no fee. The Diamond's address is
-on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+Registering costs only gas: there's no bond and no fee. The Diamond's address
+is on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### The runnable endpoint
+
+`wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
+check, but the node then fails to reach it and rejects the registration after
+two attempts. The endpoint serves the same module you registered, and it must
+implement the **batch request**:
+
+- **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never
+  one question per request. A comparator question is `{"ground_truth_value":
+  <int64>, "miner_value": <int64>, "spec": [<comparator kind>, <tolerance>]}`, with
+  both values already on the same fixed-point scale. A model adapter question is
+  `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with
+  the pinned vocabulary, so your endpoint needs no tokenizer. A batch holds at most
+  100 questions, and the body is at most a few hundred KB, so accept bodies of at
+  least 1 MiB.
+- **Reply.** `200` with `{"results": [<result>, ...]}`, exactly one result per
+  question, **in the same order**. A result is `{"score": <integer>}` or
+  `{"error": "..."}` when your module rejects that input. For a comparator the
+  score is in basis points, `0` to `10000`. For a model adapter it is the **f32 bit
+  pattern** of the output as an unsigned 32-bit integer (the value of the
+  adapter's `HEX : 0x...` line, for example `1104535916` for `0x41d5e16c`), never a
+  decimal, which would be rounded. NaN and infinity bit patterns are refused. A
+  reply over 64 KiB, a different number of results than questions, or an
+  out-of-range score counts as a failed attempt.
+- **When it is called.** Not straight away. The cases are picked by a seed from
+  the first epoch that settles after your registration, so nobody can know them
+  when registering. Until then the registration stays `pending`, your endpoint is
+  not called, your binary is not downloaded and no attempt is used. For a
+  comparator the node asks 100 cases out of its correctness battery (two batch
+  requests). For a model adapter it asks 30 questions (15 public pairs, two texts
+  each) in one batch. The hidden competition split is never sent to your endpoint.
+- **Time limit.** The whole check must finish within 2 minutes.
+- **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
+  single `{"score": N}` form), means the endpoint does not implement the batch
+  request: the registration is rejected at once with `its runnable URL did not
+  accept the batch request`. `408`, `429` and `5xx` are retried once, then the
+  registration is rejected with `remote executor unreachable`. For a model adapter,
+  after the binary downloads the node re-scores the same public pairs and rejects a
+  candidate whose binary does not reproduce your endpoint's answers bit for bit.
+
+If the intent has no public evaluation material yet, there is nothing to check
+your endpoint against: the registration stays `pending`
+(`awaiting_compatible_material`) and is re-evaluated when a snapshot is published.
 
 ### Registering without holding gas
 
@@ -518,13 +575,14 @@ registerWasmFor(
   string  wasmUrl,
   string  intent,
   address feeAddress,
+  string  wasmRunnableUrl,
   uint256 deadline,      // unix seconds; the signature is dead after this
   bytes   signature      // EIP-712, signed by `author`
 )
 ```
 
 Your signature covers every argument, so whoever relays it cannot change your
-binary, your URL, your intent or your payout address. They can only decide
+binary, your URLs, your intent or your payout address. They can only decide
 whether to submit at all.
 
 This is a signature rather than a plain `author` argument on purpose.
@@ -556,12 +614,13 @@ const signature = await walletClient.signTypedData({
       { name: 'wasmUrl',    type: 'string'  },
       { name: 'intent',     type: 'string'  },
       { name: 'feeAddress', type: 'address' },
+      { name: 'wasmRunnableUrl', type: 'string' },
       { name: 'nonce',      type: 'uint256' },
       { name: 'deadline',   type: 'uint256' },
     ],
   },
   primaryType: 'RegisterWasm',
-  message: { author, wasmHash, wasmUrl, intent, feeAddress, nonce, deadline },
+  message: { author, wasmHash, wasmUrl, intent, feeAddress, wasmRunnableUrl, nonce, deadline },
 });
 ```
 
@@ -596,7 +655,8 @@ event WasmRegistered(
     string  intent,
     bytes32 wasmHash,
     string  wasmUrl,
-    address feeAddress
+    address feeAddress,
+    string  wasmRunnableUrl
 );
 ```
 
@@ -764,8 +824,8 @@ deregisterEntity(registrationId, 2)
   or a collector).
 
 Only the original registering address can do this, so no one else can take your
-module down. The change is picked up **immediately** — there's no bond, no fee,
-and nothing to wait for (you don't need to wait for an epoch to roll over).
+module down. The change is picked up **immediately**: the module stops serving and you
+don't need to wait for an epoch to roll over.
 
 If the registering address holds no gas, sign instead and let anyone relay it:
 
@@ -817,7 +877,7 @@ you're bringing back, gets its own fresh registration ID.
 ### What it costs
 
 Nothing but gas, in every direction. There's no bond and no fee to register or
-to deregister, so there's also nothing to refund — taking a module down simply
+to deregister, so there's also nothing to refund; taking a module down simply
 removes it from service.
 
 ## Tips for building a good evaluator adapter
