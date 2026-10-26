@@ -121,7 +121,7 @@ OPERATOR_KEY=0x...                 # Optional separate operator key
 
 ### Scoring and Evaluation Pool Settings
 
-Judgment and hybrid Intents are scored by wide adapter packages of about 1.2 GB each, with the model inside. The node keeps them on disk and loads them in batches each epoch, inside a RAM budget, so more Intents make the epoch longer rather than using more memory. All of these are optional unless noted.
+Judgment and hybrid Intents are scored by model adapters: one `.wasm` of about 574 MB each, with a float32 model and its engine inside. The node keeps them on disk and loads them in batches each epoch, inside a RAM budget, so more Intents make the epoch longer rather than using more memory. All of these are optional unless noted.
 
 ```bash
 # ─── Scoring modules ─────────────────────────────────────────────────────────
@@ -133,13 +133,13 @@ WASM_COMPILE_CACHE_DIR=/var/lib/telegraph/wasm_compile_cache
 
 | Variable | Default | What it does |
 |---|---|---|
-| `TOKENIZER_JSON` | none | The ModernBERT `tokenizer.json` that adapters are scored with. Without a usable tokenizer the node cannot run judgment or hybrid adapters and logs `no usable tokenizer for the wide promote path` at startup. |
+| `TOKENIZER_JSON` | none | The ModernBERT `tokenizer.json` that adapters are scored with. Without a usable tokenizer the node cannot run judgment or hybrid adapters and logs `no usable tokenizer for the adapter promote path` at startup. |
 | `TOKENIZER_SHA256` | The network's pinned tokenizer hash | The tokenizer file must have this sha256 or it is refused, because a different vocabulary would score confidently against the wrong tokens. Leave it unset. |
-| `ADAPTER_RAM_BUDGET_BYTES` | Half the memory available to the process (Linux `MemTotal`, capped by a cgroup limit); `4GiB` if it can't be read | RAM loaded adapters may hold at once. Accepts bytes or `KiB`/`MiB`/`GiB`. A loaded 1.2 GB package counts as about 2.4 GB. An adapter larger than the whole budget loads alone. The effective value is logged at startup (`adapter RAM budget`). |
-| `ADAPTER_BYTES_DIR` | `CANDIDATE_WASM_DIR` (`data/wasm_candidates`) | Where downloaded scoring modules are stored, one file per hash, re-read each epoch. Size it for every live adapter (about 1.2 GB each). |
+| `ADAPTER_RAM_BUDGET_BYTES` | Half the memory available to the process (Linux `MemTotal`, capped by a cgroup limit); `4GiB` if it can't be read | RAM loaded adapters may hold at once. Accepts bytes or `KiB`/`MiB`/`GiB`. Before its first load an adapter is estimated at 4× its file size (a 574 MB adapter at about 2.3 GB: its working memory while scoring plus the copy the runtime keeps). An adapter larger than the whole budget loads alone. The effective value is logged at startup (`adapter RAM budget`). |
+| `ADAPTER_BYTES_DIR` | `CANDIDATE_WASM_DIR` (`data/wasm_candidates`) | Where downloaded scoring modules are stored, one file per hash, re-read each epoch. Size it for every live adapter (about 574 MB each). |
 | `WASM_COMPILE_CACHE_DIR` | In memory | Directory for compiled module code, so reloading an adapter each epoch, and after a restart, skips compiling. Safe to delete; it is rebuilt on demand. |
-| `WIDE_WASM_MAX_BYTES` | Just under 4 GiB | Largest wide package the node will download. |
-| `WIDE_WASM_FETCH_BUDGET` | `30m` | Time allowed to download one wide package (a Go duration). |
+| `ADAPTER_WASM_MAX_BYTES` | `1073741824` (1 GiB) | Largest model adapter a registration may download, in bytes. A value above 2 GiB is capped at 2 GiB with a warning. The old name `WIDE_WASM_MAX_BYTES` is still read, with a deprecation warning. |
+| `ADAPTER_WASM_FETCH_BUDGET` | `30m` | Time allowed to download one model adapter (a Go duration). The old name `WIDE_WASM_FETCH_BUDGET` is still read, with a deprecation warning. |
 
 **Evaluation pool.** Uploads are curated as they arrive, and the pool is frozen once per epoch at the rollover; there is no timer to set.
 
@@ -321,7 +321,7 @@ The node rehydrates its state from PostgreSQL and the on-chain registry on resta
 | `intent_registry` table missing | Known schema gap on current testnet | Non-critical; `/engine/v1/intents` returns error but other endpoints work |
 | Epoch score writes fail with a missing column (`case_id`, `corpus_version`), or evaluation-pool queries fail | The new binary started before `migrations/0009_v2_eval_pipeline.sql` was applied | Apply the migrations in `migrations/`, in order, then restart |
 | Node stops at startup with `request builder LLM config: …` | `REQUEST_BUILDER_LLM_URL` and `REQUEST_BUILDER_LLM_MODEL` not set together, `REQUEST_BUILDER_LLM_KEY` set alone, or a malformed URL | Set both URL and model, or unset all three to build requests on `OPENAI_API_URL` |
-| `no usable tokenizer for the wide promote path` at startup | `TOKENIZER_JSON` unset, unreadable, or not the pinned tokenizer (sha256 mismatch) | Point `TOKENIZER_JSON` at the ModernBERT `tokenizer.json`; leave `TOKENIZER_SHA256` unset |
+| `no usable tokenizer for the adapter promote path` at startup | `TOKENIZER_JSON` unset, unreadable, or not the pinned tokenizer (sha256 mismatch) | Point `TOKENIZER_JSON` at the ModernBERT `tokenizer.json`; leave `TOKENIZER_SHA256` unset |
 | `epoch is on course to OVERRUN` warning | Model-scored Intents don't fit the epoch at the current RAM budget | Raise `ADAPTER_RAM_BUDGET_BYTES` (fewer, larger batches) or `EPOCH_INTENT_CONCURRENCY` if CPU allows. Intents whose batch never ran are logged as `intents NOT REACHED this epoch` and keep their previous ranking |
 | `EVALPOOL_SNAPSHOT_INTERVAL no longer exists and is ignored` | The setting was removed; the pool freezes once per epoch at rollover | Remove it from `.env` |
 | Reference-value queries fail with a missing column (`corpus_version`, `sources`), or truth-source uploads are refused by a `label_kind` check | The new binary started before `migrations/0024_truth_source_material.sql` was applied | Apply the migrations in `migrations/`, in order, then restart |

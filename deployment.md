@@ -40,7 +40,7 @@ Copy `.env.example` to `.env` and configure:
 | `INTERNAL_SECRET` | Operator secret for `/validate` and the operator key-install path |
 | `TOKENIZER_JSON` | Path to the ModernBERT `tokenizer.json`. Needed to run judgment and hybrid scoring modules |
 | `ADAPTER_RAM_BUDGET_BYTES` | (Optional) RAM loaded scoring adapters may hold at once (default: half the memory available to the process) |
-| `ADAPTER_BYTES_DIR` | (Optional) Where downloaded scoring modules are stored (about 1.2 GB per judgment or hybrid adapter) |
+| `ADAPTER_BYTES_DIR` | (Optional) Where downloaded scoring modules are stored (about 574 MB per judgment or hybrid adapter) |
 | `WASM_COMPILE_CACHE_DIR` | (Optional) Cache for compiled module code, so adapters reload without recompiling |
 
 Evaluation-pool limits, the optional request-builder, intent-classifier and response-parser model servers, and the settings that were removed are listed in [Scoring and Evaluation Pool Settings](validators/validator-setup.md#scoring-and-evaluation-pool-settings).
