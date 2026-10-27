@@ -19,13 +19,13 @@ binary format that runs safely inside the node without needing to trust your
 code.
 
 Every intent has a **class**, and the class decides which kind of module scores
-it (see [How answers are scored](../using/intents.md#how-answers-are-scored)):
+it (see [How answers are scored](../using/intents.md#the-three-kinds)):
 
 | Intent class | Module you register | What it does |
 |---|---|---|
 | Deterministic | **Comparator module** | Compares the value read from a miner's answer with the epoch's reference value (the median of up to 3 truth sources from the [evaluation pool](contribute-evaluation-data.md#truth-sources-deterministic-intents)), using the intent's comparison rule and tolerance. |
-| Judgment | **Wide adapter package** | A reward model judges each answer on its own merits. No reference answer is needed. |
-| Hybrid | **Wide adapter package**, hybrid build | A comparator score for the checkable part, combined with the model's judgment of the rest. |
+| Judgment | **Model adapter** | A reward model judges each answer on its own merits. No reference answer is needed. |
+| Hybrid | **Model adapter**, hybrid class | A comparator score for the checkable part, combined with the model's judgment of the rest. |
 
 Each intent has one live module at a time, its **canonical** module. A judgment
 or hybrid intent with no module of its own can use its family's (see
@@ -146,52 +146,64 @@ inputs like these:
 Every result must match the rule within ±10 basis points, and a second run must
 give exactly the same results.
 
-## Wide adapter packages (judgment and hybrid intents)
+## Model adapters (judgment and hybrid intents)
 
-A wide adapter is a reward model that runs in the node's fixed-point (Q32.32)
-interpreter. It judges a miner's answer to a question and returns a score; a
-better answer should get a higher score. You register it as **one
-self-contained `.wasm` file** that carries both the interpreter and the model,
-so the hash you register covers both.
+A model adapter is a reward model: it reads a question and a miner's answer
+and returns a score, and a better answer should get a higher score. You
+register it as **one `.wasm` file** that carries both the model (a ModernBERT
+reward model in 32-bit floating point) and the engine that runs it, so the
+hash you register covers both. One file is about 574 MB.
 
 Answers reach your model as tokens from the network's pinned ModernBERT
 tokenizer, so build the model for that vocabulary.
 
-The tools to train one and package it into that file are in the adapter kit,
+The tools to train, bake and package one are in the adapter kit,
 [telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
 [Train an Evaluator Adapter](train-a-scoring-adapter.md) walks through them step by
-step, and lists the exact input format, arithmetic and export signatures the
-node expects. This section lists what the node checks when a package arrives.
+step, and lists the exact input format and what the file must print. This
+section lists what the node checks when a file arrives.
+
+> **Q32.32 packages are retired.** The earlier adapter format (an integer
+> "Q32.32" interpreter with an embedded `.imwq` model, exporting `imwq_*`
+> functions) is refused at registration with `Q32.32 wide adapters are retired;
+> rebuild as a float adapter (abi_version 2)`. Rebuild with the current kit.
 
 ### What the node checks
 
 | Requirement | Detail |
 |---|---|
-| Exports | `imwq_embedded`, `imwq_embed_desc_addr`, `imwq_score`, `imwq_debug_counts`, `imwq_alloc` and `imwq_free`. A hybrid package also exports `imwq_score_hybrid`. A package must **not** export `imw_score_deterministic`. |
-| Class | Read from the exports: with `imwq_score_hybrid` it is a hybrid package, without it a judgment package. It must match the class of the intent you register for, or it is rejected. |
-| Memory | One memory, with an initial size of at most 65,536 pages (4 GiB). |
-| Embedded model | The last data segment holds the model image (it starts with the bytes `IMWQ`) and fits inside the initial memory. |
-| Size | Just under 4 GB at most, and the node must be able to download it within 30 minutes (node defaults). A typical package is about 1.2 GB. |
+| Kind | A WASI **command**: it exports `_start`. A module that also exports `_initialize` (a reactor), or any `imwq_*` function, is refused. |
+| Imports | Only functions from `wasi_snapshot_preview1` on the node's allow-list (arguments, environment, clocks, random, file reads and writes, `path_open`, `proc_exit` and a few more). No other import modules. |
+| Memory | Exactly one memory, at most 3 GiB. |
+| Version label | A valid `telegraph.adapter` section with `abi_version` 2 and `runtime` `onnx_f32`, whose `class` matches the intent you register for (see below). Required. |
+| Intent | A judgment or hybrid intent. A model adapter registered for a deterministic intent is refused. |
+| Size | At most 1 GiB by default (a node setting, hard maximum 2 GiB), downloaded within 30 minutes. |
 
-The node recognises a wide package from its export section, which it reads from
-the first MiB of the download. A file it doesn't recognise as wide is held to
-the 32 MB limit instead.
+The node recognises a model adapter from its export section, which it reads
+from the first MiB of the download. A file it doesn't recognise as one is held
+to the 32 MB limit instead. Check failures start with `float adapter: …` or
+`adapter metadata: …`.
 
-When the package reaches [Stage 2](#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool),
-the node loads it, checks that the embedded model matches the checksum the
-package carries for it, and checks the model parses.
+When the adapter reaches
+[Stage 2](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool),
+the node runs it in a fixed sandbox: a fresh start for every score, one
+read-only input file, an empty environment, a frozen clock, a fixed random
+stream and no network. That is what makes every validator get the same score.
 
 ### The `telegraph.adapter` section
 
-A package (or a comparator module) can carry a WASM custom section named
-`telegraph.adapter`, holding JSON that says which scoring version it was built
-for. It is inside the module, so the registered hash covers it.
+A model adapter must carry a WASM custom section named `telegraph.adapter`,
+holding JSON that says which scoring version it was built for. It is inside the
+module, so the registered hash covers it. The kit's `adapterbuild` writes it for
+you.
 
 ```json
 {
-  "abi_version": 1,
+  "abi_version": 2,
+  "runtime": "onnx_f32",
   "class": "judgment",
-  "tool": "my-builder 0.3",
+  "max_tokens": 512,
+  "tool": "adapterbuild",
   "training": {
     "family": "CODE_REVIEW",
     "children": [
@@ -204,10 +216,16 @@ for. It is inside the module, so the registered hash covers it.
 
 | Field | Required | Meaning |
 |---|---|---|
-| `abi_version` | Yes, when the section is present | The scoring version the module was built for. The node runs version `1`; any other value is rejected. |
-| `class` | No | `judgment`, `hybrid` or `comparator`. If set, it must agree with what the exports say. |
+| `abi_version` | Yes | `2` for a model adapter. `1` is the retired Q32.32 format and is refused; any other value is refused too. |
+| `runtime` | Yes (model adapter) | `onnx_f32`. |
+| `class` | Yes (model adapter) | `judgment` or `hybrid`, and it must be the class of the intent you register for. |
+| `max_tokens` | No | 1–512, how many tokens the model reads. Absent means 512. Set it if you trained shorter. |
 | `tool` | No | The builder that wrote the section. Informational. |
 | `training` | No | A self-reported record of what the adapter was trained on. |
+
+A comparator module may carry the section too, with `abi_version` `1` and
+`class` `comparator` (the comparator interface did not change). For a
+comparator the section is optional.
 
 `training` fields: `family` (required), `children` (at least one), and
 optionally `trainer`, `backbone` and `backbone_version`. Each child has
@@ -220,15 +238,19 @@ listed twice, `pairs` is not negative, `accuracy` is between 0 and 1, and
 `spearman` is between −1 and 1. It never uses the numbers to decide anything;
 the hidden evaluation is the real test.
 
-A module without the section is accepted. A section that is present but wrong is
-rejected with `adapter metadata: …` (or `adapter metadata: training record: …`).
+A model adapter without the section is refused. A section that is present but
+wrong is rejected with `adapter metadata: …` (or `adapter metadata: training
+record: …`).
 
 ## Families: one module for many intents
 
 Some intents are very specific, like `WEATHER_FORECAST_LAHORE` and
-`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. For
-judgment and hybrid intents, one module registered on a **family** intent
-serves every **child** whose name extends it with `_`.
+`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. A
+module is registered on a **prefix** (the family name, for example
+`WEATHER_FORECAST` or `FX_NOW`), and it serves every **child** intent whose name
+extends that prefix with `_`. The prefix must be a **registered prefix** in the
+catalog: `registerWasm` reverts with `not a registered prefix` otherwise. See
+[Intents](../using/intents.md#prefixes-and-intents) for how prefixes work.
 
 - **Longest prefix wins.** `WEATHER_FORECAST_LAHORE` uses the module on
   `WEATHER_FORECAST` before the one on `WEATHER`. A child with its own live
@@ -236,8 +258,9 @@ serves every **child** whose name extends it with `_`.
 - **The `_` is part of the rule.** `WEATHERX` is not a child of `WEATHER`.
 - **Same class only.** A judgment family never serves a hybrid child, or the
   other way round.
-- **Deterministic intents have no families.** A comparator serves exactly the
-  intent it is registered for.
+- **Comparators work the same way.** A comparator registered on `FX_NOW` scores
+  `FX_NOW_EUR`, `FX_NOW_CAD` and every other intent under it, each against its
+  own spec (tolerance, question, truth sources).
 - **Only the module is shared.** Each child keeps its own miners, ranking and
   evaluation data.
 
@@ -295,13 +318,15 @@ see exactly what went wrong). There are two stages, and you have to clear both.
 
 Run as soon as the node has downloaded your file.
 
-1. **It is a kind the node accepts.** A wide package, or a comparator module
-   registered for a deterministic intent. Anything else is rejected with the
-   retirement message above.
-2. **It passes the checks for its kind.** For a wide package, the table in
+1. **It is a kind the node accepts.** A model adapter registered for a judgment
+   or hybrid intent, or a comparator module registered for a deterministic
+   intent. A retired kind (a MiniLM `rank_answer` module or a Q32.32 package) is
+   rejected with its retirement message.
+2. **It passes the checks for its kind.** For a model adapter, the table in
    [What the node checks](#what-the-node-checks); reasons start with
-   `wide package: …`. A comparator module must load, with its three exports.
-3. **Its `telegraph.adapter` section, if any, is valid.**
+   `float adapter: …`. A comparator module must load, with its three exports.
+3. **Its `telegraph.adapter` section is valid** (required for a model adapter,
+   optional for a comparator).
 4. **It is not a child registration under a live family** (judgment and hybrid
    intents only).
 
@@ -326,9 +351,9 @@ Any miss rejects the module, and the reason names the first case it got wrong.
 A module that passes becomes the intent's comparator, replacing the previous
 one.
 
-### Stage 2 for wide adapters: competition on the hidden evaluation pool
+### Stage 2 for model adapters: competition on the hidden evaluation pool
 
-A new wide adapter replaces the current one **only by beating it**. Passing a
+A new model adapter replaces the current one **only by beating it**. Passing a
 threshold is not enough.
 
 The test material is the intent's [evaluation pool](contribute-evaluation-data.md):
@@ -381,7 +406,7 @@ Whether your module is promoted or rejected, the node records a **score** and a
 **breakdown** on your registration, and the rejection reason spells out which
 bar you missed.
 
-For a **wide adapter**, the score is its win rate on the round's sample. The
+For a **model adapter**, the score is its win rate on the round's sample. The
 breakdown fields:
 
 | Field | What it means |
@@ -424,7 +449,7 @@ If you're wiring this into your own app, registration is a single call on the
 Diamond:
 
 ```solidity
-registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress)
+registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress, string wasmRunnableUrl)
 ```
 
 - **`wasmHash`** — the `keccak256` hash of the exact bytes you host. The node
@@ -433,12 +458,18 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
   re-encodes the file after upload, that breaks the match.
 - **`wasmUrl`** — a public `https://` or `ipfs://` URL the node can fetch,
   within the size limit for your module's kind.
-- **`intent`** — the one canonical intent your module scores for (for example
-  `CODE_REVIEW`). It has to be one of the network's canonical intents, or
-  the call reverts with `unsupported intent`. You can read the current list from
-  the chain with `getCanonicalIntents`. For a judgment or hybrid intent, register
-  on the family if one serves it (see
-  [Families](#families-one-module-for-many-intents)).
+- **`intent`**: the **prefix** (family) your module scores, for example
+  `CODE_REVIEW` or `FX_NOW`. It must be a registered prefix or the call reverts
+  with `not a registered prefix`. Read the prefixes from the chain with
+  `getPrefixes()`. Your module then scores every intent under that prefix (see
+  [Families](#families-one-module-for-many-intents)). A model adapter's class
+  must match the prefix's kind.
+- **`wasmRunnableUrl`**: a **hosted, runnable endpoint** that serves the same
+  module as `wasmUrl`. It must be non-empty or the call reverts with
+  `IntentRegistryFacet: empty runnable URL`. The node scores a candidate at this
+  endpoint *before* it downloads the binary, so a module that would fail costs one
+  or two batch requests instead of a download of up to about 1 GB. See
+  [The runnable endpoint](#the-runnable-endpoint).
 - **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
   reverts with `zero fee address`. This is the same field miners and collectors
   have always had. It is deliberately a separate argument rather than being
@@ -466,13 +497,16 @@ export WASM_HASH=$(cast keccak "0x$(xxd -p -c 0 my_module.wasm)")
 # sign or hold gas.
 export WASM_FEE_ADDRESS=0xYourPayoutAddress
 
+# Your hosted, runnable endpoint (see "The runnable endpoint" below).
+export WASM_RUNNABLE_URL="https://your-host.example/runnable"
+
 cast send "$DIAMOND" \
-  "registerWasm(bytes32,string,string,address)(uint256)" \
-  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" \
+  "registerWasm(bytes32,string,string,address,string)(uint256)" \
+  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" "$WASM_RUNNABLE_URL" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
 
-The `xxd` one-liner suits a comparator module. A wide package (about 1.2 GB) is
+The `xxd` one-liner suits a comparator module. A model adapter (about 574 MB) is
 far too large to pass as a shell argument; hash it with a tool that reads the
 file directly and computes Ethereum's Keccak-256 (not NIST SHA3-256, which gives
 a different result).
@@ -481,8 +515,52 @@ Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
-Registering costs only gas: there's no bond and no fee. The Diamond's address is
-on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+Registering costs only gas: there's no bond and no fee. The Diamond's address
+is on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+
+### The runnable endpoint
+
+`wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
+check, but the node then fails to reach it and rejects the registration after
+two attempts. The endpoint serves the same module you registered, and it must
+implement the **batch request**:
+
+- **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never
+  one question per request. A comparator question is `{"ground_truth_value":
+  <int64>, "miner_value": <int64>, "spec": [<comparator kind>, <tolerance>]}`, with
+  both values already on the same fixed-point scale. A model adapter question is
+  `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with
+  the pinned vocabulary, so your endpoint needs no tokenizer. A batch holds at most
+  100 questions, and the body is at most a few hundred KB, so accept bodies of at
+  least 1 MiB.
+- **Reply.** `200` with `{"results": [<result>, ...]}`, exactly one result per
+  question, **in the same order**. A result is `{"score": <integer>}` or
+  `{"error": "..."}` when your module rejects that input. For a comparator the
+  score is in basis points, `0` to `10000`. For a model adapter it is the **f32 bit
+  pattern** of the output as an unsigned 32-bit integer (the value of the
+  adapter's `HEX : 0x...` line, for example `1104535916` for `0x41d5e16c`), never a
+  decimal, which would be rounded. NaN and infinity bit patterns are refused. A
+  reply over 64 KiB, a different number of results than questions, or an
+  out-of-range score counts as a failed attempt.
+- **When it is called.** Not straight away. The cases are picked by a seed from
+  the first epoch that settles after your registration, so nobody can know them
+  when registering. Until then the registration stays `pending`, your endpoint is
+  not called, your binary is not downloaded and no attempt is used. For a
+  comparator the node asks 100 cases out of its correctness battery (two batch
+  requests). For a model adapter it asks 30 questions (15 public pairs, two texts
+  each) in one batch. The hidden competition split is never sent to your endpoint.
+- **Time limit.** The whole check must finish within 2 minutes.
+- **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
+  single `{"score": N}` form), means the endpoint does not implement the batch
+  request: the registration is rejected at once with `its runnable URL did not
+  accept the batch request`. `408`, `429` and `5xx` are retried once, then the
+  registration is rejected with `remote executor unreachable`. For a model adapter,
+  after the binary downloads the node re-scores the same public pairs and rejects a
+  candidate whose binary does not reproduce your endpoint's answers bit for bit.
+
+If the intent has no public evaluation material yet, there is nothing to check
+your endpoint against: the registration stays `pending`
+(`awaiting_compatible_material`) and is re-evaluated when a snapshot is published.
 
 ### Registering without holding gas
 
@@ -497,13 +575,14 @@ registerWasmFor(
   string  wasmUrl,
   string  intent,
   address feeAddress,
+  string  wasmRunnableUrl,
   uint256 deadline,      // unix seconds; the signature is dead after this
   bytes   signature      // EIP-712, signed by `author`
 )
 ```
 
 Your signature covers every argument, so whoever relays it cannot change your
-binary, your URL, your intent or your payout address. They can only decide
+binary, your URLs, your intent or your payout address. They can only decide
 whether to submit at all.
 
 This is a signature rather than a plain `author` argument on purpose.
@@ -535,12 +614,13 @@ const signature = await walletClient.signTypedData({
       { name: 'wasmUrl',    type: 'string'  },
       { name: 'intent',     type: 'string'  },
       { name: 'feeAddress', type: 'address' },
+      { name: 'wasmRunnableUrl', type: 'string' },
       { name: 'nonce',      type: 'uint256' },
       { name: 'deadline',   type: 'uint256' },
     ],
   },
   primaryType: 'RegisterWasm',
-  message: { author, wasmHash, wasmUrl, intent, feeAddress, nonce, deadline },
+  message: { author, wasmHash, wasmUrl, intent, feeAddress, wasmRunnableUrl, nonce, deadline },
 });
 ```
 
@@ -575,7 +655,8 @@ event WasmRegistered(
     string  intent,
     bytes32 wasmHash,
     string  wasmUrl,
-    address feeAddress
+    address feeAddress,
+    string  wasmRunnableUrl
 );
 ```
 
@@ -635,7 +716,7 @@ lifecycle:
 | `rejected` | `rejected`. |
 | `deactivated` | `deregistered`. |
 
-A comparator module is usually decided within minutes. A wide package takes
+A comparator module is usually decided within minutes. A model adapter takes
 longer: the download alone can take up to 30 minutes, its round waits for an
 epoch to be confirmed after it registered, and it can wait for evaluation
 material with no time limit. A rejection is final — which is why it's worth
@@ -672,7 +753,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 |---|---|
 | `ActivationStatus` | The state from the table above. This is what you poll for. |
 | `RejectionReason` | Exactly which bar you missed, in the evaluator's own words. `null` unless rejected. |
-| `EvalScore` | Your win rate (wide adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
+| `EvalScore` | Your win rate (model adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
 | `EvalDetails` | The full [breakdown](#the-numbers-on-your-registration) as a JSON string. On a waiting module it carries `decision: "awaiting_material"` and the reason. |
 | `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator errored). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. Waiting for material is not an error and is not counted. |
 
@@ -708,7 +789,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/CODE_REVIEW/wasm
 }
 ```
 
-The entry with `ActivationStatus: "active"` is the current module. For a wide
+The entry with `ActivationStatus: "active"` is the current module. For a model
 adapter, its `EvalScore` is the win rate from the round it won. That is a guide,
 not your target: your round uses a new sample, and the current module is scored
 again on that same sample. You need its win rate there plus 2 points.
@@ -743,8 +824,8 @@ deregisterEntity(registrationId, 2)
   or a collector).
 
 Only the original registering address can do this, so no one else can take your
-module down. The change is picked up **immediately** — there's no bond, no fee,
-and nothing to wait for (you don't need to wait for an epoch to roll over).
+module down. The change is picked up **immediately**: the module stops serving and you
+don't need to wait for an epoch to roll over.
 
 If the registering address holds no gas, sign instead and let anyone relay it:
 
@@ -780,9 +861,9 @@ Once the network sees the deregistration:
 ### Replacing a module
 
 You usually **don't** need to deregister to upgrade. Just register the new
-module. A wide adapter takes over only if it wins its competition round against
+module. A model adapter takes over only if it wins its competition round against
 the current module (see
-[Stage 2 for wide adapters](#stage-2-for-wide-adapters-competition-on-the-hidden-evaluation-pool));
+[Stage 2 for model adapters](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool));
 a comparator module takes over once it passes the correctness gate.
 Deregistering the old one afterwards is optional tidy-up, not a required step.
 
@@ -796,7 +877,7 @@ you're bringing back, gets its own fresh registration ID.
 ### What it costs
 
 Nothing but gas, in every direction. There's no bond and no fee to register or
-to deregister, so there's also nothing to refund — taking a module down simply
+to deregister, so there's also nothing to refund; taking a module down simply
 removes it from service.
 
 ## Tips for building a good evaluator adapter
@@ -804,7 +885,7 @@ removes it from service.
 - **Comparator modules:** reproduce the reference rule exactly, including the
   awkward parts — truth first, saturating multiplication, 128-bit RelTol, unknown
   codes treated as Exact. Test at the window edges and at wei scale.
-- **Wide adapters:** the test is ordering. On every pair your model should score
+- **Model adapters:** the test is ordering. On every pair your model should score
   the better answer above the worse one. A model that gives everything the same
   score wins nothing.
 - **Families:** a family module has to hold up on each child, not just on

@@ -17,6 +17,8 @@ These are the live contract addresses on Base Sepolia as verified on-chain.
 | **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
 | **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
 
+> **The V2 contracts are a fresh deployment.** `SubnetFacet` was removed and there is no in-place upgrade for jobs, so V2 is deployed to new addresses and existing miners are copied across by an admin import. If a call to the Diamond below reverts with an unknown selector, you are looking at the old deployment.
+
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
 > the value your client should use.
@@ -114,7 +116,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Evaluation Pool minimum contributors | 5 per Intent |
 | Testing Cohort size | 10% of active Validators |
 | Internal Audit Fee | 2% of epoch Validator emission pool |
-| Spot check frequency | ~every 20 seconds (Base L2 ~2s blocks) |
+| Spot check frequency | About once per Intent per hour on average (node default; a node operator can change it with `SPOT_CHECK_INTERVAL_SECONDS`) |
 | Routing revocation trigger | Consecutive failed spot checks (no response or an empty answer) |
 | Category A ejection (continuous offline) | 7 days unbroken |
 | Category A ejection (rolling missed) | >50% of rounds in 7 days |

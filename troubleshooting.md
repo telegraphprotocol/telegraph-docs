@@ -20,26 +20,49 @@ The EIP-712 domain name in the payment signature doesn't match. Base Sepolia USD
 
 ## ERC-8183 Jobs
 
-### Job stuck in Funded state — never resolved
+Jobs progress through states: Funded (`0`) then Terminal (`1`) when resolved, or Cancelled (`2`) when cancelled or failed. **A job can fail**: if no miner can answer, the validator quorum fails it, refunds the agent at once and calls the callback with `success = false`. See [On-Chain Jobs](using/erc8183-jobs.md#when-a-job-fails).
 
-Jobs progress through states: Funded (`0`) → Terminal (`1`), or Cancelled (`2`).
+### Job reverts when I create it
 
-**A job that stays Funded has failed, not stalled.** Resolution happens per job, within seconds of the miner answering — it is not batched into an epoch. If the miner is unreachable or returns an error, the listener deliberately does *not* resolve the job: there is no failed terminal state, your callback is never called, and the job sits in Funded indefinitely.
+| Revert | Cause and fix |
+|---|---|
+| `not a canonical intent` | `intentId` must be `keccak256` of a canonical **intent** name. A prefix (`FX_NOW`), a miner registration id, a removed or misspelled name all revert. Check `isCanonicalIntent("FX_NOW_EUR")` and hash with `cast keccak "FX_NOW_EUR"` |
+| `job price above maxBudget` | The price rose between your quote and inclusion (the demand multiplier moved, or the base price changed). Read `getJobBasePrice()`, raise `maxBudget`, or use `createJob` which takes no limit |
+| `insufficient escrow balance` | `createJob` and `createJobCapped` pay from escrow. Deposit first, or use `createJobAndPay` |
+| `USDC payment failed` or a token error | `createJobAndPay` pulls USDC with `transferFrom`: approve the Diamond for at least the price and hold the balance |
+| `callback has no code` | The callback must be a deployed contract. Pass the zero address for no callback |
+| `paused` | The protocol is paused (emergency). New jobs are refused until it is unpaused |
 
-1. Check the job state on-chain. Note the doubled parentheses — `getJob` returns a struct, and without them `cast` fails with `could not decode output`:
+### Job stuck in Funded state
+
+Resolution happens per job within seconds to a few minutes of a miner answering. It is not batched into an epoch.
+
+1. Look at the node's record. A failed attempt shows an `error_msg`:
+```bash
+curl https://<node>/engine/v1/job/<jobId>/result
+```
+2. Check the state on-chain. Note the doubled parentheses, because `getJob` returns a struct:
 ```bash
 cast call <diamond> "getJob(uint256)((address,bytes32,address,uint256,uint256,uint256,uint8,uint256))" <jobId> --rpc-url <rpc>
 # (agent, intentId, callback, budget, minerPayment, protocolFee, state, createdAt)
 ```
-
-2. Ensure a miner supporting your intent is registered and active.
-3. Verify your job's OnChainData format matches what the miner expects:
-   - `strings[0]` = model name (for LLM miners)
-   - `strings[1]` onward = alternating role/content pairs for the `chat_messages` format
-4. **Recover your funds with `cancelJob`.** Only the original agent can cancel, and it refunds the full budget to your escrow:
+3. Check the intent can be answered on-chain at all: `GET /engine/v1/intents/<intent>` must show `onchain.ready: true` and at least one live miner. If `ready` is `false`, a job for that intent fails at once with reason 3.
+4. Check that your `params` follow `onchain.request` (slot and index for each input, numbers as `value x 10^decimals`). A request that does not fit the intent's inputs fails with reason 2.
+5. If it is still `Funded` after the node's retry window (37 minutes for the node's own failures), cancel it. Only the original agent can, after `jobCancelDelay` (genesis 1 hour):
 ```bash
 cast send <diamond> "cancelJob(uint256)" <jobId> --rpc-url <rpc> --private-key <key>
 ```
+`cancelJob` reverts `job cancel lock` before the delay and `job not fundable` once the job is resolved, failed or cancelled.
+
+### A job was refunded without an answer (`JobFailed`)
+
+The quorum failed it: `JobFailed(jobId, reason)` from the Diamond, and your callback got `success = false` with the reason in words. You were refunded at once into your escrow (for a dapp that paid for its user, the **dapp's** escrow).
+
+| Reason | Meaning | What to do |
+|---|---|---|
+| 1 `no miner answered` | Every candidate was tried, or no live miner serves the intent | Check `GET /engine/v1/intents/<intent>/miners`. Retry later or pick another intent |
+| 2 `the request does not fit the intent's inputs` | A value was missing, out of range or not allowed | Re-read `onchain.request` and fix `params` |
+| 3 `the node could not process the answer` | The node's request builder or parser stayed down through its retries, or the intent has no on-chain answer format | Check `onchain.ready`. If the node is down, retry later |
 
 ### Job reached Terminal but the result looks wrong
 
@@ -49,11 +72,24 @@ Check the output hash committed on-chain:
 cast call <diamond> "getJobOutput(uint256)(bytes32)" <jobId> --rpc-url <rpc>
 ```
 
-A non-zero hash means the miner answered and the job resolved. If the *content* isn't what you expected, the usual cause is an `OnChainData` layout mismatch — the response is packed at the indexes the serving miner declares in its YAML `on_chain.fields` block, not in a fixed order. Check that block for the miner that served you.
+A non-zero hash means a miner answered and the job resolved. If the *content* is not what you expected, the usual cause is reading the wrong slot. The answer is laid out by the **intent's** answer layout, not by the serving miner, and is the same whichever miner answered. Read `onchain.response` from `GET /engine/v1/intents/<intent>` for the exact `slot`, `index` and `decimals` of each field. Numbers arrive as `value x 10^decimals` in `integers` (a negative as an int256, so cast with `int256(...)`).
 
-A reverting callback does not show up here: the protocol calls your callback inside `try … catch {}`, so the job reaches Terminal and the miner is paid even if delivery to your contract failed.
+A reverting callback does not show up here: the protocol calls your callback inside `try ... catch`, so the job reaches Terminal and the miner is paid even if delivery to your contract failed.
+
+### `transitionToTerminal` / `failJob` reverts: "not enough gas for the callback"
+
+Only relevant if you send a resolution by hand. The callback needs the stipend (`protocolParams().jobCallbackGas`, genesis 300k) with room to finish, so give the call at least the stipend plus about 1/63 of it on top of the rest. The node sizes this itself from its gas estimate.
 
 ## Miner Registration
+
+### Registration reverts: intents and prefixes
+
+| Revert or message | Cause and fix |
+|---|---|
+| `MinerRegistryFacet: unsupported intent` | An entry in `supportedIntents` is not a canonical intent. Check each with `isCanonicalIntent(string)`. Matching is exact and case-sensitive |
+| `MinerRegistryFacet: a prefix is not an intent` | You listed a family such as `FX_NOW`. List the intent, for example `FX_NOW_EUR`. Read the families with `getPrefixes()` |
+| `duplicate intent` | The same intent is listed twice. Each counts once |
+| `registration opens when the migration closes` | The network is being migrated and registration is not open. Existing miners were imported for you |
 
 ### "Schema validation failed"
 
@@ -255,10 +291,10 @@ curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/<INTENT>/wasm
 ```
 
 `ActivationStatus` is the state, `RejectionReason` says exactly which check
-failed, and `EvalDetails` carries the evaluation breakdown. For a wide adapter,
+failed, and `EvalDetails` carries the evaluation breakdown. For a model adapter,
 first look at `decision` in `EvalDetails`: `awaiting_material` means it is
 pending **by design** until its intent has evaluation material (see
-[A wide adapter stays pending, waiting for material](#a-wide-adapter-stays-pending-waiting-for-material)).
+[A model adapter stays pending, waiting for material](#a-model-adapter-stays-pending-waiting-for-material)).
 Otherwise a module that stays `pending` for a long time is usually a binary the
 node cannot fetch or re-hash — check `EvalErrorCount`, which reaches `3` before
 the record is rejected outright. `GET /api/wasm/<registrationId>` shows the same
@@ -319,13 +355,13 @@ the payout address. Update the ABI rather than the call.
 MiniLM rank_answer scoring modules are retired and are no longer accepted: …
 ```
 
-The file you registered is neither a wide adapter package nor a comparator
-module for a deterministic intent. The node no longer runs `rank_answer`
-modules, so it rejects one without loading it. Register a wide adapter
-(judgment or hybrid intent) or a comparator module (deterministic intent)
+The file you registered is neither a model adapter nor a comparator module
+for a deterministic intent. The node no longer runs `rank_answer` modules, so
+it rejects one without loading it. Register a model adapter (judgment or hybrid
+intent) or a comparator module (deterministic intent)
 instead — see [Build an Evaluator Adapter](scoring/build-a-scoring-module.md).
 
-### A wide adapter stays pending, waiting for material
+### A model adapter stays pending, waiting for material
 
 `EvalDetails` (or `eval` on `GET /api/wasm/<registrationId>`) shows
 `decision: "awaiting_material"`, and `stage` is `awaiting_compatible_material`.
@@ -352,7 +388,7 @@ rollover. See [Contribute Evaluation Data](scoring/contribute-evaluation-data.md
 
 ### `lost the competition` or `rejected in competition`
 
-A wide adapter replaces the current module only by beating it on the same hidden
+A model adapter replaces the current module only by beating it on the same hidden
 sample. The `RejectionReason` names the bar it missed:
 
 - `win rate A% did not beat the incumbent (registration N) at B% by the
@@ -379,29 +415,46 @@ against `K`'s current module on every child's data. A child registered while the
 family's module was still pending is rejected this way once that module goes
 live. Check with `GET /api/wasm?resolve=X`.
 
-### `wide package: …` or `adapter metadata: …`
+### `Q32.32 wide adapters are retired`, `float adapter: …` or `adapter metadata: …`
 
 Stage 1 refused the file:
 
-- `wide package: missing required export "…"`, `no data segments - no embedded
-  model`, `the last data segment is not an embedded .imwq model`, or a memory
-  error — the package is not a complete self-contained wide package, or the
-  download was truncated.
-- `WASM from … exceeds the 32 MB limit` on a wide package — the node did not
-  recognise it as wide, so the comparator limit applied. A wide package must
-  export `imwq_embedded`.
+- `Q32.32 wide adapters are retired; rebuild as a float adapter (abi_version 2)`
+  — the file is an adapter in the old Q32.32 format (a bare `.imwq`, a package
+  exporting `imwq_*` functions, or one whose `telegraph.adapter` section says
+  `abi_version` 1). Rebuild it with the current
+  [adapter kit](https://github.com/telegraphprotocol/telegraph-wasm-baseline);
+  see [Train a Scoring Adapter](scoring/train-a-scoring-adapter.md).
+- `float adapter: no telegraph.adapter section` — you registered the raw baked
+  file. Run it through the kit's `adapterbuild`, which adds the section, and
+  register its output.
 - `adapter metadata: built for scoring ABI version N, this node implements
-  version 1` — the `telegraph.adapter` section names another version. Rebuild
-  for version 1.
-- `adapter metadata: declares class "X" but its exports make it a "Y" adapter`
-  — the section and the exports disagree, for example a judgment build labelled
-  hybrid.
+  version 2`, `… declares runtime "X"; this node runs only "onnx_f32" adapters`,
+  `… declares no class`, `… declares class "hybrid" but the intent is a
+  "judgment" intent` (or the reverse), or `… max_tokens N is outside [1, 512]` —
+  fix the section and package again.
+- `float adapter: imports the host does not provide: …` — the module imports
+  something outside the node's fixed sandbox (sockets, file writes, another
+  import module). Rebuild for `wasm32-wasip1` without the extra dependency.
+- `… not a WASI command: no "_start" function export` or `… exports
+  "_initialize": a WASI reactor, not a command` — the node runs an adapter as a
+  command.
+- `… above this host's limit of 49152 pages (3072 MiB)` — the model needs more
+  than the node's 3 GiB memory cap.
+- `float adapter: N bytes exceeds the M-byte adapter limit
+  (ADAPTER_WASM_MAX_BYTES)` — larger than the node allows (1 GiB by default).
+  `WASM from … exceeds the 32 MB limit` means the start of the file did not
+  identify it as a model adapter (no `_start` export), so the comparator limit
+  applied.
+- `float adapters score judgment and hybrid intents; X is a deterministic intent
+  and takes a comparator module` — registered for the wrong intent.
 - `adapter metadata: training record: …` — the optional `training` record is
   malformed (no `family`, empty `children`, a child that is not the family or a
   `_`-child of it, a duplicate, negative `pairs`, or `accuracy`/`spearman` out of
   range).
 
-A package with no `telegraph.adapter` section is accepted. See
+A model adapter must carry the `telegraph.adapter` section; a comparator module
+may leave it out. See
 [The telegraph.adapter section](scoring/build-a-scoring-module.md#the-telegraphadapter-section).
 
 ### Comparator module rejected
@@ -585,6 +638,40 @@ The engine classifies your query to an intent, then routes to the best-scored mi
 ```bash
 curl http://<node>:7044/api/miners
 ```
+
+### `400 invalid_params` on /engine/v1/ask
+
+You sent `intent` + `params` and they do not fit the intent's request schema. Nothing was charged and no miner was called. The body lists every problem:
+
+```json
+{"error":"invalid_params","intent":"WEATHER_CHECK","schema_version":3,
+ "problems":[{"param":"location","code":"missing","message":"location is required (string)"}]}
+```
+
+Read the schema first with `GET /engine/v1/intents/<intent>` (`request.params`) and fix each problem. The codes are `missing`, `type`, `enum`, `range`, `pattern`, `unknown`, `size` and `conflict`. A `conflict` means your `params` (or `context`) disagree with what your `query` says, so remove the disagreement. See [Engine Inference](using/engine-ask.md#canonical-ask-intent--params).
+
+### `400 no_input_schema`, `400 intent_required`, `404 miner_not_found`
+
+- `no_input_schema`: you sent `params` for an intent with no request schema. Send a free-form `query` instead.
+- `intent_required`: you called `POST /engine/v1/ask/<miner>` in the canonical form and the miner serves several intents. Add `intent`. The body lists them.
+- `miner_not_found`: the miner id or slug is not registered. Take it from `/api/miners`.
+
+### `503 extraction_unavailable` / `503 no_compatible_miner`
+
+- `extraction_unavailable`: the node needed its parser model to read or complete your params and it is off, down or slow. Retry, or send a complete `intent` + `params`, which needs no model.
+- `no_compatible_miner`: no live miner can take your params, or no live miner serves the intent you named (an intent is never served by another intent's miner). Check `GET /engine/v1/intents/<intent>/miners`.
+
+### `429 too many requests, slow down`
+
+One client asked about too many **new** questions in a minute (default 60). A question quoted in the last 3 minutes is never refused this way, so a paid retry of the same body is fine. Wait and retry, or ask the node operator about `ROUTE_QUOTES_PER_MINUTE`.
+
+### `result_shape` is `raw` and I expected the Intent's fields
+
+The node could not read the miner's answer into the Intent's shape. `shape_error` says why: `parser_off` (the node does not run the parser), `no_format` (the intent has no response format), `parser_unavailable`, `no_fields_found` or `answer_unreadable`. The reply is still `200` and still billed, and `result` is the miner's raw answer. See [The answer's shape](using/engine-ask.md#the-answers-shape). A field that is `null` has a `field_status` of `missing` or `rejected`.
+
+### Escrow withdrawal reverts `Withdrawal locked: 2 blocks must settle first`
+
+A withdrawal unlocks once two more blocks settle after you request it (blocks are 24 hours), or after 7 days, whichever comes first. This replaced the old 4-hour timelock. Check `withdrawalUnlock(you)`, which returns `(unlockSequence, unlockTime, unlocked)`, and call `executeWithdraw` once `unlocked` is true. See [Withdrawing](using/escrow-inference.md#withdrawing).
 
 ### `422 request is predicted to fail` on /engine/v1/ask/{minerId}
 

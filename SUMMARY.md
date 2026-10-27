@@ -3,6 +3,7 @@
 ## What is Telegraph
 
 * [Introduction](introduction.md)
+* [What Changed in V2](whats-new-v2.md)
 
 ## Protocol Reference
 
@@ -21,7 +22,7 @@
 * [Daemon Signal Feed](using/daemon-signals.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
 * [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)
-* [On-Chain Miner Requests](using/onchain-miner-requests.md)
+* [On-Chain Miner Requests (removed)](using/onchain-miner-requests.md)
 * [MCP Server](using/mcp-server.md)
 
 ## Running a Miner

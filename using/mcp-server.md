@@ -134,7 +134,8 @@ npm run inspect
 | Tool | Endpoint | Description |
 |---|---|---|
 | `tg_node_status` | `GET /status` | Node identity — returns the node's `publicKey` |
-| `tg_node_list_subnets` | `GET /api/miners` | Full miner catalog: IDs, schemas, endpoints, signal mappings, and each miner's `activation_status` |
+| `tg_node_subnets_health` | `GET /api/subnets/health` | Intended as a miner integration health check. The node does not serve this route today, so the tool returns an error. Use `tg_node_list_subnets` or `tg_node_status` instead. |
+| `tg_node_list_subnets` | `GET /miner-dispatcher/integrations` | Full miner catalog: IDs, slugs, endpoints, schemas and signal mappings. For prices and each miner's `activation_status`, call `GET /api/miners` directly. |
 
 ### Engine Tools
 

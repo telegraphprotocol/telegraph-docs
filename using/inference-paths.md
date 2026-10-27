@@ -1,10 +1,10 @@
 ---
-description: The six rails Telegraph answers questions over, what each one costs, and how to pick the right one before you write any code.
+description: The rails Telegraph answers questions over, what each one costs, and how to pick the right one before you write any code.
 ---
 
 # Choosing an Inference Path
 
-Telegraph answers questions over six different rails. They are not variations on
+Telegraph answers questions over several different rails. They are not variations on
 one API — they differ in who picks the miner, how you pay, whether the answer
 comes back in the same call, and what you need to hold before you start. Picking
 the wrong one usually isn't discovered until the payment step fails.
@@ -21,20 +21,20 @@ Start here, then follow the link for the one you want.
 | An LLM agent with an MCP client | **MCP server** | [MCP Server](mcp-server.md) |
 | Wanting a continuous feed, not one answer | **WebSocket subscribe** | [WebSocket Signals](websocket-signals.md) |
 | A smart contract targeting a capability | **ERC-8183 job** | [On-Chain Jobs](erc8183-jobs.md) |
-| A smart contract targeting one known miner | **On-chain miner request** | [On-Chain Miner Requests](onchain-miner-requests.md) |
+| A smart contract that prefers one known miner | **ERC-8183 job** with `createJobForMiner` | [On-Chain Jobs](erc8183-jobs.md) |
 | Just reading what the network already produced | **Daemon feed** (free, no inference) | [Daemon Signal Feed](daemon-signals.md) |
 
 ## The comparison
 
-| | HTTP `ask` | HTTP `ask/{id}` | WebSocket `ask` | WebSocket `subscribe` | ERC-8183 job | On-chain miner request |
-|---|---|---|---|---|---|---|
-| **Who picks the miner** | Engine's LLM router | You | Engine's LLM router | n/a — pushed to you | Protocol, by intent | You |
-| **You need** | USDC + x402 client, *or* funded escrow | USDC + x402 client, *or* funded escrow | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in escrow | Gas only |
-| **How you pay** | Per call, x402 — or from [escrow](escrow-inference.md) | Per call, x402 — or from [escrow](escrow-inference.md) | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow | Gas only |
-| **Answer arrives** | In the response | In the response | As stream events | Pushed, on the Daemon's cycle | Callback + on-chain state | Callback |
-| **Synchronous** | Yes | Yes | Yes | No | No | No |
-| **Fresh inference** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes | Yes |
-| **Concurrency** | Many in flight | Many in flight | Per connection | One subscription per wallet | Many in flight | One at a time, protocol-wide |
+| | HTTP `ask` | HTTP `ask/{id}` | WebSocket `ask` | WebSocket `subscribe` | ERC-8183 job |
+|---|---|---|---|---|---|
+| **Who picks the miner** | Engine's LLM router | You | Engine's LLM router | n/a, pushed to you | Protocol, by intent (or you, with `createJobForMiner`) |
+| **You need** | USDC + x402 client, *or* funded escrow | USDC + x402 client, *or* funded escrow | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in escrow, or approve the Diamond and `createJobAndPay` |
+| **How you pay** | Per call, x402, or from [escrow](escrow-inference.md) | Per call, x402, or from [escrow](escrow-inference.md) | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow |
+| **Answer arrives** | In the response, in the Intent's shape | In the response (raw, or shaped for the canonical form) | As stream events | Pushed, on the Daemon's cycle | Callback + on-chain state |
+| **Synchronous** | Yes | Yes | Yes | No | No |
+| **Fresh inference** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes |
+| **Concurrency** | Many in flight | Many in flight | Per connection | One subscription per wallet | Many in flight |
 
 Two things that surprise people:
 
@@ -83,7 +83,7 @@ You supply the miner ID, the endpoint and the payload. No routing, no
 
 ```bash
 # 1. find a miner and a valid endpoint (free)
-curl 'https://devnode.telegraphprotocol.com/api/miners?intent=WEATHER_FORECAST'
+curl 'https://devnode.telegraphprotocol.com/api/miners?intent=WEATHER_CHECK_TEMPERATURE'
 
 # 2. call it — same x402 flow as above
 POST /engine/v1/ask/18
@@ -139,7 +139,7 @@ wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=0xYourAddress
 ← wallet_verified, then connected
 
 → {"action": "ask", "query": "..."}                    live inference
-→ {"action": "subscribe", "intents": ["WEATHER_FORECAST"], "spend_limit_usdc": 500000}
+→ {"action": "subscribe", "intents": ["WEATHER_CHECK_TEMPERATURE"], "spend_limit_usdc": 500000}
 ```
 
 You must have **≥ 1.00 USDC in escrow** before the handshake, or the connection
@@ -149,28 +149,29 @@ is closed. Funding it is [three transactions](websocket-signals.md#funding-your-
 
 ### ERC-8183 job
 
-Your contract escrows USDC, names an intent, and gets the result delivered to a
-callback. Priced at `jobBasePrice` (currently 1 USDC), not the miner's floor.
+Your contract pays (from escrow, or in the same call with `createJobAndPay`),
+names an intent and typed params, and gets the intent's fixed, processed answer
+delivered to a callback. Priced at `jobBasePrice`, not the miner's floor.
 
 ```bash
 cast send $DIAMOND \
-  "createJob(bytes32,(address[],uint256[],string[],bool[]),address)(uint256)" \
-  "$(cast keccak 'STORM_ALERT')" '([],[],["24.75","67.0","2t","",""],[false])' $CALLBACK \
+  "createJobCapped(bytes32,(address[],uint256[],string[],bool[]),address,uint256)(uint256)" \
+  "$(cast keccak 'WEATHER_FORECAST_LAHORE')" '([],[24],["Lahore"],[])' $CALLBACK 2000000 \
   --rpc-url $RPC --private-key $KEY
 ```
 
-A job still sitting in `Funded` after a minute or two has **failed**, not
-stalled. Recover with `cancelJob`.
+Read the intent's on-chain layout from `GET /engine/v1/intents/{intent}`
+(`onchain`) first. The intent in the command above is a placeholder. If no miner can answer, the validator quorum fails the job,
+you are refunded, and your callback gets `success = false`.
 
 → [On-Chain Jobs (ERC-8183)](erc8183-jobs.md)
 
-### On-chain miner request
+### On-chain miner request (removed)
 
-The cheap on-chain rail: you name the miner and endpoint, you pay only gas, and
-a callback is mandatory. One outstanding request at a time across the whole
-protocol.
+The old gas-only rail (`outboundSubnetMessage`) was removed with `SubnetFacet`.
+Use a job. To prefer one miner, use `createJobForMiner`.
 
-→ [On-Chain Miner Requests](onchain-miner-requests.md)
+→ [On-Chain Miner Requests](onchain-miner-requests.md) (how to move over)
 
 ## Before any of them: discovery is free
 
