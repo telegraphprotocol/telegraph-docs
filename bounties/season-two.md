@@ -6,6 +6,10 @@ description: How the bounty board serves the Season II (H2) hackathon — the 15
 
 Season II (H2) starts from the **end state**: real applications must work.
 
+Dates, tracks, prizes and eligibility are set by the official rules at
+[hackathon.telegraphprotocol.com/rules](https://hackathon.telegraphprotocol.com/rules).
+This page covers only how the bounty board supports the hackathon.
+
 The 15 commercial missions define the demand side. Applications and agents pick
 a mission and combine the reusable [intents](../using/intents.md) they need.
 Miners and evaluators stay intent-based and industry-agnostic. The bounty board

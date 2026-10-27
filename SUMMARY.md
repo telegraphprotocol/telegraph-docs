@@ -41,9 +41,11 @@
 ## Contributing Through Bounties
 
 * [The Bounty Board](bounties/overview.md)
+* [Your First Bounty](bounties/your-first-bounty.md)
 * [How a Bounty Works](bounties/how-a-bounty-works.md)
 * [Kinds of Work](bounties/kinds-of-work.md)
 * [Bounties and Season II](bounties/season-two.md)
 * [Rewards](bounties/rewards.md)
 * [Reporting a Gap](bounties/reporting-a-gap.md)
 * [Command Line and Agents](bounties/command-line.md)
+* [Bounty Glossary](bounties/glossary.md)

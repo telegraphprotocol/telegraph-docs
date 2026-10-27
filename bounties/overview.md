@@ -60,9 +60,11 @@ it. See [Rewards](rewards.md).
 
 | I want to… | Read |
 |---|---|
+| Follow one bounty from start to finish | [Your First Bounty](your-first-bounty.md) |
 | Understand the claim and review process | [How a Bounty Works](how-a-bounty-works.md) |
 | Know what kinds of work exist | [Kinds of Work](kinds-of-work.md) |
 | Build for the Season II hackathon | [Bounties and Season II](season-two.md) |
 | Report a gap I found | [Reporting a Gap](reporting-a-gap.md) |
 | Know how payment works | [Rewards](rewards.md) |
 | Use the board from a terminal or an agent | [Command Line and Agents](command-line.md) |
+| Look up a term | [Bounty Glossary](glossary.md) |
