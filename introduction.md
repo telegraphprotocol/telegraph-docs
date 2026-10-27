@@ -48,7 +48,6 @@ You can subscribe to this feed over WebSocket instead of polling for it: authent
 | Build a scoring adapter or contribute evaluation data | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
 | Connect an AI agent with zero crypto code | [MCP Server](using/mcp-server.md) |
 | Run a miner and earn MACHINA | [What Miners Do](miners/miner-overview.md) |
-| Run a validator node | [What Validators Do](validators/validator-overview.md) |
 
 ## Reading These Docs With an AI
 

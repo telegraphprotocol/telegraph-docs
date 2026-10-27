@@ -15,7 +15,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | No way to see what an Intent expects or returns. | `GET /engine/v1/intents/{intent}` returns the request schema, the response format and the exact on-chain layout. | [Intents](using/intents.md#asking-with-an-intent) |
 | Escrow withdrawals unlocked after 4 hours. | They unlock after **two more blocks settle** (blocks are 24 hours) or **7 days**, whichever comes first. | [Withdrawing](using/escrow-inference.md#withdrawing) |
 | The escrow payment message had no chain in it. | It includes `Network: eip155:<chainId>`. Sign the template exactly as given. | [Escrow](using/escrow-inference.md#step-2-read-the-challenge) |
-| New errors: none. | `429` when a client asks too many new questions a minute. `503 extraction_unavailable` and `503 no_compatible_miner`. | [Troubleshooting](troubleshooting.md#400-invalid_params-on-enginev1ask) |
+| New errors: none. | `429` when a client asks too many new questions a minute. `503 extraction_unavailable` and `503 no_compatible_miner`. | — |
 
 ## If you build a smart contract
 
@@ -51,20 +51,10 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | MiniLM `rank_answer` modules, then Q32.32 packages. | **Float model adapters** in WASM. The older formats are refused. | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
 | `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)`. You register on a **prefix** (a family), supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |
 
-## If you run a validator node
-
-| Before | Now | Details |
-|---|---|---|
-| One BLS key set by the owner. | Real **BLS12-381 aggregate signing** by a registered validator set, with a quorum of `floor(2n/3) + 1`. | [What Validators Do](validators/validator-overview.md) |
-| `addSigner` | `registerValidatorProfile(operatorKey, blsPubkey, proofOfPossession, stake)`. Registration is closed by default. | [Node Setup, Step 6](validators/validator-setup.md#step-6-register-as-a-validator) |
-| `PRIVATE_KEY` in the environment. | On mainnet the node key lives in **Clef** (`VALIDATOR_SIGNER_URL`, `VALIDATOR_ADDRESS`). The node refuses a raw key. | [Key Management](validators/key-management.md) |
-| Epochs of 1 hour. | Blocks of **24 hours** (`EPOCH_DURATION_SECONDS` default 86400). | [Node Setup](validators/validator-setup.md#step-3-configure-environment-variables) |
-| Migrations up to `0008`. | Migrations **`0009` to `0027`** must be applied before the new binary starts. | [Node Setup, Step 1](validators/validator-setup.md#step-1-set-up-the-database) |
-
 ## If you deploy the contracts
 
 | Before | Now | Details |
 |---|---|---|
-| `FullDeploy` and `ConfigureDiamond`. | `DeployProd`, then `UpgradeToFlywheel`, then register the validator, then add intents with `RegisterIntentCatalog`. | [Deploying a Node](deployment.md#4-deploy-contracts) |
+| `FullDeploy` and `ConfigureDiamond`. | `DeployProd`, then `UpgradeToFlywheel`, then register the validator, then add intents with `RegisterIntentCatalog`. | — |
 | Genesis seeded 108 intents. | Genesis seeds **prefixes** only. Miners cannot register until intents exist. | [Intents](using/intents.md#prefixes-seeded-at-genesis) |
-| Moving chains meant everyone re-registered. | An admin **imports** every active miner (same owner and id), then closes the migration. | [Deploying a Node](deployment.md#4-deploy-contracts) |
+| Moving chains meant everyone re-registered. | An admin **imports** every active miner (same owner and id), then closes the migration. | — |

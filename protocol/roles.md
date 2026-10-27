@@ -76,8 +76,6 @@ Validators also earn a small gas reimbursement from the Treasury for each on-cha
 - Two keys: a cold **Manager Key** (for staking operations) and a hot **Operator Key** (for BFT participation).
 - Running the Telegraph node binary.
 
-For the full setup guide, see [Node Setup](../validators/validator-setup.md).
-
 ---
 
 ## Script Author

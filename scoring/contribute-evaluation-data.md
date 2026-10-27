@@ -455,5 +455,4 @@ curl -s "https://devnode.telegraphprotocol.com/api/evalpool/status?intent_id=COD
 `intent_id` is required here.
 
 If your rows are `eligible` but `active_snapshot` is older than `snapshot`, they
-are waiting for the next epoch. See
-[Uploaded evaluation rows are not used yet](../troubleshooting.md#uploaded-evaluation-rows-are-not-used-yet).
+are waiting for the next epoch.
