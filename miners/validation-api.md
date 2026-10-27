@@ -175,7 +175,7 @@ What each outcome tells you:
 | `success: true`, `status` 2xx | Reachable, authenticated, and it liked the request. |
 | `success: true`, `status` 4xx | Reachable and authenticated. The sandbox guessed parameters your API rejected — expected, and not a problem to fix here. |
 | `success: true`, `error: "skipped (multipart/file upload)"` | Not tested. Multipart and file-upload endpoints need real files, so the sandbox skips them and reports a pass. **You are on your own for these** — test them yourself. |
-| `success: false`, `auth failed: HTTP 401` | Your credential was refused. See [Sandbox returns 401](../troubleshooting.md#sandbox-returns-401-but-the-same-key-works-from-my-machine). |
+| `success: false`, `auth failed: HTTP 401` | Your credential was refused. |
 | `success: false`, `server error: HTTP 5xx` | Your upstream is broken or overloaded. Registering now means being routed traffic you can't serve. |
 | `success: false`, `status: 0`, `request failed: ...` | The node never got a response — DNS, TLS, firewall, or a `localhost` address that means nothing to a remote node. `status: 0` means no HTTP exchange happened at all. |
 

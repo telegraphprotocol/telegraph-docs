@@ -10,9 +10,6 @@ This is the source repository for [docs.telegraphprotocol.com](https://docs.tele
 | `using/` | How to use Telegraph — path chooser, x402 inference, engine API, WebSocket signals, ERC-8183 jobs |
 | `miners/` | How to become a miner — YAML config, validation API, registration |
 | `scoring/` | How to build and register a WASM scoring module, and contribute evaluation data |
-| `validators/` | How to run a validator — key management, node setup |
-| `troubleshooting.md` | Common issues and solutions |
-| `deployment.md` | Step-by-step node deployment |
 
 ## Contributing
 

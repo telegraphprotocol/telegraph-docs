@@ -37,14 +37,3 @@
 * [Build an Evaluator Adapter](scoring/build-a-scoring-module.md)
 * [Train an Evaluator Adapter](scoring/train-a-scoring-adapter.md)
 * [Contribute Evaluation Data](scoring/contribute-evaluation-data.md)
-
-## Running a Validator
-
-* [What Validators Do](validators/validator-overview.md)
-* [Key Management](validators/key-management.md)
-* [Node Setup](validators/validator-setup.md)
-
-## Deployment & Troubleshooting
-
-* [Deploying a Node](deployment.md)
-* [Troubleshooting Common Issues](troubleshooting.md)

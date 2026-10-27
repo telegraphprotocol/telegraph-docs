@@ -292,4 +292,3 @@ EscrowFacet(DIAMOND).cancelWithdraw();          // changed your mind
 - [Paying with x402](x402-inference.md): the per-request rail escrow sits alongside
 - [Choosing an Inference Path](inference-paths.md): which rail fits your workload
 - [WebSocket Signal Subscriptions](websocket-signals.md): escrow is what funds streamed signals
-- [Troubleshooting](../troubleshooting.md)
