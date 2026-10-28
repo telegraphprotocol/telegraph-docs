@@ -21,6 +21,11 @@ that file:
 Then you host the `.wasm`, provide the required runnable endpoint, and register
 it as described in [Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit--register-your-module).
 
+The adapter kit includes `cmd/adapterrunner`, a reference endpoint that runs
+the packaged WASM with Wasmtime. It is the starting point for `wasmRunnableUrl`;
+see [The runnable endpoint](build-a-scoring-module.md#the-runnable-endpoint)
+before you register.
+
 If your intent is deterministic (a price, a rate, a yes/no fact), you don't need
 any of this: deterministic intents use a comparator module instead. See
 [Comparator modules](build-a-scoring-module.md#comparator-modules-deterministic-intents).
@@ -50,6 +55,22 @@ any of this: deterministic intents use a comparator module instead. See
 
 Run every command from the root of the kit. On Windows, run the `bash` step from
 Git Bash.
+
+## Public build inputs
+
+The public inputs to this workflow are the adapter kit, the public
+`answerdotai/ModernBERT-base` base model and its tokenizer, and training data
+you are entitled to use. The node supplies canonical tokens when it executes
+the finished adapter; it accepts up to 512 tokens.
+
+You do not need the current canonical evaluator's fine-tuned checkpoint or
+unpublished evaluation cases. They are intentionally outside the public build
+interface and are not needed to build, submit or compete with an adapter.
+
+If an AI assistant helps with this workflow, keep it within that boundary: it
+should use the public kit and public base model, then train on your data. It
+should not request, infer, scrape or rely on unpublished evaluator weights or
+evaluation material. The node performs the competition after submission.
 
 ## Step 1: Prepare your data
 
