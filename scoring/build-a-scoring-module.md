@@ -114,8 +114,10 @@ Details that matter:
 
 ### Size and build
 
-Your compiled `.wasm` file must be **32 MB or smaller**; a comparator is
-usually tens of KB. Anything that compiles to a standalone WASM binary works.
+Your compiled **comparator** `.wasm` file must be **32 MB or smaller**; a
+comparator is usually tens of KB. This limit does not apply to model adapters,
+which have their own limit below. Anything that compiles to a standalone WASM
+binary works.
 Rust is the easiest (`#![no_std]`, `crate-type = ["cdylib"]`), and C/C++,
 TinyGo and AssemblyScript also work.
 
@@ -531,6 +533,25 @@ with `ERC20InsufficientAllowance`. The Diamond's address is on the
 [Addresses & Parameters](../protocol/addresses-and-params.md) page.
 
 ### The runnable endpoint
+
+The public adapter kit includes a reference implementation:
+
+```bash
+go build -o adapterrunner ./cmd/adapterrunner
+ADAPTER_WASM=runs/CODE_REVIEW/CODE_REVIEW.wasm ./adapterrunner
+```
+
+It exposes `POST /runnable` on port 8080. Deploy that process behind your own
+public HTTPS reverse proxy and use its `/runnable` URL as `wasmRunnableUrl`.
+It executes the exact package through Wasmtime, so its returned score bits can
+be checked against the downloaded binary. See the kit's `Run the required
+endpoint` section for the required Wasmtime installation, configuration and
+capacity check.
+
+The reference service is deliberately conservative: it runs one model input at
+a time by default. A real 512-token ModernBERT package can be expensive. Before
+registering, benchmark the full validation batch on the hardware you deploy;
+the node gives the endpoint two minutes for the whole check.
 
 `wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
 check, but the node then fails to reach it and rejects the registration after
