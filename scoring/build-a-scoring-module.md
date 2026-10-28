@@ -586,12 +586,12 @@ implement the **batch request**:
   comparator the node asks 100 cases out of its correctness battery (two batch
   requests). For a model adapter it asks 30 questions (15 public pairs, two texts
   each) in one batch. The hidden competition split is never sent to your endpoint.
-- **Time limit.** The whole check must finish within 30 minutes.
+- **Time limit.** The whole check must finish within 30 minutes for a model adapter (2 minutes for a comparator).
 - **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
   single `{"score": N}` form), means the endpoint does not implement the batch
   request: the registration is rejected at once with `its runnable URL did not
   accept the batch request`. `408`, `429` and `5xx` are retried at the next epoch
-  rollover (not at once, so a briefly busy endpoint can recover); after 3 failed
+  rollover or within the hour (not at once, so a briefly busy endpoint can recover); after 3 failed
   attempts the registration is rejected with `remote executor unreachable`. For a model adapter,
   after the binary downloads the node re-scores the same public pairs and rejects a
   candidate whose binary does not reproduce your endpoint's answers bit for bit.
