@@ -552,11 +552,14 @@ capacity check.
 The reference service is deliberately conservative: it runs one model input at
 a time by default. A real 512-token ModernBERT package can be expensive. Before
 registering, benchmark the full validation batch on the hardware you deploy;
-the node gives the endpoint two minutes for the whole check.
+the node gives the endpoint 30 minutes for the whole check (30 texts). On a
+CPU, a 256-token model takes about 8-28 seconds a text and a 512-token one up
+to about a minute, so a plain CPU host fits; keep the endpoint up until your
+registration leaves `pending`.
 
 `wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
 check, but the node then fails to reach it and rejects the registration after
-two attempts. The endpoint serves the same module you registered, and it must
+three attempts. The endpoint serves the same module you registered, and it must
 implement the **batch request**:
 
 - **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never
@@ -583,12 +586,13 @@ implement the **batch request**:
   comparator the node asks 100 cases out of its correctness battery (two batch
   requests). For a model adapter it asks 30 questions (15 public pairs, two texts
   each) in one batch. The hidden competition split is never sent to your endpoint.
-- **Time limit.** The whole check must finish within 2 minutes.
+- **Time limit.** The whole check must finish within 30 minutes.
 - **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
   single `{"score": N}` form), means the endpoint does not implement the batch
   request: the registration is rejected at once with `its runnable URL did not
-  accept the batch request`. `408`, `429` and `5xx` are retried once, then the
-  registration is rejected with `remote executor unreachable`. For a model adapter,
+  accept the batch request`. `408`, `429` and `5xx` are retried at the next epoch
+  rollover (not at once, so a briefly busy endpoint can recover); after 3 failed
+  attempts the registration is rejected with `remote executor unreachable`. For a model adapter,
   after the binary downloads the node re-scores the same public pairs and rejects a
   candidate whose binary does not reproduce your endpoint's answers bit for bit.
 
