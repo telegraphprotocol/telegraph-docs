@@ -36,7 +36,7 @@ The rest of this page covers doing the same thing by hand with `cast`.
 2. **The intents you will serve.** These must be canonical **intents** such as `FX_NOW_EUR`, never prefixes such as `FX_NOW`. See [Pick your intents](#step-1-pick-your-intents).
 3. **A hosted YAML.** Publicly reachable at a stable URL. IPFS is strongly recommended; HTTPS is also acceptable.
 4. **A small amount of Sepolia ETH**, for gas on the registration transaction.
-5. **A little MACHINA for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in MACHINA at the pool price. It is returned when you deregister.
+5. **A little MACHINA for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in MACHINA at the pool price. It is returned when you deregister. To get MACHINA (and test USDC), see [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
 6. **A fee address.** The EVM wallet where your MACHINA payouts go. It can be the registering wallet or a separate cold address.
 7. **`cast` (Foundry).** Install at [getfoundry.sh](https://getfoundry.sh).
 

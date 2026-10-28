@@ -32,6 +32,33 @@ cast call $DIAMOND "machinaToken()(address)" --rpc-url $RPC   # what miners are 
 cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
 ```
 
+### Getting test tokens
+
+You need three things on the testnet: Sepolia ETH for gas (from any public Sepolia faucet), test USDC, and MACHINA for bonds.
+
+**Test USDC.** Anyone can mint it:
+
+```bash
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
+```
+
+**MACHINA.** Swap test USDC for it on the MACHINA/USDC pool (0.3% fee tier) through Uniswap's SwapRouter02 on Sepolia, `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`. 2 USDC buys about 2.6 MACHINA, enough for a miner bond or an intent proposal; an adapter bond ($5) needs about 7 MACHINA.
+
+```bash
+export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+export ROUTER=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+# 1. let the router take 2 USDC
+cast send $USDC "approve(address,uint256)" $ROUTER 2000000 --rpc-url $RPC --private-key $KEY
+# 2. swap 2 USDC for MACHINA, sent to you
+cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+  "($USDC,$MACHINA,3000,$YOUR_ADDRESS,2000000,0,0)" --rpc-url $RPC --private-key $KEY
+cast call $MACHINA "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
+```
+
+Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.
+
 ### Network Configuration
 
 | Parameter | Value |

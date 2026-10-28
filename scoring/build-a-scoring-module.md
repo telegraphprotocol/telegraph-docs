@@ -527,7 +527,8 @@ afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
 Registering posts a **$5 bond in MACHINA** (at the pool price; read it with
-`entityBonds()`), plus gas. The bond is returned in full when you deregister and
+`entityBonds()`), plus gas. To get MACHINA, see
+[Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens). The bond is returned in full when you deregister and
 is never slashed. Approve the Diamond for it first, as above, or the call reverts
 with `ERC20InsufficientAllowance`. The Diamond's address is on the
 [Addresses & Parameters](../protocol/addresses-and-params.md) page.

@@ -351,8 +351,10 @@ Anyone can propose an intent under an existing prefix. The admin approves it
 ### Propose
 
 A proposal posts a **$1 bond in MACHINA** (at the pool price; read it with
-`intentProposalParams()`). It is returned when the proposal is approved,
-rejected or withdrawn. Approve the Diamond for it first:
+`intentProposalParams()`). It is released when the proposal is approved,
+rejected or withdrawn; withdraw it to your wallet 2 days later with
+`withdrawMinerBond()`. Need MACHINA? See
+[Getting MACHINA](../protocol/addresses-and-params.md#getting-test-tokens). Approve the Diamond for it first:
 
 ```bash
 MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
