@@ -14,12 +14,12 @@ that file:
 |---|---|---|
 | 1. Prepare data | Collect questions, each with a better and a worse answer | `pairs.jsonl` |
 | 2. Train | Fine-tune the model on your pairs | an adapter folder |
-| 3. Export | Turn the trained adapter into one standard model file | `model_fp32.onnx` (about 600 MB) |
-| 4. Bake | Build the model and its engine into one WebAssembly file | `baked.wasm` (about 574 MB) |
+| 3. Export | Merge the trained adapter and export an ONNX model | `model.onnx` |
+| 4. Bake | Build the model and its engine into one WebAssembly file | `model.baked.wasm` |
 | 5. Package | Add the version label, check it the way a node will, get its hash | `<INTENT>.wasm` plus its keccak256 hash |
 
-Then you host the `.wasm` and register it, as described in
-[Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit-register-your-module).
+Then you host the `.wasm`, provide the required runnable endpoint, and register
+it as described in [Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit--register-your-module).
 
 If your intent is deterministic (a price, a rate, a yes/no fact), you don't need
 any of this: deterministic intents use a comparator module instead. See
@@ -34,15 +34,15 @@ any of this: deterministic intents use a comparator module instead. See
   ```bash
   git clone https://github.com/telegraphprotocol/telegraph-wasm-baseline.git
   cd telegraph-wasm-baseline
-  pip install -r requirements.txt
+  python -m pip install -r requirements.txt
+  rustup target add wasm32-wasip1
   ```
 - **Python 3.10+**, for training and export. `requirements.txt` installs
   `torch`, `transformers`, `peft`, `onnx` and the rest. For GPU training,
   install a CUDA build of `torch` first (see
   [pytorch.org](https://pytorch.org/get-started/locally/)).
-- **Docker**, for the bake. If you can't use Docker, the bake also runs with
-  Rust installed through [rustup](https://rustup.rs) (`--local`); see
-  [Step 4](#step-4-bake).
+- **Rust** through [rustup](https://rustup.rs), with the `wasm32-wasip1`
+  target, for the bake.
 - **Go 1.25+**, for the packaging step.
 - **A GPU** for training. Training works on a CPU, but it is very slow. Export,
   bake and packaging run fine on a CPU.
@@ -101,7 +101,7 @@ from each other, and about as long as the better answers.
 ## Step 2: Train
 
 ```bash
-python -m float_runtime.train_adapter \
+python -m wide_runtime.train_adapter \
   --intent CODE_REVIEW --data pairs.jsonl --out runs/CODE_REVIEW
 ```
 
@@ -139,7 +139,7 @@ one there (see [Step 6](#step-6-register-and-compete)).
 | `--epochs` | `3` | Training stops early when it stops improving |
 | `--lr` | `0.0001` | Learning rate |
 | `--grad-accum` | `16` | Lower it on a small dataset; raise it if you run out of GPU memory |
-| `--max-length` | `512` | Tokens per question and answer. The node scores up to 512, so train at 512. If you train shorter, pass the same number to the export and packaging steps as `--max-tokens` (the commands the script prints already do) |
+| `--max-length` | `512` | Tokens per question and answer. The node scores up to 512. If you train shorter, package the adapter with the same number as `--max-tokens`. |
 | `--config` | none | A YAML or JSON file with any of the settings |
 
 Run with `--help` for the full list.
@@ -150,13 +150,16 @@ This step merges your adapter into the base model and saves it as one standard
 **ONNX** model file, in normal 32-bit floating point:
 
 ```bash
-python -m float_runtime.export_onnx --run runs/CODE_REVIEW
+python -m wide_runtime.export_onnx \
+  --base answerdotai/ModernBERT-base \
+  --adapter runs/CODE_REVIEW/adapter \
+  --out runs/CODE_REVIEW/model.onnx
 ```
 
-It writes `runs/CODE_REVIEW/model_fp32.onnx` (about 600 MB) and a
-`sample_input.json` for the packaging step. Before finishing, it checks that the
-exported file gives the same scores as the trained model at every input length
-the node can send. A CPU is fine for this step.
+It writes `runs/CODE_REVIEW/model.onnx` and
+`runs/CODE_REVIEW/model.onnx.export.json`. The JSON record identifies the
+source checkpoint, the ONNX file, and a reference score from the export. A CPU
+is sufficient for this step, though a real model needs substantial memory.
 
 ## Step 4: Bake
 
@@ -166,26 +169,28 @@ ONNX engine written in Rust, and the model's weights are built into the file,
 so the file needs nothing else to run.
 
 ```bash
-bash float_runtime/bake_wasm.sh runs/CODE_REVIEW/model_fp32.onnx runs/CODE_REVIEW/baked.wasm
+wide_runtime/vm_float_wasm/bake_wasm.sh \
+  runs/CODE_REVIEW/model.onnx \
+  runs/CODE_REVIEW/model.baked.wasm
 ```
 
-It writes `baked.wasm` (about 574 MB). It takes a few minutes and several GB of
-RAM.
+It writes `model.baked.wasm`. The ONNX graph is embedded in the WASI command,
+so the resulting module needs no external model file. The bake may take several
+minutes and needs substantial memory for a real model.
 
-By default the bake runs in Docker with a pinned compiler, so **the same ONNX
-file always gives the same `.wasm`, byte for byte, on any machine**. That lets
-anyone rebuild your adapter from your ONNX file and check its hash. Without
-Docker, add `--local` to bake with Rust installed through rustup. A local bake
-is repeatable on the same operating system, but its bytes differ from a Docker
-bake.
+Keep the ONNX file, the export record, and the baked module with your build
+records. The public kit does not claim that independently baked FP32 modules
+have the same bytes on every operating system or toolchain.
 
 ## Step 5: Package
 
 This step turns the baked file into the `.wasm` you register:
 
 ```bash
-go run ./cmd/adapterbuild --intent CODE_REVIEW --wasm runs/CODE_REVIEW/baked.wasm \
-  --out runs/CODE_REVIEW --input runs/CODE_REVIEW/sample_input.json
+go run ./cmd/adapterbuild \
+  --intent CODE_REVIEW \
+  --baked-wasm runs/CODE_REVIEW/model.baked.wasm \
+  --out runs/CODE_REVIEW
 ```
 
 `adapterbuild`:
@@ -194,19 +199,22 @@ go run ./cmd/adapterbuild --intent CODE_REVIEW --wasm runs/CODE_REVIEW/baked.was
   intents;
 - adds the version label the node requires (the `telegraph.adapter` section,
   described below);
-- builds the package twice and checks both copies are identical;
-- runs the node's own registration checks on it, then loads it with the node's
-  own runtime and scores the sample input twice, requiring the exact same
-  result both times. It fails if a node would reject the package.
+- checks that the supplied file is a WASI command, rejects a reactor or retired
+  Q32.32 exports, and verifies that wazero can compile it;
+- writes the artifact and manifest, including its Keccak-256 and SHA-256.
 
 It writes `runs/CODE_REVIEW/CODE_REVIEW.wasm` and a manifest next to it, and
 prints one JSON line:
 
 ```json
-{"intent":"CODE_REVIEW","class":"judgment","keccak256":"0x…","sha256":"…","bytes":601882624,"wasm_path":"runs/CODE_REVIEW/CODE_REVIEW.wasm","score_hex":"0x…", …}
+{"intent":"CODE_REVIEW","class":"judgment","keccak256":"0x…","sha256":"…","bytes":…,"wasm_path":"runs/CODE_REVIEW/CODE_REVIEW.wasm","manifest_path":"runs/CODE_REVIEW/CODE_REVIEW.wasm.manifest.json",…}
 ```
 
-The `keccak256` value is the hash you register.
+The `keccak256` value is the hash you register. `--max-tokens N` may lower the
+node's token cap for this artifact; accepted values are 1 through 512. Its
+class must match the target intent's live class. The package is not active just
+because this local command succeeds: node-side structural validation, the smoke
+score, and evaluation material still decide that.
 
 ## Step 6: Register and compete
 
@@ -227,9 +235,9 @@ Check how it is doing with
 
 ## What the node expects
 
-Use the tools above and all of this is handled for you. If you build your own
-tooling, it must match exactly, because every validator must get the same score
-to the last bit.
+Use the tools above to produce the expected package shape. If you build your
+own tooling, it must match the contract below and pass the node's structural,
+smoke, and evaluation checks.
 
 ### The model and its input
 
@@ -275,13 +283,13 @@ else on the line is ignored. A score fails, and never becomes a number, if the
 file exits with an error, prints no HEX line or more than one, prints more than
 16 KB, or the value is not a finite number.
 
-### Why the result is the same on every validator
+### Determinism and compatibility
 
-WebAssembly defines float arithmetic exactly, with no chip-specific shortcuts,
-and the node fixes everything else the file could see (files, environment,
-clock, randomness). So the same file and the same text give the same 32 bits on
-every validator. This has been measured across repeated runs and across
-different x86 machines; a check on ARM machines is still open.
+The node fixes the guest input, files, environment, clock, randomness, and
+WASI host. The adapter must still be tested against the node versions and CPU
+environments that will execute it before claiming bit-identical FP32 results
+across independent validators. This public kit does not make that cross-machine
+guarantee by itself.
 
 ### How the output becomes a score
 
