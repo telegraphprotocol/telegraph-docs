@@ -350,7 +350,17 @@ Anyone can propose an intent under an existing prefix. The admin approves it
 
 ### Propose
 
+A proposal posts a **$1 bond in MACHINA** (at the pool price; read it with
+`intentProposalParams()`). It is released when the proposal is approved,
+rejected or withdrawn; withdraw it to your wallet 2 days later with
+`withdrawMinerBond()`. Need MACHINA? See
+[Getting MACHINA](../protocol/addresses-and-params.md#getting-test-tokens). Approve the Diamond for it first:
+
 ```bash
+MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+cast send $MACHINA "approve(address,uint256)" $DIAMOND 5000000000000000000 \
+  --rpc-url $RPC --private-key $KEY
+
 cast send $DIAMOND \
   "proposeIntent(string,string,(uint8,uint32,uint64,string[],string,string,string,string,string))" \
   "FX_NOW_JPY" "Query asks for the live mid-market rate between USD and the Japanese yen ..." \
@@ -389,6 +399,7 @@ apply it from the **next epoch**.
 | `IntentCatalog: a hybrid intent needs fusion` / `fusion is for hybrid intents` | `fusion` missing for hybrid, or given for deterministic |
 | `IntentCatalog: proposed by someone else` | You tried to edit another address's proposal |
 | `MinerRegistryFacet: empty description` | The description is empty |
+| `ERC20InsufficientAllowance` / `ERC20InsufficientBalance` | The Diamond could not take the $1 MACHINA bond. Hold enough MACHINA and `approve` the Diamond first |
 
 ## After your intent is approved
 

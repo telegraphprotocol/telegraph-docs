@@ -12,8 +12,8 @@ This page covers the payment mechanics. For what to actually send and get back, 
 
 ## What You Need
 
-- A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`) or **Solana Devnet**.
-- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`, and `@x402/svm` for Solana) are what the [Telegraph MCP server](mcp-server.md) uses.
+- A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
+- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses.
 - **Node.js 20 or newer** if you're using those packages. They sign with the WebCrypto API, which Node 18 doesn't expose — on Node 18 payments fail with `Failed to create payment payload: Crypto API not available`.
 - The URL of a Telegraph node.
 
@@ -71,18 +71,10 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
   "accepts": [
     {
       "scheme": "exact",
-      "network": "eip155:84532",
-      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "network": "eip155:11155111",
+      "asset": "0xcc194e1a843B658526D0D5C431f670028582Ae17",
       "amount": "10000",
-      "payTo": "0x...",
-      "maxTimeoutSeconds": 60
-    },
-    {
-      "scheme": "exact",
-      "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-      "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      "amount": "10000",
-      "payTo": "...",
+      "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b",
       "maxTimeoutSeconds": 60
     }
   ]
@@ -91,7 +83,7 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
 
 The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts.
 
-Each entry also carries an `extra` object holding what the signature needs — `{"name": "USDC", "version": "2"}` on Base Sepolia, and a `feePayer` on Solana. The SDK reads these for you.
+Each entry also carries an `extra` object holding what the signature needs — `{"name": "USD Coin", "version": "2"}` for the USDC above. The SDK reads it for you.
 
 The response **body** carries a shorter summary of the same options, meant for humans reading a failed call:
 
@@ -102,14 +94,8 @@ The response **body** carries a shorter summary of the same options, meant for h
     {
       "scheme": "exact",
       "price": "$0.01",
-      "network": "eip155:84532",
-      "payTo": "0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8"
-    },
-    {
-      "scheme": "exact",
-      "price": "$0.01",
-      "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-      "payTo": "G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix"
+      "network": "eip155:11155111",
+      "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b"
     }
   ]
 }
@@ -225,7 +211,7 @@ that payment bought.
   "amount_uusdc": "10000",
   "epoch_id": 314,
   "settlement": "onchain",
-  "chain": "eip155:84532",
+  "chain": "eip155:11155111",
   "tx_hash": "0x6bb27730…",
   "timestamp": 1789466181
 }
@@ -246,23 +232,13 @@ Only a delivered `200` carries one. A payment that settled but whose request the
 failed is recorded as a payment but bills you no consumption, so there is nothing
 to receipt.
 
-**Paying on Solana? You get a receipt too, with `epoch_id: 0`.** A Solana
-payment goes to the node's Solana receiving address rather than the Diamond, so
-it never enters Base epoch settlement. The receipt is the same object with the
-same fields, and its `epoch_id` is `0`: epoch numbering starts at 1, so `0` means
-"settled on its own chain, not in a Telegraph epoch" — there is no epoch close to
-wait for and nothing still pending. `tx_hash` names the Solana transaction and
-`chain` the Solana network, so you can verify it on Solana directly. Only a Base
-Sepolia receipt reconciles against a Telegraph epoch.
-
 ## Payment Networks
 
 | Network | CAIP-2 Identifier | USDC Contract |
 |---|---|---|
-| Base Sepolia (testnet) | `eip155:84532` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` |
+| Ethereum Sepolia (testnet) | `eip155:11155111` | `0xcc194e1a843B658526D0D5C431f670028582Ae17` |
 
-Choose based on where you hold USDC. The amount is the same either way. The `accepts[]` array in the challenge is authoritative — a node may offer more or fewer networks than this table.
+The `accepts[]` array in the challenge is authoritative — a node may offer more or fewer networks than this table.
 
 ## Dynamic Pricing
 

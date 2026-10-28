@@ -368,7 +368,7 @@ adapter **wins** a pair when it scores the better answer strictly above the
 worse one. Its **win rate** is wins divided by scored pairs.
 
 **One round, one sample.** Every pending candidate for the intent and the
-current module are scored on exactly the same sample (200 pairs by default). The
+current module are scored on exactly the same sample (30 pairs per round). The
 sample is picked with a seed taken from an epoch that is confirmed after the
 last candidate in the round registered, so nobody can know it when they
 register. The current module's score on a sample is computed once and reused.
@@ -489,8 +489,9 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
 The whole call from the command line:
 
 ```bash
-export DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
-export RPC=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
 export WASM_URL="ipfs://bafkrei..."
 
 # keccak256 of the file's raw bytes. The 0x prefix is required — it is what
@@ -504,6 +505,11 @@ export WASM_FEE_ADDRESS=0xYourPayoutAddress
 
 # Your hosted, runnable endpoint (see "The runnable endpoint" below).
 export WASM_RUNNABLE_URL="https://your-host.example/runnable"
+
+# Let the Diamond take the $5 bond in MACHINA (20 MACHINA is plenty; only the
+# bond at the pool price is taken).
+cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 20000000000000000000 \
+  --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 
 cast send "$DIAMOND" \
   "registerWasm(bytes32,string,string,address,string)(uint256)" \
@@ -520,8 +526,12 @@ Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
-Registering costs only gas: there's no bond and no fee. The Diamond's address
-is on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+Registering posts a **$5 bond in MACHINA** (at the pool price; read it with
+`entityBonds()`), plus gas. To get MACHINA, see
+[Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens). The bond is returned in full when you deregister and
+is never slashed. Approve the Diamond for it first, as above, or the call reverts
+with `ERC20InsufficientAllowance`. The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page.
 
 ### The runnable endpoint
 
@@ -542,11 +552,14 @@ capacity check.
 The reference service is deliberately conservative: it runs one model input at
 a time by default. A real 512-token ModernBERT package can be expensive. Before
 registering, benchmark the full validation batch on the hardware you deploy;
-the node gives the endpoint two minutes for the whole check.
+the node gives the endpoint 30 minutes for the whole check (30 texts). On a
+CPU, a 256-token model takes about 8-28 seconds a text and a 512-token one up
+to about a minute, so a plain CPU host fits; keep the endpoint up until your
+registration leaves `pending`.
 
 `wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
 check, but the node then fails to reach it and rejects the registration after
-two attempts. The endpoint serves the same module you registered, and it must
+three attempts. The endpoint serves the same module you registered, and it must
 implement the **batch request**:
 
 - **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never
@@ -573,12 +586,13 @@ implement the **batch request**:
   comparator the node asks 100 cases out of its correctness battery (two batch
   requests). For a model adapter it asks 30 questions (15 public pairs, two texts
   each) in one batch. The hidden competition split is never sent to your endpoint.
-- **Time limit.** The whole check must finish within 2 minutes.
+- **Time limit.** The whole check must finish within 30 minutes for a model adapter (2 minutes for a comparator).
 - **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
   single `{"score": N}` form), means the endpoint does not implement the batch
   request: the registration is rejected at once with `its runnable URL did not
-  accept the batch request`. `408`, `429` and `5xx` are retried once, then the
-  registration is rejected with `remote executor unreachable`. For a model adapter,
+  accept the batch request`. `408`, `429` and `5xx` are retried at the next epoch
+  rollover or within the hour (not at once, so a briefly busy endpoint can recover); after 3 failed
+  attempts the registration is rejected with `remote executor unreachable`. For a model adapter,
   after the binary downloads the node re-scores the same public pairs and rejects a
   candidate whose binary does not reproduce your endpoint's answers bit for bit.
 
@@ -628,7 +642,7 @@ const signature = await walletClient.signTypedData({
   domain: {
     name: 'Telegraph',
     version: '1',
-    chainId: 84532,
+    chainId: 11155111,
     verifyingContract: DIAMOND,   // the DIAMOND, not a facet address
   },
   types: {
@@ -758,7 +772,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 {
   "wasm": {
     "RegistrationID": 12,
-    "AuthorAddress": "0xffe89e1f0a77c600ad938b57180e5be3e3119f40",
+    "AuthorAddress": "0xc0a3fb6d3f1f4b54617d29ffbda4663af5f96e2e",
     "WasmURL": "ipfs://bafybei...",
     "WasmHash": "34220f7244084b2542c34b114189963db5924812e170e54997f9241c9b6807ac",
     "ActivationStatus": "rejected",
@@ -900,9 +914,9 @@ you're bringing back, gets its own fresh registration ID.
 
 ### What it costs
 
-Nothing but gas, in every direction. There's no bond and no fee to register or
-to deregister, so there's also nothing to refund; taking a module down simply
-removes it from service.
+A $5 bond in MACHINA plus gas to register; gas to deregister. Deregistering
+releases the bond in full; withdraw it after 2 days with `withdrawMinerBond()`.
+Nothing is ever slashed.
 
 ## Tips for building a good evaluator adapter
 
