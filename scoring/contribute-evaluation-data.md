@@ -105,7 +105,7 @@ chain_id: <the node's chain ID>
 The node rebuilds this message, recovers the signer and checks that it matches
 `submitter`. The body hash means the signature covers exactly the bytes you
 send. The nonce stops replays, and the chain ID stops a signature being reused
-on another network. On the Base Sepolia testnet node the chain ID is `84532`.
+on another network. On the testnet node (Ethereum Sepolia) the chain ID is `11155111`.
 
 The whole flow from the command line with [Foundry](https://getfoundry.sh):
 
@@ -118,7 +118,7 @@ ADDR=0xYourContributorAddress
 BODY_SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
 NONCE=$(openssl rand -hex 16)
 MSG=$(printf 'Telegraph eval-pool submission v1\nintent_id: %s\nbody_sha256: %s\nnonce: %s\nchain_id: %s' \
-  "$INTENT" "$BODY_SHA" "$NONCE" 84532)
+  "$INTENT" "$BODY_SHA" "$NONCE" 11155111)
 
 SIG=$(cast wallet sign --private-key "$CONTRIBUTOR_PRIVATE_KEY" "$MSG")
 

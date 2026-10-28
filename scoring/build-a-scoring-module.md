@@ -366,7 +366,7 @@ adapter **wins** a pair when it scores the better answer strictly above the
 worse one. Its **win rate** is wins divided by scored pairs.
 
 **One round, one sample.** Every pending candidate for the intent and the
-current module are scored on exactly the same sample (200 pairs by default). The
+current module are scored on exactly the same sample (30 pairs per round). The
 sample is picked with a seed taken from an epoch that is confirmed after the
 last candidate in the round registered, so nobody can know it when they
 register. The current module's score on a sample is computed once and reused.
@@ -487,8 +487,9 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
 The whole call from the command line:
 
 ```bash
-export DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
-export RPC=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
 export WASM_URL="ipfs://bafkrei..."
 
 # keccak256 of the file's raw bytes. The 0x prefix is required — it is what
@@ -502,6 +503,11 @@ export WASM_FEE_ADDRESS=0xYourPayoutAddress
 
 # Your hosted, runnable endpoint (see "The runnable endpoint" below).
 export WASM_RUNNABLE_URL="https://your-host.example/runnable"
+
+# Let the Diamond take the $5 bond in MACHINA (20 MACHINA is plenty; only the
+# bond at the pool price is taken).
+cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 20000000000000000000 \
+  --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 
 cast send "$DIAMOND" \
   "registerWasm(bytes32,string,string,address,string)(uint256)" \
@@ -518,8 +524,11 @@ Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
-Registering costs only gas: there's no bond and no fee. The Diamond's address
-is on the [Addresses & Parameters](../protocol/addresses-and-params.md) page.
+Registering posts a **$5 bond in MACHINA** (at the pool price; read it with
+`entityBonds()`), plus gas. The bond is returned in full when you deregister and
+is never slashed. Approve the Diamond for it first, as above, or the call reverts
+with `ERC20InsufficientAllowance`. The Diamond's address is on the
+[Addresses & Parameters](../protocol/addresses-and-params.md) page.
 
 ### The runnable endpoint
 
@@ -607,7 +616,7 @@ const signature = await walletClient.signTypedData({
   domain: {
     name: 'Telegraph',
     version: '1',
-    chainId: 84532,
+    chainId: 11155111,
     verifyingContract: DIAMOND,   // the DIAMOND, not a facet address
   },
   types: {
@@ -737,7 +746,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 {
   "wasm": {
     "RegistrationID": 12,
-    "AuthorAddress": "0xffe89e1f0a77c600ad938b57180e5be3e3119f40",
+    "AuthorAddress": "0xc0a3fb6d3f1f4b54617d29ffbda4663af5f96e2e",
     "WasmURL": "ipfs://bafybei...",
     "WasmHash": "34220f7244084b2542c34b114189963db5924812e170e54997f9241c9b6807ac",
     "ActivationStatus": "rejected",
@@ -879,9 +888,9 @@ you're bringing back, gets its own fresh registration ID.
 
 ### What it costs
 
-Nothing but gas, in every direction. There's no bond and no fee to register or
-to deregister, so there's also nothing to refund; taking a module down simply
-removes it from service.
+A $5 bond in MACHINA plus gas to register; gas to deregister. Deregistering
+releases the bond in full; withdraw it after 2 days with `withdrawMinerBond()`.
+Nothing is ever slashed.
 
 ## Tips for building a good evaluator adapter
 

@@ -12,12 +12,11 @@ MACHINA is the native token of the Telegraph protocol. Its design deliberately m
 |---|---|
 | Maximum supply | 21,000,000 MACHINA |
 | Genesis daily emission | 7,200 MACHINA |
-| Halving interval | Every 4 years (every 1,461 epochs) |
+| Halving interval | Every 4 years (every 1,461 days) |
 | Pre-mine | None |
 | Team/VC allocation | None |
-| Current circulating supply | ~11.6M MACHINA (as of testnet) |
 
-The emission schedule: `E(t) = 7,200 × 2^(−⌊t/1461⌋)` where `t` is the epoch number. Emissions halve every four years until the maximum supply is reached.
+The emission schedule: `E(t) = 7,200 × 2^(−⌊t/1461⌋)` where `t` is the day number since genesis. Emissions halve every four years until the maximum supply is reached.
 
 ## Where Emissions Go
 
@@ -25,11 +24,11 @@ Daily MACHINA emissions are split three ways:
 
 | Recipient | Share | Who |
 |---|---|---|
-| Validators | 60% | Active validators, equal share per validator per epoch |
-| Script Authors | 20% | WASM script authors, proportional to how often their script is used as the Canonical |
-| Protocol Treasury | 20% | On-chain treasury |
+| Validators | 25% | Active validators |
+| Evaluators | 50% | Split per intent: 30% to the evaluator adapter that ranks it, 70% to the people whose evaluation material it used |
+| Protocol Treasury | 25% | On-chain treasury |
 
-**Miners receive zero MACHINA from emissions.** This is intentional. Emissions reward the verification infrastructure (validators) and the quality measurement layer (script authors). Miner compensation comes entirely from agent demand — keeping miner incentives honest and tied to actual usefulness.
+**Miners receive zero MACHINA from emissions.** This is intentional. Emissions reward the verification infrastructure (validators) and the quality measurement layer (evaluator adapters and evaluation material). Miner compensation comes entirely from agent demand — keeping miner incentives honest and tied to actual usefulness.
 
 ## How Miners Earn: USDC → MACHINA via TWAP
 
@@ -67,7 +66,7 @@ A miner with a $0.01 floor that handles a popular Intent generating 5,000 reques
 
 The protocol takes **2% (200 basis points)** of every payment — whether through x402 direct inference, Engine calls, or ERC-8183 jobs. This goes to the Treasury address.
 
-**Treasury address (testnet):** `0xffe89e1f0a77C600Ad938b57180E5be3e3119f40` — read it live with `cast call $DIAMOND "getTreasury()(address)"`.
+**Treasury address (testnet):** `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e` — read it live with `cast call $DIAMOND "getTreasury()(address)"`.
 
 ## Value Linkage
 

@@ -104,4 +104,4 @@ This means the network is continuously producing verified intelligence even with
 
 The key design insight: expensive computation happens off-chain (scoring, routing decisions, answer shaping), while the on-chain layer handles only the security guarantees (BLS signature verification, state root acceptance, payment settlement, miner entitlements, job resolution). This keeps the protocol economically viable while maintaining trustless guarantees.
 
-The canonical chain for Telegraph mainnet is **Ethereum**. The current testnet runs on Base Sepolia.
+The canonical chain for Telegraph mainnet is **Ethereum**. The testnet runs on Ethereum Sepolia (chain ID 11155111).

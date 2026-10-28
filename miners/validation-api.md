@@ -209,7 +209,7 @@ you send `miner_address`, and reported in `conflicts`:
   "valid": false,
   "slug": "coingecko",
   "conflicts": [
-    "slug \"coingecko\" is already served by an active registration owned by a different wallet (0xffe89e1f0a77c600ad938b57180e5be3e3119f40, registrationId=17). A slug is a miner's identity and only its owner may register it. This will NOT be retried: choose a different slug and re-submit, or have the current owner call deregisterMiner() first."
+    "slug \"coingecko\" is already served by an active registration owned by a different wallet (0xc0a3fb6d3f1f4b54617d29ffbda4663af5f96e2e, registrationId=17). A slug is a miner's identity and only its owner may register it. This will NOT be retried: choose a different slug and re-submit, or have the current owner call deregisterMiner() first."
   ],
   "errors": ["slug \"coingecko\" is already served by ..."],
   "api_key_stored": false
