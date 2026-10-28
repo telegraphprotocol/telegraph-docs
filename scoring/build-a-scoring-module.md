@@ -188,7 +188,10 @@ When the adapter reaches
 [Stage 2](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool),
 the node runs it in a fixed sandbox: a fresh start for every score, one
 read-only input file, an empty environment, a frozen clock, a fixed random
-stream and no network. That is what makes every validator get the same score.
+stream and no network. This removes external state from execution. FP32
+cross-machine bit identity must still be demonstrated on the node versions and
+CPU environments that will execute the adapter; it is not established merely by
+packaging a module.
 
 ### The `telegraph.adapter` section
 
