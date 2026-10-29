@@ -174,7 +174,7 @@ export async function ask(question: string) {
   const json = { 'Content-Type': 'application/json' };
 
   // 1: read the challenge
-  const challenge = await fetch(`${NODE}/v1/ask`, { method: 'POST', headers: json, body })
+  const challenge = await fetch(`${NODE}/engine/v1/ask`, { method: 'POST', headers: json, body })
     .then((r) => r.json());
   const escrow = challenge.accepts.find((a: any) => a.scheme === 'escrow');
   if (!escrow) throw new Error('this node does not accept escrow');
@@ -205,7 +205,7 @@ export async function ask(question: string) {
     network: escrow.network,
     payload: { signature, authorization },
   }));
-  const res = await fetch(`${NODE}/v1/ask`, {
+  const res = await fetch(`${NODE}/engine/v1/ask`, {
     method: 'POST', headers: { ...json, 'X-PAYMENT': payment }, body,
   });
   if (res.status === 402) throw new Error((await res.json()).reason);
@@ -223,7 +223,7 @@ ADDR=$(cast wallet address --private-key "$PRIVATE_KEY" | tr 'A-Z' 'a-z')
 NOW=$(date +%s)
 NONCE="test-$NOW"
 
-curl -sS -X POST "$NODE/v1/ask" -H 'Content-Type: application/json' \
+curl -sS -X POST "$NODE/engine/v1/ask" -H 'Content-Type: application/json' \
   -d '{"query":"What is the current price of Bitcoin?"}' > challenge.json
 
 TEMPLATE=$(jq -r '.accepts[] | select(.scheme=="escrow") | .extra.message' challenge.json)
@@ -241,7 +241,7 @@ PAYMENT=$(jq -cn --arg s "$SIG" --arg f "$ADDR" --arg t "$PAYTO" --arg v "$VALUE
     payload:{signature:$s,authorization:{from:$f,to:$t,value:$v,validAfter:$a,validBefore:$b,nonce:$n}}}' \
   | base64 -w0)
 
-curl -sS -D - -X POST "$NODE/v1/ask" -H 'Content-Type: application/json' \
+curl -sS -D - -X POST "$NODE/engine/v1/ask" -H 'Content-Type: application/json' \
   -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
 
