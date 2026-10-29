@@ -28,12 +28,25 @@ Do not infer fields from a miner response or copy another intent's layout. Read
 the selected intent's live schema before integrating, and retain the schema
 version you built against.
 
-## Choose the right path
+## Ways to request intelligence
 
-- **API or agent:** [Engine Inference](engine-ask.md)
-- **A smart contract needs the answer:** [On-Chain Jobs](erc8183-jobs.md)
-- **You need recurring updates:** [Daemon Signal Feed](daemon-signals.md) or
-  [WebSocket Signals](websocket-signals.md)
+| You need | Send | Example |
+|---|---|---|
+| Let Telegraph choose the capability and Miner | `query` | `{"query":"Will Lahore receive over 50 mm of rain in 24 hours?"}` |
+| A typed, predictable result | `intent` + `params` | `{"intent":"WEATHER_CHECK","params":{"location":"Lahore"}}` |
+| Help complete an Intent request from natural language | `intent` + partial `params` + `query` | `{"intent":"WEATHER_CHECK","params":{"location":"Lahore"},"query":"Forecast for the next 24 hours"}` |
+| Supply structured facts with the request | `query` or `intent` + `context` | `{"query":"...","context":{"location":"Lahore"}}` |
+| Use one Miner while retaining the Intent contract | `/engine/v1/ask/{miner}` + `intent` + `params` or `query` | `POST /engine/v1/ask/weather-miner` |
+| Call a Miner’s native API unchanged | `/engine/v1/ask/{miner}` + `method`, `endpoint`, `payload` | `{"method":"GET","endpoint":"/forecast","payload":{...}}` |
+| A smart contract needs the result | On-chain job and callback | [On-Chain Jobs](erc8183-jobs.md) |
+| Receive intelligence as it is produced | Daemon feed or WebSocket subscription | [Daemon Signal Feed](daemon-signals.md), [WebSocket Signals](websocket-signals.md) |
+
+For HTTP requests, see [Engine Inference](engine-ask.md). Pay per request with
+[x402](x402-inference.md), or fund once and use [escrow](escrow-inference.md).
+
+When you request a canonical Intent, the node validates supplied parameters,
+uses the query or context only to complete missing values, and never silently
+replaces an explicit Intent or explicitly selected Miner.
 
 The intent catalog itself is protocol reference material. Intent governance and
 proposal mechanics are intentionally separate from consuming live intelligence.

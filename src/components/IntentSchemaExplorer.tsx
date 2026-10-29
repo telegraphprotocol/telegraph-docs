@@ -14,6 +14,13 @@ function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed'
 }
 
+function hasConsumptionSchema(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const intent = value as Record<string, unknown>
+  return typeof intent.request === 'object' && intent.request !== null &&
+    typeof intent.response === 'object' && intent.response !== null
+}
+
 export function IntentSchemaExplorer() {
   const [intent, setIntent] = useState('')
   const [intents, setIntents] = useState<IntentSummary[]>([])
@@ -74,8 +81,8 @@ export function IntentSchemaExplorer() {
   return (
     <main className="min-h-screen bg-[var(--tg-bg)] px-5 py-12 sm:px-8 lg:px-14">
       <div className="mx-auto max-w-4xl">
-        <a className="text-sm text-[var(--tg-amber)] underline" href="/docs/using/intents">
-          ← Back to Intents
+        <a className="text-sm text-[var(--tg-amber)] underline" href="/docs/using/consume-intelligence">
+          ← Back to Consume Intelligence
         </a>
         <h1 className="mt-6 text-3xl font-bold tracking-tight text-[var(--tg-fg)]">
           Browse Intents & Schemas
@@ -156,6 +163,11 @@ export function IntentSchemaExplorer() {
             <p className="mt-2 text-sm text-[var(--tg-fg-dim)]">
               This is the node response used by consumers. Keep the relevant schema version with your integration.
             </p>
+            {!hasConsumptionSchema(result) && (
+              <p className="mt-3 text-sm text-[var(--tg-fg-dim)]">
+                Need a request and processed-response schema for this intent? Ask the Telegraph team in Discord and include the intent name.
+              </p>
+            )}
             <pre className="mt-4 overflow-x-auto rounded-lg border border-[var(--tg-line)] bg-[var(--tg-code-bg)] p-4 text-xs leading-6 text-[var(--tg-code-fg)]">
               {JSON.stringify(result, null, 2)}
             </pre>
