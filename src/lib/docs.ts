@@ -88,7 +88,7 @@ export function getNavigation(): NavSection[] {
       const indent    = match[1].length
       const title     = match[2]
       const rawPath   = match[3].replace(/\\/g, '/')
-      const href      = filePathToHref(rawPath)
+      const href      = rawPath.startsWith('/') ? rawPath : filePathToHref(rawPath)
       const item: NavItem = { title, href, filePath: rawPath }
       const depth     = Math.floor(indent / 2) + 1
       addItemAtDepth(currentSection.items, item, depth)

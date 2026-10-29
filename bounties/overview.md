@@ -1,89 +1,51 @@
 ---
-description: Start here. What a Telegraph bounty is, what you can do on one without writing code, what you need, and where to go next.
+description: "Start here: what Telegraph bounties are, what they ask for, and how to contribute."
 ---
 
-# Bounties in Two Minutes
+# Telegraph Bounties
 
-A **bounty** is a small, clearly described job that makes the Telegraph network
-better. Bounties are posted on a public board, and anyone can join one. You
-don't need to know how to code to help.
+The [Telegraph bounty board](https://github.com/telegraphprotocol/bounties/issues) is the public list of work that would strengthen the network: a missing provider, evaluator, application, integration, evaluation need, or tooling improvement.
 
-## Why bounties exist
+A bounty is a GitHub Issue with an acceptance checklist. It is not a promise that a capability is already live, and closing an Issue does not itself change routing, rankings, payments, or protocol eligibility.
 
-Telegraph is a marketplace for answers. Apps ask questions, and **miners**
-(services that answer them) compete to give the best answer. To send each
-question to the best miner, the network has to **rank** the miners. To do that
-fairly, every kind of question needs two things:
+## Start with an open Issue
 
-1. **Evaluation material.** Example questions, each with a better answer and a
-   worse answer, so the network learns what a good answer looks like. For
-   questions with one exact right answer, such as an exchange rate, the material
-   is a **truth source**: a free public data service that gives the right
-   answer.
-2. **A judge.** A small program that scores each answer. For most kinds of
-   question it is an **evaluator adapter**. For questions with one exact right
-   answer it is a **comparator**.
-
-Many kinds of question don't have these yet. Each bounty asks for them for one
-topic.
-
-> [!NOTE]
-> Telegraph calls each kind of question an **Intent**, and gives it a fixed name
-> such as `LANGUAGE_TRANSLATION_GENERAL`. Every bounty names its Intents exactly.
-
-## What you can do
-
-| You are | You can | Coding? |
-|---|---|---|
-| Anyone who knows a topic | Write question pairs: a real question, a good answer and a believable wrong answer | None |
-| Someone happy to copy and paste, with an AI's help | Add a truth source for an exact-answer topic | A little, an AI can do it with you |
-| A developer or machine-learning builder | Build and publish an adapter or a comparator | Yes |
-
-Most people start with question pairs. [Your First Bounty, Step by Step](your-first-bounty.md)
-walks you through your first one.
-
-## How it works
+Choose an Issue labelled `status:open`, read its acceptance criteria and `## Reward` section, then comment:
 
 ```text
-1. Find a bounty            on GitHub: github.com/telegraphprotocol/bounties
-2. Join it                  comment  /claim
-3. Do the work              on Anjoman: anjoman.ai, page "Evaluate"
-4. Say you're done          comment  /submit
-5. A maintainer checks it   your part is approved, or you're asked to fix something
+/claim
 ```
 
-Several people can work on the same bounty at once, and each person's part is
-checked on its own. The network only uses a topic's material once enough
-different people have added to it, so every person counts.
+Several contributors can claim the same Issue. Keep an active claim with a meaningful `/progress` update at least once every 72 hours. When the work is ready, submit links and evidence with `/submit`.
 
-## What you need
+```text
+/submit https://github.com/you/project — live endpoint, test output, and reproduction steps
+```
 
-- A web browser.
-- An email address.
-- A free **GitHub** account, to join a bounty and post updates.
-- A free **Anjoman** account, to add your work. You can sign up with just an
-  email and a password.
+A maintainer independently verifies the stated acceptance criteria before approving a contribution.
 
-You don't need a crypto wallet, and adding material costs nothing.
+## What appears on the board
 
-## Is it paid?
-
-The bounties themselves are **unfunded** right now: no money is promised for
-them. Separately, the network pays its own **evaluator rewards** in MACHINA,
-the network's token, to the people whose material it uses and to the adapter
-that ranks a topic. Today the network is a test network, so those rewards are
-test tokens. See [Rules and Rewards](rules-and-rewards.md).
-
-## Where to go next
-
-| I want to | Read |
+| Need | Typical label |
 |---|---|
-| Do my first bounty, one step at a time | [Your First Bounty, Step by Step](your-first-bounty.md) |
-| Understand every part of a bounty | [Reading a Bounty](reading-a-bounty.md) |
-| Write good material, or add a truth source | [Adding Evaluation Material](evaluation-material.md) |
-| Build the judge | [Building an Adapter or Comparator](building-an-adapter.md) |
-| Let an AI assistant help me | [Doing It With an AI Assistant](using-ai.md) |
-| Know the commands and what the bot does | [How a Bounty Works](how-a-bounty-works.md) |
-| Know the rules and what I can earn | [Rules and Rewards](rules-and-rewards.md) |
-| Fix a problem | [Questions and Fixes](questions.md) |
-| Look up a word | [Bounty Glossary](glossary.md) |
+| A provider or miner | `work:miner` |
+| An evaluator, adapter, comparator, or evaluation material | `work:evaluator` |
+| An app, agent, or integration | `work:app` |
+| Tooling or protocol work | `work:tooling`, `work:protocol` |
+| Public security hardening | `work:security` |
+| Coverage for an important release | `source:release` |
+
+Use the Issue itself as the source of truth for scope, evidence, and any reward. The board may also list commercial provider opportunities; those use the contact path named in the Issue rather than the claim workflow.
+
+## Rewards
+
+An Issue labelled `reward:unfunded` makes no payment commitment. A funded Issue must state its amount, asset, eligibility, verification condition, and payout window before it is claimed. The reward terms on the Issue—not this page—govern that contribution.
+
+## Next
+
+- [Your first bounty](your-first-bounty.md)
+- [How the board works](how-a-bounty-works.md)
+- [Reading an Issue](reading-a-bounty.md)
+- [Evaluation work](evaluation-material.md)
+- [Building an evaluator](building-an-adapter.md)
+- [Rules and rewards](rules-and-rewards.md)

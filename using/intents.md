@@ -1,8 +1,12 @@
 ---
-description: What an intent is, how prefixes and sub-intents work, how an intent is scored, how to ask with one, and how to propose a new one.
+description: Advanced protocol reference for intent families, scoring, and governance.
 ---
 
 # Intents
+
+> **Looking to consume intelligence?** Start with [Consume Intelligence](consume-intelligence.md)
+> and [Browse Intents & Schemas](/intent-schema). This page covers the advanced
+> protocol catalog and governance mechanics.
 
 An **intent** is a capability the protocol recognises: "get the EUR/USD rate",
 "review this code", "check a URL". Every miner declares which intents it serves,
