@@ -29,13 +29,13 @@ export const metadata: Metadata = {
     template: '%s - Telegraph Docs',
   },
   description:
-    'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+    'Telegraph Protocol Documentation — discover, request, and use verified intelligence in applications, agents, and smart contracts.',
   metadataBase: new URL('https://docs.telegraphprotocol.com'),
   icons: { icon: '/favicon.ico' },
   openGraph: {
     title: 'Telegraph Docs',
     description:
-      'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+      'Discover, request, and use verified intelligence in applications, agents, and smart contracts.',
     url: 'https://docs.telegraphprotocol.com',
     siteName: 'Telegraph Docs',
     images: [
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Telegraph Docs',
     description:
-      'Telegraph Protocol Documentation - A permissionless messaging protocol that commoditizes AI inference and delivers intelligent signals to global markets on-chain.',
+      'Discover, request, and use verified intelligence in applications, agents, and smart contracts.',
     images: ['/telegraph-social-card.jpg'],
   },
 }

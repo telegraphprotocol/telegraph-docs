@@ -7,7 +7,7 @@ This is the source repository for [docs.telegraphprotocol.com](https://docs.tele
 | Directory | Content |
 |---|---|
 | `protocol/` | How the protocol works — tokenomics, roles, addresses |
-| `using/` | How to use Telegraph — path chooser, x402 inference, engine API, WebSocket signals, ERC-8183 jobs |
+| `using/` | How to discover, request, pay for, and receive Telegraph intelligence |
 | `miners/` | How to become a miner — YAML config, validation API, registration |
 | `scoring/` | How to build and register a WASM scoring module, and contribute evaluation data |
 | `bounties/` | Bounties, for everyone: a step-by-step first bounty, adding evaluation material, building a judge, using an AI assistant, commands, rules and rewards |

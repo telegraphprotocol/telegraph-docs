@@ -5,6 +5,7 @@ import type { NavSection, NavItem } from '@/lib/docs'
 interface BreadcrumbProps {
   nav: NavSection[]
   slug: string[]
+  override?: { section: string; current: string }
 }
 
 function findItem(items: NavItem[], href: string): NavItem | null {
@@ -18,7 +19,7 @@ function findItem(items: NavItem[], href: string): NavItem | null {
   return null
 }
 
-export function Breadcrumb({ nav, slug }: BreadcrumbProps) {
+export function Breadcrumb({ nav, slug, override }: BreadcrumbProps) {
   const href = slug.length === 0 ? '/docs' : `/docs/${slug.join('/')}`
 
   let sectionTitle = ''
@@ -27,6 +28,11 @@ export function Breadcrumb({ nav, slug }: BreadcrumbProps) {
   for (const section of nav) {
     const found = findItem(section.items, href)
     if (found) { sectionTitle = section.title; itemTitle = found.title; break }
+  }
+
+  if (override) {
+    sectionTitle = override.section
+    itemTitle = override.current
   }
 
   if (!sectionTitle) return null

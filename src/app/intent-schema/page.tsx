@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { IntentSchemaExplorer } from '@/components/IntentSchemaExplorer'
+import { DocsLayout } from '@/components/DocsLayout'
+import { getNavigation } from '@/lib/docs'
 
 export const metadata: Metadata = {
   title: 'Intent Schema Explorer',
@@ -7,5 +9,16 @@ export const metadata: Metadata = {
 }
 
 export default function IntentSchemaPage() {
-  return <IntentSchemaExplorer />
+  return (
+    <DocsLayout
+      nav={getNavigation()}
+      slug={[]}
+      headings={[]}
+      prevHref={null}
+      nextHref={null}
+      breadcrumb={{ section: 'Intelligence', current: 'Explore Capabilities & Schemas' }}
+    >
+      <IntentSchemaExplorer />
+    </DocsLayout>
+  )
 }

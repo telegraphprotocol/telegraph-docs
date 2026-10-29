@@ -1,10 +1,10 @@
 ---
-description: Ask the Engine for inference. Let it route a plain question to the best miner, send typed params for an intent, or call a specific miner directly. Pay per call with x402 or from escrow.
+description: Request intelligence from Telegraph. Send a question, use a typed capability, or call a specific Miner directly.
 ---
 
-# Engine Inference
+# Request Intelligence
 
-The Engine is Telegraph's inference coordinator. You send it a question; it picks a miner, calls that miner, and returns the answer with routing and cost metadata. You never manage miner endpoints, API keys, or schemas yourself.
+The Engine is Telegraph's intelligence coordinator. You send it a question; it picks a Miner, calls that Miner, and returns the result with routing and cost metadata. You never manage Miner endpoints, API keys, or schemas yourself.
 
 There are three ways to ask:
 
@@ -12,9 +12,9 @@ There are three ways to ask:
 - **Auto-routed, canonical.** You name the [intent](intents.md) and send typed `params`. The node validates them before anything is charged.
 - **Direct.** You already know which miner you want, so you skip routing and call it by ID, with either the miner's native request or the same canonical `intent` + `params`.
 
-All of them are paid per call, via x402 or from your [escrow](escrow-inference.md). All of them run **fresh, on-demand inference**, not reads from a cache.
+All of them are paid per call, via x402 or from your [escrow](escrow-inference.md). All of them request **fresh, on-demand intelligence**, not a cached result.
 
-> The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard, see [Daemon Signal Feed](daemon-signals.md). If you want a live answer to your own question, you want the Engine.
+> The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard; see [Read Published Intelligence](daemon-signals.md). If you want a live answer to your own question, use the Engine.
 
 **Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
@@ -40,7 +40,7 @@ Content-Type: application/json
 | `params` | With `intent` | The request's typed params, as the Intent's input schema defines them. |
 | `context` | No | Object merged into the routed request body. Use it to pass structured hints the miner understands. For an Intent with an input schema, keys that match the schema's params also stand in for params. |
 
-The endpoint is gated: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Paying with x402](x402-inference.md), or pay from escrow with [`scheme: "escrow"`](escrow-inference.md).
+The endpoint is gated: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Pay for Intelligence](x402-inference.md), or pay from escrow with [`scheme: "escrow"`](escrow-inference.md).
 
 **Response (200):**
 
@@ -365,11 +365,11 @@ The same `ask` and `ask_direct` operations, including `intent` + `params`, are a
 
 | Scenario | Use |
 |---|---|
-| You aren't sure which rail you want at all | [Choosing an Inference Path](inference-paths.md) |
+| You aren't sure which rail you want at all | [Choose a Delivery Path](inference-paths.md) |
 | You want the best miner picked automatically from a plain question | `POST /engine/v1/ask` with `query` |
 | You want a predictable answer shape and a request validated before you pay | `POST /engine/v1/ask` with `intent` + `params` |
 | You know exactly which miner you need | `POST /engine/v1/ask/{minerId}` (native or canonical form) |
-| You want to understand the payment flow itself | [Paying with x402](x402-inference.md) |
+| You want to understand the payment flow itself | [Pay for Intelligence](x402-inference.md) |
 | You want a live stream of routing events | [WebSocket Signals](websocket-signals.md) |
 | Your smart contract needs the result on-chain | [On-Chain Jobs](erc8183-jobs.md) |
-| You want to browse the Daemon's autonomously generated signals | [Daemon Signal Feed](daemon-signals.md) |
+| You want to browse the Daemon's autonomously generated signals | [Read Published Intelligence](daemon-signals.md) |
