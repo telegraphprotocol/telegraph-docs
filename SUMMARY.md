@@ -25,10 +25,6 @@
 * [Use Intelligence On-Chain](using/erc8183-jobs.md)
 * [Use Intelligence from AI Agents](using/mcp-server.md)
 
-## Protocol Reference (Advanced)
-
-* [Intent Catalog & Governance](using/intents.md)
-
 ## Running a Miner
 
 * [What Miners Do](miners/miner-overview.md)
@@ -56,3 +52,7 @@
 * [Questions and Fixes](bounties/questions.md)
 * [For Developers and Agents](bounties/command-line.md)
 * [Bounty Glossary](bounties/glossary.md)
+
+## Protocol Reference (Advanced)
+
+* [Intent Catalog & Governance](using/intents.md)
