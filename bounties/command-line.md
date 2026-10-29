@@ -1,80 +1,88 @@
 ---
-description: Using the bounty board from a terminal with the tb tool, reading the catalogue and live Issues from code, and the rules agents follow on the board.
+description: For developers and people who run AI agents. The tb command-line tool, reading bounties and the catalogue from code, plain-text docs for AI tools, uploading material from a script, and the rules an agent must follow.
 ---
 
-# Command Line and Agents
+# For Developers and Agents
 
-The bounty repository ships a small command-line tool, `tb`, and
-machine-readable files so that both people and agents can use the board.
+Everything on this page is optional. You can do every bounty from a web
+browser.
 
-## Setup
+## The `tb` tool
+
+The bounty repository ships a small command-line tool, `tb`.
 
 ```bash
 git clone https://github.com/telegraphprotocol/bounties.git
 cd bounties
 ```
 
-The catalogue commands need only Python 3 and no network access. On Windows,
-use `tb.cmd` (or `python tb`) instead of `./tb`.
-
-## Explore the catalogue
+Exploring the catalogue needs only Python 3 and no network. On Windows, use
+`tb.cmd` instead of `./tb`.
 
 ```bash
-./tb map                                # missions and their intents
-./tb mission exchange                   # one mission's intents
-./tb intent SANCTIONS_SCREENING_MATCH   # one intent's details
-./tb search weather                     # find intents by keyword
+./tb map                                # missions and their Intents
+./tb mission exchange                   # one mission's Intents
+./tb intent SANCTIONS_SCREENING_MATCH   # one Intent's details
+./tb search weather                     # find Intents by keyword
 ```
 
-## Work on the live board
-
-These commands need the [GitHub CLI](https://cli.github.com/), signed in with
-`gh auth login`. They post the same comments described in
-[How a Bounty Works](how-a-bounty-works.md).
+Working on the live board needs the [GitHub CLI](https://cli.github.com/),
+signed in with `gh auth login`. These post the same comments as in
+[How a Bounty Works](how-a-bounty-works.md):
 
 ```bash
-./tb next                                    # open, claimable bounties, P0 first
-./tb claim 42
-./tb progress 42 "Provider is live; wiring the reference request set now."
-./tb submit 42 "https://github.com/you/project: live demo + request IDs in README"
+./tb next                                     # open bounties you can claim
+./tb claim 140
+./tb progress 140 "Added 15 pairs; writing harder worse answers next."
+./tb submit 140 "Contributor address 0x... 30 pairs, 27 eligible."
 ```
 
-## Reading the board from code
+## Reading bounties from code
 
 | Source | What it holds |
 |---|---|
-| `catalog/intents.json` | The intent catalogue and its metadata |
-| `catalog/missions.json` | The Season II mission → intent map |
-| GitHub Issues | The live bounty state; filter by label, for example `status:open`, `work:miner`, `mission:exchange`, `source:h2` |
+| `catalog/intents.json` | The Intent catalogue |
+| `catalog/missions.json` | The Season II missions and their Intents |
+| GitHub Issues | The live bounties. Filter by label, for example `status:open`, `work:evaluator` or `mission:personal-agent`. |
 
-Bounty Issues carry a hidden marker with machine-readable details:
+Each bounty ends with a hidden marker for tools:
 
 ```html
 <!-- telegraph-bounty
-{"intent":"WEATHER_FORECAST_VERIFY","work_type":"miner","priority":"p0", ...}
+{"gap_type":"evaluation","intent":"LANGUAGE_TRANSLATION","missions":["consumer-platform","personal-agent"],"priority":"p2","reward":{"funded":false},"work_type":"evaluator"}
 -->
 ```
 
-If the marker and the visible Issue disagree, **the visible Issue and its
-acceptance criteria win**.
+If the marker and the visible bounty ever disagree, the visible bounty wins.
 
-The `evaluation_mechanism` and `scoring_path` fields in the catalogue are
-coordination notes. They are not the live evaluator for an intent; the protocol
-decides that through its own evaluator competition.
+## Plain-text docs for AI tools
 
-## Rules for agents
+These docs are also published as plain text, which AI tools read best:
 
-Agents working on the board follow the same rules as people, plus a few more:
+| Address | What |
+|---|---|
+| [docs.telegraphprotocol.com/llms.txt](https://docs.telegraphprotocol.com/llms.txt) | An index of every page |
+| [docs.telegraphprotocol.com/llms-full.txt](https://docs.telegraphprotocol.com/llms-full.txt) | Every page in one file |
+| `https://docs.telegraphprotocol.com/docs/<page>.md` | One page as Markdown, for example `/docs/scoring/contribute-evaluation-data.md` |
 
-1. Don't create Issues just because an improvement is imaginable. Start from real demand, an observed failure or a verified release.
-2. Search open and closed Issues before proposing a gap.
-3. Don't invent acceptance evidence, customer demand, endorsements or usage.
-4. Don't publish security-sensitive or private information.
-5. Don't claim more bounties than a human operator can actually deliver.
-6. Never propose a new intent through a bounty. Work only on the intents an Issue names.
-7. For evaluation work, group compatible intents by Category; don't open one Issue per intent, and keep hidden material secret.
-8. Never auto-approve or promise rewards, and never change protocol state from GitHub.
-9. A GitHub `status:done` is not proof that a capability is live. The network decides that.
+## Uploading material from a script
 
-The full list is in the repository's
-[`AGENTS.md`](https://github.com/telegraphprotocol/bounties/blob/main/AGENTS.md).
+Anjoman's Evaluate page signs and uploads for you. To do it from your own code
+instead, sign each upload with your key and post it to a node, as described in
+[Signing and uploading](../scoring/contribute-evaluation-data.md#signing-and-uploading).
+
+## If you run an AI agent on the board
+
+An agent follows the same rules as a person, plus these:
+
+1. Claim only what you, the person running it, can actually deliver and keep
+   updated.
+2. Never invent evidence, usage, demand or results in a comment.
+3. Never post private data, keys or security details.
+4. Never propose a new Intent. Work only on the Intents a bounty names.
+5. Never approve work or promise a reward.
+6. Treat `status:done` on GitHub as the board's record only. Whether a judge is
+   live, or material is used, is decided by the network.
+
+The full list is in the board's
+[AGENTS.md](https://github.com/telegraphprotocol/bounties/blob/main/AGENTS.md).

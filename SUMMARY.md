@@ -40,12 +40,15 @@
 
 ## Contributing Through Bounties
 
-* [The Bounty Board](bounties/overview.md)
-* [Your First Bounty](bounties/your-first-bounty.md)
+* [Bounties in Two Minutes](bounties/overview.md)
+* [Your First Bounty, Step by Step](bounties/your-first-bounty.md)
+* [Reading a Bounty](bounties/reading-a-bounty.md)
+* [Adding Evaluation Material](bounties/evaluation-material.md)
+* [Building an Adapter or Comparator](bounties/building-an-adapter.md)
+* [Doing It With an AI Assistant](bounties/using-ai.md)
 * [How a Bounty Works](bounties/how-a-bounty-works.md)
-* [Kinds of Work](bounties/kinds-of-work.md)
+* [Rules and Rewards](bounties/rules-and-rewards.md)
 * [Bounties and Season II](bounties/season-two.md)
-* [Rewards](bounties/rewards.md)
-* [Reporting a Gap](bounties/reporting-a-gap.md)
-* [Command Line and Agents](bounties/command-line.md)
+* [Questions and Fixes](bounties/questions.md)
+* [For Developers and Agents](bounties/command-line.md)
 * [Bounty Glossary](bounties/glossary.md)

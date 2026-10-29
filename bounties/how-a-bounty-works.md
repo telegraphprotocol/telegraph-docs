@@ -1,117 +1,133 @@
 ---
-description: The life of a bounty from triage to approval, the comment commands that drive it, the 72-hour progress rule, and how maintainers verify a submission.
+description: The life of a bounty, every comment command and what the bot replies, the 72-hour rule, how several people share one bounty, and how maintainers review and close it.
 ---
 
 # How a Bounty Works
 
-Every bounty is a GitHub Issue in
-[telegraphprotocol/bounties](https://github.com/telegraphprotocol/bounties).
-You move it forward by posting short commands as comments. A bot reads them,
-records each change and updates the Issue's labels.
+Every bounty is a GitHub Issue on
+[telegraphprotocol/bounties](https://github.com/telegraphprotocol/bounties/issues).
+You move it along by posting short commands as comments. A bot reads each
+command, replies, and changes the bounty's status label.
 
-## The steps
+## The life of a bounty
 
-1. **Pick** an Issue labelled `status:open`.
-2. **Read** the acceptance criteria and the `## Reward` section before writing any code.
-3. **Claim** it by commenting `/claim`. Several people can claim the same Issue and work on it at once.
-4. **Build** the smallest thing that meets the acceptance criteria. Post `/progress <update>` at least every 72 hours.
-5. **Submit** proof with `/submit <links and evidence>`.
-6. A **maintainer reproduces** your result, then approves it or asks for changes.
+```text
+status:triage    not open yet; a maintainer is checking it
+      ↓  a maintainer opens it
+status:open      anyone can join
+      ↓  someone comments /claim
+status:claimed   people are working on it; others can still join
+      ↓  someone comments /submit
+status:review    a maintainer is checking a submitted part; others keep working
+      ↓  every box under "Done when" is ticked
+status:done      finished
+```
 
-A bounty is complete when its acceptance criteria are reproducibly met.
+A maintainer can also pause a bounty (`status:blocked`) and resume it later.
 
-## Statuses
+## Commands for everyone
 
-| Label | Meaning |
-|---|---|
-| `status:triage` | A proposal. A maintainer is checking it is real, reusable and verifiable. It cannot be claimed yet. |
-| `status:open` | Ready to claim. |
-| `status:claimed` | One or more people are working on it. |
-| `status:review` | Proof submitted; a maintainer is checking it. Others can still join and keep working. |
-| `status:blocked` | Paused by a maintainer, for example while waiting on another change. |
-| `status:done` | Approved. |
+Type the command as the first word of a new comment, then press **Comment**.
 
-## Commands for contributors
+| Command | What it does | When it works |
+|---|---|---|
+| `/claim` | Adds you to the people working on it | When it's open, claimed or in review |
+| `/progress <what you did>` | Keeps your place, and tells others where you are | After you've claimed. At least 15 characters. |
+| `/submit <what you did>` | Hands in your part for review | After you've claimed. At least 15 characters. |
+| `/release` | Gives up your place. Others keep theirs. | When you hold a claim |
 
-| Command | What it does |
-|---|---|
-| `/claim` | Adds your claim. The bot records you, lists who else is working on it, and moves it to `status:claimed`. |
-| `/progress <update>` | Keeps your claim alive and resets the 72-hour timer. |
-| `/submit <links and proof>` | Moves the Issue to `status:review`. |
-| `/release` | Gives up your own claim. Other people keep theirs. |
+What to write after `/submit`:
+
+- **Material:** your contributor address and a line on what you added. See
+  [Step 13 of your first bounty](your-first-bounty.md#step-13-submit-your-part).
+- **A judge:** your module's registration ID and a line on what you built.
+
+Examples:
 
 ```text
 /claim
-/progress Provider endpoint is live; integrating the reference fixtures now.
-/submit https://github.com/alice/weather-miner — live endpoint + three Telegraph request IDs + reference-test output in README
+/progress Added 15 pairs for SENTIMENT_ANALYSIS_GENERAL. Writing harder worse answers next.
+/submit Contributor address 0x... Added 30 pairs for SENTIMENT_ANALYSIS_GENERAL, 27 eligible.
+/release
 ```
+
+## What the bot replies
+
+| You see | It means |
+|---|---|
+| `Claimed by @you.` | You're in. It also copies the Reward section as a record of the terms when you joined. |
+| `This Issue is not currently open for claiming.` | It's still `status:triage`. Wait until it's open. |
+| `you have already claimed this bounty` | You're already in. Post `/progress` instead. |
+| `Please include a meaningful progress update` | Your update was too short. Write a full sentence. |
+| `Only someone who has claimed this bounty can submit.` | Comment `/claim` first. |
+| `Submission from @you moved to review.` | Your part is waiting for a maintainer. |
+| `this claim has had no /progress update for 48 hours` | A reminder. Post `/progress` soon. |
+| `claim was automatically released after 72 hours` | Your place lapsed. Comment `/claim` to join again. |
+
+If nothing appears after a few minutes, check that the command is the very first
+word of the comment, spelled exactly, with the slash.
 
 ## The 72-hour rule
 
-Each person's claim stays active only while that person is working.
+Your place stays only while you're working on it.
 
-- After **48 hours** without your `/progress`, the bot warns you.
-- After **72 hours** without your `/progress`, your claim is released. Other people's claims stay. A submission waiting for review keeps you in.
+- After **48 hours** without a `/progress` from you, the bot reminds you.
+- After **72 hours** without one, your place is released. Other people keep
+  theirs.
+- While your submission is waiting for review, your place is kept.
 
-Post a real update each time. It only has to say what changed.
+Each update only has to say what changed since the last one.
+
+## Several people, one bounty
+
+Many people can work on one bounty at the same time. Each person's claim,
+timer, submission and review are tracked separately, so one person's delay
+never blocks anyone else. This matters for material: the network only uses a
+topic's material once enough different people have added to it.
+
+You can also split the work: some people add material while a builder makes the
+judge.
+
+## How it's reviewed
+
+A maintainer checks each submission on its own. They must be someone who hasn't
+claimed or submitted on that bounty.
+
+- **Material:** they check that your rows are in the pool and **Eligible** under
+  your contributor address.
+- **A judge:** they check that your module passed the network's checks.
+
+Then they reply with one of:
+
+| Reply | Meaning |
+|---|---|
+| `/approve @you` | Your part is accepted. |
+| `/changes @you <reason>` | Something needs fixing. You're back to working on it, with a fresh 72 hours. Fix it and `/submit` again. |
+
+After your part is accepted, your claim on that bounty is complete. To add more
+later, comment `/claim` again.
+
+## When a bounty closes
+
+Each box under **Done when** is one part of the job, for example the material
+and the judge. A maintainer ticks a box once that part is checked on the
+network. The bounty closes only when every box is ticked: either when the last
+part is approved, or when a maintainer closes it with `/done`. While any box is
+still empty, an approved part never closes it.
 
 ## Commands for maintainers
 
+These only work for people with maintainer rights on the board. Anyone else who
+types them is ignored.
+
 | Command | What it does |
 |---|---|
-| `/open` | Moves a triage Issue to `status:open`, so it can be claimed. |
-| `/block`, `/unblock` | Pauses and resumes an Issue. |
-| `/changes @user <reason>` | Returns that person's submission. They are back to `status:claimed` with a fresh 72-hour window. |
-| `/approve @user` | Accepts that person's part. If nobody else is still working, the Issue is done. |
-| `/done` | Closes the Issue as complete once at least one part is approved. |
+| `/open` | Opens a `status:triage` bounty so people can join. |
+| `/approve @user` | Accepts that person's part. |
+| `/changes @user <reason>` | Returns that person's part with a reason. |
 | `/release @user` | Releases that person's claim. |
+| `/block`, `/unblock` | Pauses and resumes the bounty. |
+| `/done` | Closes the bounty once at least one part is approved and every box under "Done when" is ticked. |
 
-With only one submission waiting, `/approve` and `/changes <reason>` can leave the name out.
-
-Maintainer commands are checked against the person's real permission on the
-repository. Commenting `/approve` without that permission does nothing.
-
-## How a submission is verified
-
-The approving maintainer must be someone other than every claimant and
-submitter on the Issue. They reproduce the acceptance criteria directly, using screenshots
-only as supporting evidence. Depending on the bounty, they check that:
-
-- the endpoint responds;
-- the intent registration is correct;
-- the evaluator runs;
-- ranking behaviour changes as expected;
-- tests pass;
-- a request, receipt or settlement exists where the Issue requires one;
-- the application consumes the result;
-- the stated latency or quality bar is met;
-- a reported vulnerability no longer reproduces.
-
-## What to submit
-
-Most deliverables, such as a miner, an evaluator or an app, live in **your own
-repository**. Link to it in `/submit`.
-
-Good proof is something a maintainer can repeat:
-
-- a link to the code and a live endpoint;
-- Telegraph request IDs, transaction hashes or receipts where the Issue asks for paid or end-to-end evidence;
-- test output against the reference cases named in the Issue.
-
-Only open a pull request on the bounty repository itself when the Issue asks
-for a change there, and reference it with `Closes #123`.
-
-## Several people, one Issue
-
-Several people can claim one Issue. Each claim, submission and approval is
-recorded per person, so one person's delay never blocks another. This suits
-work that needs many hands, such as evaluation material: an intent's material is
-only used once at least 5 different people have contributed. A funded Issue
-states how many parts it can pay (`max_awards`).
-
-## Which intents
-
-Season II bounties use only intents that already exist: every intent in the
-bounty board's catalogue, mandatory ones first. Nobody proposes or adds a new
-intent through a bounty; work only on the intents an Issue names. The work for
-them happens in [Anjoman](https://anjoman.ai/dashboard/eval).
+With only one submission waiting, `/approve` and `/changes <reason>` can leave
+the name out.

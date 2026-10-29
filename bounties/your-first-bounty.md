@@ -1,120 +1,222 @@
 ---
-description: A worked example of one bounty from start to finish — reading the Issue, claiming it, posting progress, submitting proof and getting it approved — with the exact comments to post at each step.
+description: A step-by-step guide to your first bounty for someone who has never written code. Make two free accounts, join a bounty, add question pairs on Anjoman, check them, and submit.
 ---
 
-# Your First Bounty
+# Your First Bounty, Step by Step
 
-This page follows one bounty from start to finish. The Issue below is a
-**made-up example**: the format is real, the bounty and the people are not.
-For the rules behind each step, see [How a Bounty Works](how-a-bounty-works.md).
+This guide is for someone who has never written code. You'll do the part that
+anyone can do: write **question pairs** for one topic. Follow the steps in
+order. Each one tells you exactly what to click and what to type.
 
-## 1. Find an Issue
+The example uses the real bounty **LANGUAGE_TRANSLATION: evaluation material
+and an evaluator adapter**. The question pairs in it are made up for this guide.
 
-Open the [bounty board](https://github.com/telegraphprotocol/bounties/issues)
-and filter for `status:open`. If you are new, add the `good first bounty` label
-too.
+> [!TIP]
+> Stuck at any step? Copy the step, paste it into an AI chat assistant such as
+> ChatGPT, Claude or Gemini, and ask it to explain. Ready-made prompts are in
+> [Doing It With an AI Assistant](using-ai.md).
 
-Each bounty has the same sections. Our example:
+## Before you start
 
-> **[H2][Miner] Add competitive supply for SATELLITE_IMAGERY_ANALYSIS**
->
-> Labels: `work:miner` `gap:supply` `priority:p0` `source:h2` `mission:resources-agriculture` `status:open` `reward:unfunded`
->
-> **Intent** — `SATELLITE_IMAGERY_ANALYSIS`
->
-> **Why this matters** — Several Season II applications need machine-readable satellite analysis, and current supply is not enough.
->
-> **Demand / mission impact** — `conflict-intelligence`, `resources-agriculture`, `autonomous-systems`
->
-> **Current state** — Too few independent live miners serve this intent.
->
-> **Acceptance criteria**
-> - [ ] Target number of independent live miners serve the intent
-> - [ ] Each qualifying miner succeeds on the approved reference request set
-> - [ ] Paid Telegraph requests complete end-to-end
-> - [ ] Latency and any required app-facing normalisation are usable by the affected apps
->
-> **Reward** — **Unfunded.** This Issue carries no monetary or token reward.
->
-> **Claim / submit** — Comment `/claim` to coordinate work. Post `/progress ...` at least every 72 hours. When complete, comment `/submit ...` with repository, demo or evidence links.
+You need a web browser and an email address. That's all. Nothing here costs
+money.
 
-## 2. Read it before you claim
+## Step 1: Make a free GitHub account
 
-Answer three questions first:
+Bounties live on GitHub, a website where projects share their work. You'll use
+it to join a bounty and post short updates.
 
-| Question | In the example |
+1. Go to [github.com/signup](https://github.com/signup).
+2. Enter your email, a password and a username, then follow the screens.
+
+Your username is how maintainers will know you, for example `@maria-k`.
+
+## Step 2: Find a bounty
+
+1. Open the [bounty board](https://github.com/telegraphprotocol/bounties/issues).
+   Each row is one bounty. GitHub calls them **Issues**.
+2. Pick a topic you know. The title tells you the topic and what it needs, for
+   example `LANGUAGE_TRANSLATION: evaluation material and an evaluator adapter`.
+3. Look at its coloured labels:
+   - `status:open` means you can join now.
+   - `status:triage` means it isn't open yet. Press **Subscribe** on the right
+     of the bounty page, and GitHub will email you when someone comments on it,
+     including when it opens.
+
+Only bounties that are `status:open` (or already being worked on) can be
+joined. To see just those, use
+[this filter](https://github.com/telegraphprotocol/bounties/issues?q=is%3Aissue%20is%3Aopen%20label%3Astatus%3Aopen).
+
+## Step 3: Read the bounty
+
+Open it and read it top to bottom. Pay attention to three parts:
+
+| Part | What to look for |
 |---|---|
-| What do I have to build? | A miner that serves `SATELLITE_IMAGERY_ANALYSIS` |
-| How will it be checked? | The four acceptance criteria, each one reproduced by a maintainer |
-| Is it paid? | No. The Reward section says unfunded |
+| **The Intents** | A table with the exact names you'll work on, such as `LANGUAGE_TRANSLATION_GENERAL`, and what each one asks. |
+| **Part 1: Evaluation material** | What to add. "Anyone can help" means no code is needed. |
+| **Who needs it** | The kind of apps that will ask these questions. Your questions should sound like theirs. |
 
-If you can't meet every acceptance criterion, don't claim it. Ask a question in
-the Issue comments instead.
+Every part of a bounty is explained in [Reading a Bounty](reading-a-bounty.md).
 
-## 3. Claim it
+## Step 4: Join the bounty
 
-Post this comment:
+1. Scroll to the bottom of the bounty page. You'll see a box for a comment.
+2. Type exactly this:
 
-```text
-/claim
-```
+   ```text
+   /claim
+   ```
 
-The bot records your claim and changes the label to `status:claimed`. Other
-people can claim it too and work alongside you; each claim is tracked on its own.
+3. Press the green **Comment** button.
 
-## 4. Build, and post progress
-
-Build the smallest thing that meets the acceptance criteria. For a miner, that
-means writing its YAML and registering it; see
-[What Miners Do](../miners/miner-overview.md),
-[YAML Configuration](../miners/yaml-config.md) and
-[Registering as a Miner](../miners/miner-registration.md).
-
-Post an update at least every 72 hours:
+Within a minute or two a bot (`github-actions`) replies under your comment.
+It says something like:
 
 ```text
-/progress Miner YAML written and validated; registering on testnet today.
+Claimed by @maria-k. Post a meaningful /progress ... update within 72 hours
+or your claim will be released automatically.
 ```
 
-If you go 48 hours without an update, the bot warns you. At 72 hours your claim
-is released and someone else can take the Issue.
+It also copies the bounty's Reward section, as a record of the terms when you
+joined. Other people may already be working on it. That's fine: several people
+can work on one bounty.
 
-If you can't finish, give it back:
+> [!NOTE]
+> If the bot says "This Issue is not currently open for claiming", the bounty
+> is still `status:triage`. Wait until it's `status:open`, then try again.
+
+## Step 5: Make a free Anjoman account
+
+Anjoman is where you actually add your work.
+
+1. Go to [anjoman.ai](https://anjoman.ai) and press **Log in**.
+2. Choose **Create an account** and sign up with your email and a password.
+
+If you already use a crypto wallet you can choose **Connect a wallet**
+instead. Either way works. With an email account, Anjoman creates a wallet for
+you in the background, and signs your uploads for you.
+
+## Step 6: Open the Evaluate page
+
+Go to [anjoman.ai/dashboard/eval](https://anjoman.ai/dashboard/eval). You'll
+see two cards. The first one is for builders who publish a judge program. Use
+the second one, **Contribute evaluation material**.
+
+## Step 7: Choose the Intent
+
+1. In the **Intent** box, type the exact name from the bounty's table, for
+   example `LANGUAGE_TRANSLATION_GENERAL`. Copying it from the bounty is the
+   safest way.
+2. Click the name when it appears in the list.
+
+You add material for one Intent at a time. To switch, press **Change intent**.
+
+## Step 8: Write your first pair
+
+Click the **Add a pair** tab and fill in the boxes:
+
+| Box | What to write | Example |
+|---|---|---|
+| **Prompt** | A question, written the way a real person would ask it | Translate into Spanish: "The pharmacy closes at 6 pm on Saturdays." |
+| **Better answer** | A correct, helpful answer | La farmacia cierra a las 6 de la tarde los sábados. |
+| **Worse answer** | An answer that sounds right but is wrong | La farmacia abre a las 6 de la tarde los sábados. |
+| **Source link (optional)** | The web page your question or facts came from, if any | (empty here: you wrote this sentence yourself) |
+
+Why this worse answer is a good one: it looks correct and is the same length,
+but it says *opens* (abre) instead of *closes* (cierra). A good judge has to
+notice that. An obviously silly worse answer, like "I don't know", teaches
+nothing.
+
+> [!IMPORTANT]
+> Write real questions and check every fact in your better answer. Don't let an
+> AI make up your material. More rules for good pairs are in
+> [Adding Evaluation Material](evaluation-material.md#what-makes-a-good-pair).
+
+## Step 9: Send it
+
+Press **Sign and add this pair**.
+
+- With an email account, that's all. Anjoman signs it for you.
+- With a wallet, your wallet asks you to sign a message. Signing is free and
+  sends no money.
+
+You'll see a message like `Sent. 1 stored, 0 already there, 0 refused.`
+
+## Step 10: Add more pairs
+
+Repeat step 8 with new questions. Make each one different: different
+sentences, different kinds of mistakes in the worse answers. A few careful
+pairs are worth more than many rushed ones.
+
+If you have many pairs, you can send them all at once as a file with the
+**Upload a file** tab. See
+[Adding Evaluation Material](evaluation-material.md#three-ways-to-add-material).
+
+## Step 11: Check your pairs
+
+Below the form, under **Your submissions for** *your Intent*, each pair shows a
+status:
+
+| Status | What it means |
+|---|---|
+| **Quarantine** | Just arrived. It's being checked. |
+| **Admitted** | It passed the checks. |
+| **Eligible** | It's in. The network uses it from its next round (an **epoch**). |
+| **Rejected** | It was turned down. The reason is shown next to it. |
+
+If a pair was rejected, look up the reason in
+[If a row is turned down](evaluation-material.md#if-a-row-is-turned-down).
+
+## Step 12: Post an update on the bounty
+
+Go back to the bounty on GitHub and comment what you did, starting with
+`/progress`:
 
 ```text
-/release
+/progress Added 10 English to Spanish pairs for LANGUAGE_TRANSLATION_GENERAL. 8 are admitted so far.
 ```
 
-## 5. Submit proof
+Post an update at least every **72 hours** while you're working on it, or your
+place is released. The bot reminds you after 48 hours. The update must be at
+least 15 characters long.
 
-When every criterion is met, submit links a maintainer can check:
+## Step 13: Submit your part
+
+When your pairs show **Eligible**, tell the bounty you're done. You need your
+**contributor address**, the address your material is credited to. It starts
+with `0x`.
+
+- **Email account:** on Anjoman, press the wallet button at the top of the
+  page (it shows your balance). In the panel that opens, find **Privy Wallet**
+  and press the copy icon next to its **Address**. Use this one, not the
+  "Account wallet" shown on the Evaluate page.
+- **Wallet account:** it's the address of the wallet you signed in with.
+
+Then comment on the bounty:
 
 ```text
-/submit https://github.com/you/satellite-miner — registered miner, three Telegraph request IDs and reference-test output in the README
+/submit Contributor address 0x... (paste yours). Added 25 English to Spanish pairs for LANGUAGE_TRANSLATION_GENERAL. 22 are eligible.
 ```
 
-The label changes to `status:review`.
+The bounty moves to `status:review`.
 
-## 6. Review
+## Step 14: Wait for the review
 
-A maintainer who is not you reproduces each acceptance criterion:
+A maintainer checks your part, then replies:
 
-- **Approved:** they post `/approve @you`. Your part is accepted. When nobody
-  else is still working, the Issue becomes `status:done`.
-- **Needs changes:** they post `/changes @you <reason>`. You are back to
-  `status:claimed` with a fresh 72-hour window. Fix it, then `/submit` again.
+- `/approve @you`: your part is accepted. Well done.
+- `/changes @you` with a reason: something needs fixing. Fix it, then
+  `/submit` again. Your 72 hours start again.
 
-`status:done` means the acceptance criteria passed. Whether the network ranks
-your miner is decided separately by the protocol.
+The bounty itself stays open until every box under **Done when** is ticked.
+A maintainer ticks each box once that part is checked, so other people may
+still be adding material or building the judge after your part is accepted.
 
-## The same steps from a terminal
+## That's it
 
-With the [GitHub CLI](https://cli.github.com/) signed in, the `tb` tool posts the
-same comments (see [Command Line and Agents](command-line.md)):
+You've helped the network learn what a good answer looks like. Next:
 
-```bash
-./tb next
-./tb claim 42
-./tb progress 42 "Miner YAML written and validated; registering on testnet today."
-./tb submit 42 "https://github.com/you/satellite-miner — request IDs in README"
-```
+- Add material for another Intent: [Adding Evaluation Material](evaluation-material.md).
+- Learn every command: [How a Bounty Works](how-a-bounty-works.md).
+- Something went wrong: [Questions and Fixes](questions.md).

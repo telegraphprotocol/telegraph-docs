@@ -330,7 +330,7 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR/miners
 
 ## Proposing a new intent
 
-> **Not part of Season II bounties.** Bounty work uses only [intents that already exist](../bounties/season-two.md). Nobody proposes a new intent to complete a bounty.
+> **Not part of a bounty.** Bounties use only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist). Nobody proposes a new intent to complete a bounty.
 
 Anyone can propose an intent under an existing prefix. The admin approves it
 (possibly after editing the description or spec) or rejects it. Only an approved intent becomes canonical and reaches nodes.

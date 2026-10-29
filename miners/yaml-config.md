@@ -343,7 +343,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"       # 
 curl https://devnode.telegraphprotocol.com/engine/v1/intents                  # with miner counts
 ```
 
-If no intent fits, use a `_GENERAL` child (21 judgment families ship with one, listed in [Intents](../using/intents.md#_general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a Season II bounty, which uses only [intents that already exist](../bounties/season-two.md)).
+If no intent fits, use a `_GENERAL` child (21 judgment families ship with one, listed in [Intents](../using/intents.md#_general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a bounty, which uses only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist)).
 
 ### Intent mapping (optional)
 
