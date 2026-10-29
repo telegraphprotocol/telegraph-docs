@@ -35,9 +35,10 @@ The rest of this page covers doing the same thing by hand with `cast`.
 1. **A completed YAML file.** See [YAML Configuration](yaml-config.md), or copy [`example-miner.yaml`](https://github.com/telegraphprotocol/telegraph-examples/blob/master/frontend/yaml/example-miner.yaml) and edit it.
 2. **The intents you will serve.** These must be canonical **intents** such as `FX_NOW_EUR`, never prefixes such as `FX_NOW`. See [Pick your intents](#step-1-pick-your-intents).
 3. **A hosted YAML.** Publicly reachable at a stable URL. IPFS is strongly recommended; HTTPS is also acceptable.
-4. **A small amount of ETH on Base Sepolia**, for gas on the registration transaction. There is no bond, stake or fee; gas is the only cost.
-5. **A fee address.** The EVM wallet where your MACHINA payouts go. It can be the registering wallet or a separate cold address.
-6. **`cast` (Foundry).** Install at [getfoundry.sh](https://getfoundry.sh).
+4. **A small amount of Sepolia ETH**, for gas on the registration transaction.
+5. **A little MACHINA for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in MACHINA at the pool price. It is returned when you deregister. To get MACHINA (and test USDC), see [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
+6. **A fee address.** The EVM wallet where your MACHINA payouts go. It can be the registering wallet or a separate cold address.
+7. **`cast` (Foundry).** Install at [getfoundry.sh](https://getfoundry.sh).
 
 ## Step 1: Pick your intents
 
@@ -60,7 +61,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"   # fami
 
 If your service does not fit any listed intent, you have two options:
 - **Serve a `_GENERAL` intent.** 21 judgment families ship with one, for example `CONTENT_EXTRACTION_GENERAL` for OCR and speech-to-text miners, or `FRAUD_DETECTION_GENERAL` for breach checks. The list is in [Intents](../using/intents.md#_general-intents).
-- **Propose a new intent** under the right prefix. See [Proposing a new intent](../using/intents.md#proposing-a-new-intent).
+- **Propose a new intent** under the right prefix. See [Proposing a new intent](../using/intents.md#proposing-a-new-intent). This is never part of a bounty: bounties use only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist).
 
 Every intent you list also needs to appear in your YAML. See [YAML Configuration](yaml-config.md#intents-must-be-intents-not-prefixes).
 
@@ -85,14 +86,21 @@ IPFS: `ipfs://bafkreig5nxc...`  HTTPS: `https://your-host.com/miner.yaml`
 ## Step 4: Register on-chain
 
 ```bash
-export DIAMOND="0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8"
-export RPC="https://base-sepolia.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"
+export DIAMOND="0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b"
+export RPC="https://ethereum-sepolia-rpc.publicnode.com"
+export MACHINA="0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4"
 export YAML_URL="ipfs://bafkreig5nxc..."
 export YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
 export FEE_ADDRESS="0xYourFeeAddress"
 export MIN_PRICE=10000          # 0.01 USDC in 6-decimal units (minimum allowed)
 export MINER_PRIVATE_KEY="0x..."
 
+# 1. Let the Diamond take the bond (10 MACHINA is plenty for a few intents; the
+#    exact amount is the USD bond at the pool price, and only that is taken).
+cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 10000000000000000000 \
+  --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
+
+# 2. Register.
 cast send "$DIAMOND" \
   "registerMiner(string,bytes32,address,uint256,string[])" \
   "$YAML_URL" "$YAML_HASH" "$FEE_ADDRESS" "$MIN_PRICE" \
@@ -100,7 +108,7 @@ cast send "$DIAMOND" \
   --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
 ```
 
-The addresses above are the Base Sepolia deployment. The current testnet addresses are always in [Addresses & Parameters](../protocol/addresses-and-params.md).
+The addresses above are the Ethereum Sepolia testnet deployment. The current addresses are always in [Addresses & Parameters](../protocol/addresses-and-params.md).
 
 | Parameter | Description |
 |---|---|
@@ -329,12 +337,17 @@ cast send "$DIAMOND" "deregisterMiner(uint256)" <registrationId> \
   --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
 ```
 
-Deregistering costs nothing beyond gas: there is no bond to release and no unbonding period to wait out.
+Deregistering releases your bond. Withdraw it after 2 days:
+
+```bash
+cast send "$DIAMOND" "withdrawMinerBond()" --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
+```
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| `ERC20InsufficientAllowance` or `ERC20InsufficientBalance` | The Diamond could not take the MACHINA bond | Hold enough MACHINA and `approve` the Diamond first (Step 4) |
 | `MinerRegistryFacet: unsupported intent` | One of your intents isn't canonical | Check each with `isCanonicalIntent(string)` |
 | `MinerRegistryFacet: a prefix is not an intent` | You listed a family such as `FX_NOW` | List the intent, for example `FX_NOW_EUR` |
 | `registration opens when the migration closes` | The network is mid-migration | Existing miners were imported. New registrations open when the admin closes the migration |

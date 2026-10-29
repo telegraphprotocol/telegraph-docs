@@ -364,6 +364,9 @@ html, body {
   margin-bottom: 1.25rem;
   color: var(--tg-fg-dim);
 }
+/* Tailwind's base styles remove list markers; put them back so steps show their numbers. */
+.tg-prose ul { list-style-type: disc; }
+.tg-prose ol { list-style-type: decimal; }
 .tg-prose li { margin-bottom: 0.4rem; line-height: 1.75; }
 .tg-prose ul li::marker { color: var(--tg-amber); }
 .tg-prose ol li::marker { color: var(--tg-amber); font-weight: 600; }

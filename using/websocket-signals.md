@@ -304,13 +304,17 @@ do not need to reconnect.
 ### Funding your escrow
 
 Escrow lives on the Diamond, in the token the Diamond is configured to use — on
-Base Sepolia that is Circle's canonical USDC. Three transactions, in this order.
+the testnet that is a test USDC anyone can mint (step 0 below). Three transactions, in this order.
 Skipping the approval fails with `ERC20: transfer amount exceeds allowance`:
 
 ```bash
-export DIAMOND=0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8
-export USDC=0x036CbD53842c5426634e7929541eC2318f3dCF7e
-export RPC=https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+
+# 0 — testnet only: mint yourself 10 test USDC
+cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 \
+  --rpc-url $RPC --private-key $KEY
 
 # 1 — let the Diamond move your USDC (2000000 = 2.00 USDC, 6 decimals)
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 \

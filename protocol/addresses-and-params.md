@@ -1,23 +1,24 @@
 ---
-description: Live contract addresses on Base Sepolia testnet and the full genesis parameter table.
+description: Live contract addresses on the Ethereum Sepolia testnet and the full protocol parameter table.
 ---
 
 # Addresses & Parameters
 
-## Testnet: Base Sepolia (Chain ID 84532)
+## Testnet: Ethereum Sepolia (Chain ID 11155111)
 
-These are the live contract addresses on Base Sepolia as verified on-chain.
+These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 
 | Contract | Address |
 |---|---|
-| **Diamond (Port)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` |
-| **MACHINA Token** | `0x7b9Bd0e5f9a4D0A01db18823De1D8442C84993b7` |
-| **USDC (Circle)** | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| **Treasury** | `0xffe89e1f0a77C600Ad938b57180E5be3e3119f40` |
-| **x402 payment receiver (EVM)** | `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8` — the Diamond itself |
-| **x402 payment receiver (Solana)** | `G53EbeTZSNsAn7bj6iMFUQnq3zpDdEbHhKkPRywo8bix` |
+| **Diamond (Port)** | `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b` |
+| **MACHINA Token** | `0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4` |
+| **USDC (test token)** | `0xcc194e1a843B658526D0D5C431f670028582Ae17` — anyone can mint it: `mint(address to, uint256 amount)` |
+| **MACHINA/USDC pool** | `0x3AF68f69b9c9Cb36bAc5dac6a9e2899eeB03B0f7` — prices every MACHINA bond |
+| **EmissionMinter** | `0x2bDfC23A1dBF414AcE9df5B7d17eA360A288e5D2` |
+| **Treasury** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e` |
+| **x402 payment receiver (EVM)** | `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b` — the Diamond itself |
 
-> **The V2 contracts are a fresh deployment.** `SubnetFacet` was removed and there is no in-place upgrade for jobs, so V2 is deployed to new addresses and existing miners are copied across by an admin import. If a call to the Diamond below reverts with an unknown selector, you are looking at the old deployment.
+> **Every call goes to the Diamond.** Escrow, jobs, miner and adapter registration, intents and rewards are all functions on the one Diamond address above. If a call reverts with an unknown selector, you are pointing at an old address.
 
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
@@ -31,15 +32,43 @@ cast call $DIAMOND "machinaToken()(address)" --rpc-url $RPC   # what miners are 
 cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
 ```
 
+### Getting test tokens
+
+You need three things on the testnet: Sepolia ETH for gas (from any public Sepolia faucet), test USDC, and MACHINA for bonds.
+
+**Test USDC.** Anyone can mint it:
+
+```bash
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
+```
+
+**MACHINA.** Swap test USDC for it on the MACHINA/USDC pool (0.3% fee tier) through Uniswap's SwapRouter02 on Sepolia, `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`. 2 USDC buys about 2.6 MACHINA, enough for a miner bond or an intent proposal; an adapter bond ($5) needs about 7 MACHINA.
+
+```bash
+export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+export ROUTER=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+# 1. let the router take 2 USDC
+cast send $USDC "approve(address,uint256)" $ROUTER 2000000 --rpc-url $RPC --private-key $KEY
+# 2. swap 2 USDC for MACHINA, sent to you
+cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
+  "($USDC,$MACHINA,3000,$YOUR_ADDRESS,2000000,0,0)" --rpc-url $RPC --private-key $KEY
+cast call $MACHINA "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
+```
+
+Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.
+
 ### Network Configuration
 
 | Parameter | Value |
 |---|---|
-| Chain | Base Sepolia |
-| Chain ID | 84532 |
-| Canonical mainnet | Base (Ethereum L2) |
-| RPC (Alchemy) | `https://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>` |
-| WSS (Alchemy) | `wss://base-sepolia.g.alchemy.com/v2/<YOUR_KEY>` |
+| Chain | Ethereum Sepolia |
+| Chain ID | 11155111 |
+| Canonical mainnet | Ethereum |
+| RPC (public, no key) | `https://ethereum-sepolia-rpc.publicnode.com` |
+| RPC (Alchemy) | `https://eth-sepolia.g.alchemy.com/v2/<YOUR_KEY>` |
+| WSS (Alchemy) | `wss://eth-sepolia.g.alchemy.com/v2/<YOUR_KEY>` |
 
 ### Node Endpoints (Live Testnet Node)
 
@@ -59,14 +88,12 @@ The live miner set changes as operators register and deregister on-chain, so the
 curl https://devnode.telegraphprotocol.com/api/miners
 ```
 
-A few long-standing ones, as a sample of what the network serves:
+Each entry lists the intents the miner serves (for example `WEATHER_CHECK_TEMPERATURE`, `FX_NOW_EUR`, `CODE_REVIEW_GENERAL`). To see which miners serve one intent, and how they rank:
 
-| Miner | Intents |
-|---|---|
-| LiteLLM | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, WEB_SEARCH |
-| Telegraph Chatbot | CHAT_COMPLETION, LANGUAGE_GENERATION, TASK_COMPLETION, AGENT_TASK, WEB_SEARCH, TELEGRAPH_KNOWLEDGE |
-| Zeus (Bittensor SN18) | WEATHER_CHECK, WEATHER_FORECAST, STORM_ALERT |
-| BitMind (Bittensor SN34) | DEEPFAKE_DETECTION, IMAGE_VERIFICATION, VIDEO_VERIFICATION, MEDIA_AUTHENTICITY_CHECK |
+```bash
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR/miners
+curl https://devnode.telegraphprotocol.com/leaderboard/miners
+```
 
 ---
 
@@ -80,10 +107,10 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 |---|---|
 | Maximum MACHINA supply | 21,000,000 |
 | Genesis daily emission | 7,200 MACHINA |
-| Halving interval | 4 years (1,461 epochs) |
-| Validator emission share | 60% |
-| Script Author emission share | 20% |
-| Treasury emission share | 20% |
+| Halving interval | 4 years (1,461 days) |
+| Validator emission share | 25% |
+| Evaluator emission share | 50% (of each intent's share: 30% to its adapter, 70% to its evaluation material) |
+| Treasury emission share | 25% |
 | Protocol fee | 2% (200 basis points) |
 | TWAP settlement minimum | 100 USDC |
 | TWAP drip size | 0.01 USDC per drip |
@@ -97,9 +124,9 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Active Validator cap | 64 |
 | BFT finalization threshold (τ) | 43 / 64 |
 | Reduced consensus threshold (τ_reduced) | 33 / 64 (activates after 3 failed rounds) |
-| Minimum Validator stake bond | 100 MACHINA |
+| Minimum Validator stake | Set in USD, paid in MACHINA at the pool price (`protocolParams()`) |
 | Unbonding period | 21 days |
-| Epoch duration | 24 hours |
+| Epoch duration | 24 hours on mainnet; 5 minutes on the testnet |
 | Commit phase timeout | 45 seconds |
 | Reveal phase timeout | 45 seconds |
 | Leader failover timeout | 90 seconds |
@@ -112,7 +139,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Scoring module replacement margin | Challenger's win rate ≥ Canonical's + 2 points, on the same hidden sample |
 | Scoring module minimum win rate | 70% overall; 60% on each family child with ≥ 10 scored pairs |
 | Minimum scored pairs per competition | 10 |
-| Competition sample size | 200 pairs |
+| Competition sample size | 30 hidden pairs per round |
 | Evaluation Pool minimum contributors | 5 per Intent |
 | Testing Cohort size | 10% of active Validators |
 | Internal Audit Fee | 2% of epoch Validator emission pool |
@@ -128,12 +155,13 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 
 | Parameter | Value |
 |---|---|
-| Registration cost | Gas only — no bond or stake |
+| Registration bond | $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each — paid in MACHINA at the pool price (`minerBondParams()`) |
 | Grace period duration | 7 days |
 | Grace period routing share | 5% flat (shared among all grace-period miners) |
 | Miner routing (genesis) | 70% top / 20% second / 10% third |
-| Deregistration | Immediate — no unbonding period |
-| Scoring module registration | Gas only — no bond |
+| Deregistration | Immediate; the bond is released and can be withdrawn after 2 days (`withdrawMinerBond()`) |
+| Evaluator adapter registration bond | $5 in MACHINA at the pool price (`entityBonds()`); returned in full on deregistration, never slashed |
+| Intent proposal bond | $1 in MACHINA (`intentProposalParams()`); returned when the proposal is approved or rejected |
 
 ### Demand Multiplier Tiers
 
@@ -148,6 +176,15 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 For **x402 pay-per-call inference**, the charged price is `min_price_usdc × multiplier`, where the multiplier is selected from the rolling 24-hour request volume for that Intent. A miner's effective price rises automatically with demand and returns to the floor when demand subsides.
 
 **ERC-8183 jobs are priced differently.** A job does not use the miner's `min_price_usdc` at all — it uses a single protocol-wide `jobBasePrice`, scaled by the same multiplier table. Read it with `cast call $DIAMOND "getJobBasePrice()(uint256)"`; on testnet it is currently `1000000` (1 USDC per job).
+
+### Jobs
+
+| Parameter | Value |
+|---|---|
+| Job base price | 1 USDC (`getJobBasePrice()`), times the demand multiplier |
+| Protocol fee | 2% of the job price |
+| Callback gas | 1,000,000 gas for your callback contract |
+| Cancel | After 1 hour, if no answer arrived (`cancelJob`); the price minus the fee is refunded |
 
 ### Gas & Escrow
 
@@ -172,5 +209,4 @@ Proposals require a **43/64 majority** (one vote per Validator regardless of sta
 **Permanently immutable (cannot be changed by governance):**
 - Maximum supply: 21,000,000 MACHINA
 - Halving schedule
-- Emission tier percentages (60/20/20)
 - Zero pre-mine guarantee

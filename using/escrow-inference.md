@@ -28,7 +28,7 @@ The trade-off is that escrow needs funding before the first call, and your balan
 
 ## What You Need
 
-- A USDC balance on **Base Sepolia** (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`).
+- A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
 - A wallet that can sign an EIP-191 `personal_sign` message.
 - The Diamond address for the node you are calling. See [Addresses & Parameters](../protocol/addresses-and-params.md).
 
@@ -75,14 +75,14 @@ Escrow is priced on the same routes x402 is: `POST /engine/v1/ask` and `POST /en
 ```json
 {
   "scheme": "escrow",
-  "network": "eip155:84532",
+  "network": "eip155:11155111",
   "price": "$0.01",
-  "payTo": "0x5a2324aa18613fad4e44bdf0d6c73ec1f6d87ff8",
+  "payTo": "0x3624eb012b5e998bb57b6be6c9cfc9c4bc5eb99b",
   "extra": {
     "description": "Deduct from the caller's Telegraph escrow balance at the next epoch close. Fund it once with EscrowFacet.depositUSDC(amount); no per-request settlement.",
     "resource": "/v1/ask",
     "signWith": "personal_sign (EIP-191)",
-    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x5a2324aa…\nNetwork: eip155:84532\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
+    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x3624eb01…\nNetwork: eip155:11155111\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
   }
 }
 ```
@@ -102,7 +102,7 @@ Sign the reconstructed message with `personal_sign`, then send it back in `X-PAY
 {
   "x402Version": 2,
   "scheme": "escrow",
-  "network": "eip155:84532",
+  "network": "eip155:11155111",
   "payload": {
     "signature": "0x…",
     "authorization": {
@@ -237,7 +237,7 @@ SIG=$(cast wallet sign --private-key "$PRIVATE_KEY" "$MESSAGE")
 
 PAYMENT=$(jq -cn --arg s "$SIG" --arg f "$ADDR" --arg t "$PAYTO" --arg v "$VALUE" \
   --arg a "$((NOW-5))" --arg b "$((NOW+100))" --arg n "$NONCE" \
-  '{x402Version:2,scheme:"escrow",network:"eip155:84532",
+  '{x402Version:2,scheme:"escrow",network:"eip155:11155111",
     payload:{signature:$s,authorization:{from:$f,to:$t,value:$v,validAfter:$a,validBefore:$b,nonce:$n}}}' \
   | base64 -w0)
 
