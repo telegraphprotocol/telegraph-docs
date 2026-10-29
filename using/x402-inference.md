@@ -2,13 +2,13 @@
 description: Pay per intelligence request using the x402 HTTP payment standard — no API key, no account, just USDC.
 ---
 
-# Pay for Intelligence
+# Pay per Request (x402)
 
 x402 is an HTTP-native payment protocol. Your client makes a request, gets a payment challenge back if it hasn't paid, completes the payment, and retries. The node verifies the payment before calling the miner. The whole exchange happens inside a normal HTTP request cycle — no separate checkout, no account, no API key.
 
-This page covers payment. For request and result shapes, see [Request Intelligence](engine-ask.md).
+This page covers payment. For request and result shapes, see [Make a Request](engine-ask.md).
 
-> **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Use Escrow](escrow-inference.md).
+> **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Pay from Escrow](escrow-inference.md).
 
 ## What You Need
 
@@ -144,11 +144,11 @@ PAYMENT-SIGNATURE: <base64-encoded-payment-payload>
 }
 ```
 
-The node forwards the payment proof to the PayAI facilitator (`https://facilitator.payai.network`) for verification. On success, the miner is called.
+The node forwards the payment proof to its x402 facilitator (`https://facilitator.x402.rs` on the testnet) for verification. On success, the miner is called.
 
 ## Step 5: Receive the Response
 
-On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Request Intelligence](engine-ask.md#the-answers-shape).
+On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Make a Request](engine-ask.md#the-answers-shape).
 
 ```json
 {

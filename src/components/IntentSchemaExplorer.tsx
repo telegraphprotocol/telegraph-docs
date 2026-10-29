@@ -10,6 +10,43 @@ type IntentSummary = {
 
 type IntentList = { intents?: IntentSummary[] }
 
+type SchemaItem = {
+  name?: string
+  type?: string
+  required?: boolean
+  description?: string
+  unit?: string
+  examples?: unknown[]
+  default?: unknown
+}
+
+const NODE = 'https://devnode.telegraphprotocol.com'
+
+function itemsAt(value: unknown, part: 'request' | 'response'): SchemaItem[] {
+  if (typeof value !== 'object' || value === null) return []
+  const section = (value as Record<string, unknown>)[part]
+  if (typeof section !== 'object' || section === null) return []
+  const list = (section as Record<string, unknown>)[part === 'request' ? 'params' : 'fields']
+  return Array.isArray(list) ? (list as SchemaItem[]) : []
+}
+
+function minerCount(value: unknown): number | null {
+  if (typeof value !== 'object' || value === null) return null
+  const count = (value as Record<string, unknown>).miner_count
+  return typeof count === 'number' ? count : null
+}
+
+// A ready-to-run request: required params, filled from the schema's examples or default.
+function exampleRequest(name: string, params: SchemaItem[]): string {
+  const body: Record<string, unknown> = {}
+  for (const param of params) {
+    if (!param.name || !param.required) continue
+    body[param.name] = param.examples?.[0] ?? param.default ?? `<${param.name}>`
+  }
+  const json = JSON.stringify({ intent: name, params: body })
+  return `curl -X POST ${NODE}/engine/v1/ask \\\n  -H "Content-Type: application/json" \\\n  -d '${json}'`
+}
+
 function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed'
 }
@@ -95,7 +132,7 @@ export function IntentSchemaExplorer() {
         <section className="rounded-xl border border-[var(--tg-line)] bg-[var(--tg-bg-subtle)] p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--tg-fg)]">Capabilities</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--tg-fg)]">Intents</h2>
               <p className="mt-1 text-sm text-[var(--tg-fg-dim)]">
                 {intents.length ? `${intents.length} live intents. Select one to inspect its exact schema.` : 'Loading live intents…'}
               </p>
@@ -133,7 +170,7 @@ export function IntentSchemaExplorer() {
             className="min-w-0 flex-1 rounded-md border border-[var(--tg-line-strong)] bg-[var(--tg-bg)] px-3 py-2 font-mono text-sm text-[var(--tg-fg)] outline-none focus:border-[var(--tg-amber)]"
             list="intent-names"
             onChange={(event) => setIntent(event.target.value)}
-            placeholder="Enter an exact capability name"
+            placeholder="Enter an exact intent name"
             value={intent}
           />
           <datalist id="intent-names">
@@ -165,14 +202,66 @@ export function IntentSchemaExplorer() {
             </p>
             {!hasConsumptionSchema(result) && (
               <p className="mt-3 rounded-lg border border-[var(--tg-line)] bg-[var(--tg-bg-subtle)] px-3 py-2 text-sm text-[var(--tg-fg-dim)]">
-                Need a request and processed-result schema for this capability? Ask the Telegraph team in Discord and include its exact name.
+                This intent has no published request and result schema yet. Ask the Telegraph team in Discord and include its exact name.
               </p>
             )}
-            <pre className="mt-4 overflow-x-auto rounded-lg border border-[var(--tg-line)] bg-[var(--tg-code-bg)] p-4 text-xs leading-6 text-[var(--tg-code-fg)]">
-              {JSON.stringify(result, null, 2)}
-            </pre>
+            {minerCount(result) === 0 && (
+              <p className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-[var(--tg-fg)]">
+                No miner serves this intent right now, so a request for it is refused with <code>no_compatible_miner</code>. Pick an intent with miners.
+              </p>
+            )}
+            <SchemaTable title="Request params" items={itemsAt(result, 'request')} showRequired />
+            <SchemaTable title="Result fields" items={itemsAt(result, 'response')} />
+            {itemsAt(result, 'request').length > 0 && (
+              <>
+                <h3 className="mt-6 text-base font-semibold text-[var(--tg-fg)]">Try it</h3>
+                <p className="mt-1 text-sm text-[var(--tg-fg-dim)]">
+                  Without a payment this answers <code>402 Payment Required</code> with the price; that is expected. To pay, see <a className="underline" href="/docs/using/consume-intelligence">Start Here</a>.
+                </p>
+                <pre className="mt-2 overflow-x-auto rounded-lg border border-[var(--tg-line)] bg-[var(--tg-code-bg)] p-4 text-xs leading-6 text-[var(--tg-code-fg)]">
+                  {exampleRequest(String((result as Record<string, unknown>).intent_id ?? intent), itemsAt(result, 'request'))}
+                </pre>
+              </>
+            )}
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm font-medium text-[var(--tg-fg)]">Full schema (JSON)</summary>
+              <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--tg-line)] bg-[var(--tg-code-bg)] p-4 text-xs leading-6 text-[var(--tg-code-fg)]">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </details>
           </section>
         )}
     </div>
+  )
+}
+
+function SchemaTable({ title, items, showRequired = false }: { title: string; items: SchemaItem[]; showRequired?: boolean }) {
+  if (items.length === 0) return null
+  return (
+    <>
+      <h3 className="mt-6 text-base font-semibold text-[var(--tg-fg)]">{title}</h3>
+      <div className="mt-2 overflow-x-auto rounded-lg border border-[var(--tg-line)]">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-[var(--tg-bg-subtle)] text-[var(--tg-fg-dim)]">
+            <tr>
+              <th className="px-3 py-2 font-medium">Name</th>
+              <th className="px-3 py-2 font-medium">Type</th>
+              {showRequired ? <th className="px-3 py-2 font-medium">Required</th> : <th className="px-3 py-2 font-medium">Unit</th>}
+              <th className="px-3 py-2 font-medium">Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr className="border-t border-[var(--tg-line)]" key={item.name ?? index}>
+                <td className="px-3 py-2 font-mono text-[var(--tg-fg)]">{item.name}</td>
+                <td className="px-3 py-2 text-[var(--tg-fg-dim)]">{item.type}</td>
+                <td className="px-3 py-2 text-[var(--tg-fg-dim)]">{showRequired ? (item.required ? 'yes' : 'no') : (item.unit ?? '')}</td>
+                <td className="px-3 py-2 text-[var(--tg-fg-dim)]">{item.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }

@@ -4,7 +4,7 @@ description: Advanced protocol reference for intent families, scoring, and gover
 
 # Intents
 
-> **Looking to consume intelligence?** Start with [Consume Intelligence](consume-intelligence.md)
+> **Looking to consume intelligence?** Start with [Start Here](consume-intelligence.md)
 > and [Browse Intents & Schemas](/intent-schema). This page covers the advanced
 > protocol catalog and governance mechanics.
 
@@ -80,7 +80,7 @@ curl -s "$NODE/engine/v1/intents/$INTENT" | jq '{
 }'
 ```
 
-You can also use the browser-based [Intent Schema Explorer](/intent-schema).
+You can also use the browser-based [Browse Intents & Schemas](/intent-schema).
 It reads the same public endpoint and displays its unmodified JSON response.
 
 The second response is the public, node-generated contract for consumption. It
@@ -140,7 +140,7 @@ An API call sends canonical inputs by name:
 {
   "intent": "FX_NOW_EUR",
   "params": {
-    "example_input": "example_value"
+    "currency": "EUR"
   }
 }
 ```
@@ -308,7 +308,7 @@ curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
 Every intent has one **request schema**. Read it, then send matching `params`:
 
 ```bash
-curl https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR
 ```
 
 The `request.params` list says what each param is called, its type, whether it is
@@ -318,12 +318,12 @@ required, and its limits. Then:
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
-  -d '{"intent": "WEATHER_CHECK", "params": {"location": "Tokyo"}}'
+  -d '{"intent": "FX_NOW_EUR", "params": {"currency": "EUR"}}'
 ```
 
 The node checks `params` against the schema **before any miner is chosen or any
 payment is taken**. A bad request returns `400 invalid_params` and costs nothing.
-The full set of errors is in [Engine Inference](engine-ask.md#canonical-ask-intent--params).
+The full set of errors is in [Make a Request](engine-ask.md#canonical-ask-intent-params).
 You get the answer in the intent's shape, the same keys whichever miner answers.
 
 To see who serves an intent before you spend anything:

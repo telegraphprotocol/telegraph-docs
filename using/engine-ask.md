@@ -2,7 +2,7 @@
 description: Request intelligence from Telegraph. Send a question, use a typed capability, or call a specific Miner directly.
 ---
 
-# Request Intelligence
+# Make a Request
 
 The Engine is Telegraph's intelligence coordinator. You send it a question; it picks a Miner, calls that Miner, and returns the result with routing and cost metadata. You never manage Miner endpoints, API keys, or schemas yourself.
 
@@ -14,7 +14,7 @@ There are three ways to ask:
 
 All of them are paid per call, via x402 or from your [escrow](escrow-inference.md). All of them request **fresh, on-demand intelligence**, not a cached result.
 
-> The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard; see [Read Published Intelligence](daemon-signals.md). If you want a live answer to your own question, use the Engine.
+> The Engine is not the Daemon. The Engine answers your questions on demand. The Daemon is a separate background service that generates its own questions on a schedule and stores them for the dashboard; see [Read the Daemon Feed](daemon-signals.md). If you want a live answer to your own question, use the Engine.
 
 **Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
@@ -29,44 +29,44 @@ POST /engine/v1/ask
 Content-Type: application/json
 
 {
-  "query": "What is the current weather in London?"
+  "query": "How many euros does one US dollar buy right now?"
 }
 ```
 
 | Field | Required | Description |
 |---|---|---|
 | `query` | Yes, unless you send `intent` + `params` | Natural-language question. The router classifies it into an Intent and picks a miner. |
-| `intent` | With `params` | The Intent the request is for. See [Canonical ask](#canonical-ask-intent--params). |
+| `intent` | With `params` | The Intent the request is for. See [Canonical ask](#canonical-ask-intent-params). |
 | `params` | With `intent` | The request's typed params, as the Intent's input schema defines them. |
 | `context` | No | Object merged into the routed request body. Use it to pass structured hints the miner understands. For an Intent with an input schema, keys that match the schema's params also stand in for params. |
 
-The endpoint is gated: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Pay for Intelligence](x402-inference.md), or pay from escrow with [`scheme: "escrow"`](escrow-inference.md).
+The endpoint is gated: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Pay per Request (x402)](x402-inference.md), or pay from escrow with [`scheme: "escrow"`](escrow-inference.md).
 
 **Response (200):**
 
 ```json
 {
-  "miner_id": "41",
-  "miner_name": "fx-frankfurter",
-  "endpoint": "/latest",
-  "result": { "rate": 0.8712, "base": "USD", "quote": "EUR" },
+  "miner_id": "31009",
+  "miner_name": "Coinbase FX Now",
+  "endpoint": "/query",
+  "result": { "rate": 0.8985 },
   "result_shape": "intent",
   "format_version": 1,
-  "field_status": { "rate": "ok", "base": "ok", "quote": "ok" },
-  "input": { "base": "USD", "quote": "EUR" },
-  "input_schema_version": 2,
+  "field_status": { "rate": "ok" },
+  "input": { "currency": "EUR" },
+  "input_schema_version": 3,
   "cost_usd": 0.01,
-  "duration_ms": 412,
-  "timestamp": "2026-10-26T19:24:42Z",
-  "reasoning": "Query asks for a live FX rate.",
+  "duration_ms": 239,
+  "timestamp": "2026-10-29T17:16:39Z",
+  "reasoning": "Intent: classified from the query. Miner: input schema v3 mapped in code to GET /query",
   "intent": "FX_NOW_EUR",
-  "signal_hash": "0x7a44569d..."
+  "signal_hash": "0x02ab3b4e56ce1906333644bf8de9a6d2a1c7715de0a809b98d6dce2823d084a8"
 }
 ```
 
 | Field | Meaning |
 |---|---|
-| `miner_id` / `miner_name` | The miner that served the request (numeric ID and slug). May be the fallback rather than the router's first pick. |
+| `miner_id` / `miner_name` | The miner that served the request: its ID (use it with `POST /engine/v1/ask/{minerId}`) and its display name. May be the fallback rather than the router's first pick. |
 | `endpoint` | The upstream path that was called. |
 | `result` | The answer. When the node can read it into the Intent's response format, `result` has the same keys, in the same order, whichever miner answered (`result_shape` is `intent`). Otherwise it is the miner's raw output (`result_shape` is `raw`). See [The answer's shape](#the-answers-shape). |
 | `result_shape` | `intent` or `raw`. |
@@ -91,7 +91,7 @@ These are answered before any payment is taken, and nothing is charged:
 | Status | Body | Meaning |
 |---|---|---|
 | `400` | `{"error": "invalid request body"}` | The body is not one JSON object with a non-empty `query`, or an `intent` with `params`. A `message` field says which. |
-| `400` | `{"error": "invalid_params", ...}` | `params` do not pass the Intent's input schema. See [Canonical ask](#canonical-ask-intent--params). |
+| `400` | `{"error": "invalid_params", ...}` | `params` do not pass the Intent's input schema. See [Canonical ask](#canonical-ask-intent-params). |
 | `400` | `{"error": "no_input_schema", ...}` | You sent `params` for an Intent that has no input schema. Send a free-form `query`. |
 | `429` | `{"error": "too many requests, slow down"}` | One client asked about too many **new** questions in a minute (default 60). A question quoted in the last 3 minutes is never refused this way. Wait and retry. |
 | `503` | `{"error": "extraction_unavailable", ...}` | The node needed its parser model to read or complete your params and it is off, down or slow. Retry, or send `intent` + `params`. |
@@ -145,24 +145,32 @@ Some miners declare an `intent_mapping` in their YAML. Then the node reads their
 Every Intent has one **request schema**: the params a request for it carries. It is the same whichever miner serves the Intent, and the same off-chain and on-chain. Read it first:
 
 ```bash
-curl https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR
 ```
 
 ```json
 {
-  "intent_id": "WEATHER_CHECK",
+  "intent_id": "FX_NOW_EUR",
   "class": "deterministic",
   "request": {
     "schema_version": 3,
     "params": [
-      { "name": "location", "type": "string", "required": true, "description": "Place the reading is for" },
-      { "name": "days", "type": "integer", "min": 1, "max": 7, "default": 1, "description": "How many days" }
+      { "name": "currency", "type": "string", "required": true,
+        "description": "Currency code priced against the US dollar, e.g. EUR" }
     ]
   },
-  "response": { "format_version": 3, "fields": [ { "name": "temp_c", "type": "number", "unit": "degrees Celsius" } ] },
+  "response": {
+    "format_version": 1,
+    "fields": [
+      { "name": "rate", "type": "number", "unit": "EUR per USD",
+        "description": "How many EUR one US dollar buys" }
+    ]
+  },
   "onchain": { "ready": true }
 }
 ```
+
+The response is trimmed here; the live one also lists the miners and the on-chain layouts.
 
 Then send it:
 
@@ -170,7 +178,7 @@ Then send it:
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
-  -d '{"intent": "WEATHER_CHECK", "params": {"location": "Tokyo"}}'
+  -d '{"intent": "FX_NOW_EUR", "params": {"currency": "EUR"}}'
 ```
 
 ### What a param can say
@@ -205,19 +213,18 @@ Whether a **free-form** ask is enforced against the schema is set by the node op
 
 The check runs before any miner is chosen, called or paid. Nothing is charged, no payment authorization is spent and nothing is recorded.
 
+Sending `{"intent": "FX_NOW_EUR", "params": {"colour": "red"}}`:
+
 ```json
 {
   "error": "invalid_params",
-  "intent": "WEATHER_CHECK",
+  "intent": "FX_NOW_EUR",
   "schema_version": 3,
   "problems": [
-    {"param": "location", "code": "missing", "message": "location is required (string)"},
-    {"param": "days", "code": "range", "message": "days: 9 is outside 1 to 7"},
-    {"param": "colour", "code": "unknown", "message": "unknown param \"colour\"; this intent takes: location, days"},
-    {"param": "date", "code": "conflict", "supplied": "2026-10-24", "stated": "2026-10-25",
-     "message": "date: params say \"2026-10-24\" but the query says \"2026-10-25\""}
+    {"param": "currency", "code": "missing", "message": "currency is required (string)"},
+    {"param": "colour", "code": "unknown", "message": "unknown param \"colour\"; this intent takes: currency"}
   ],
-  "message": "location is required (string); days: 9 is outside 1 to 7; ..."
+  "message": "currency is required (string); unknown param \"colour\"; this intent takes: currency"
 }
 ```
 
@@ -280,10 +287,10 @@ The reply is the miner's raw output. It carries `result_shape: "raw"` to say so,
 Send the same typed request you would send to `/ask`, but to a miner you chose:
 
 ```bash
-curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask/wx-openmeteo \
+curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask/31009 \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
-  -d '{"intent": "WEATHER_CHECK", "params": {"location": "Tokyo"}}'
+  -d '{"intent": "FX_NOW_EUR", "params": {"currency": "EUR"}}'
 ```
 
 | Field | Required | Description |
@@ -359,7 +366,7 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents
 
 ## Streaming over WebSocket
 
-The same `ask` and `ask_direct` operations, including `intent` + `params`, are available over the Engine's WebSocket interface, which streams routing progress as events instead of returning a single response. See [WebSocket Signals](websocket-signals.md).
+The same `ask` and `ask_direct` operations, including `intent` + `params`, are available over the Engine's WebSocket interface, which streams routing progress as events instead of returning a single response. See [Stream over WebSocket](websocket-signals.md).
 
 ## When to Use What
 
@@ -369,7 +376,7 @@ The same `ask` and `ask_direct` operations, including `intent` + `params`, are a
 | You want the best miner picked automatically from a plain question | `POST /engine/v1/ask` with `query` |
 | You want a predictable answer shape and a request validated before you pay | `POST /engine/v1/ask` with `intent` + `params` |
 | You know exactly which miner you need | `POST /engine/v1/ask/{minerId}` (native or canonical form) |
-| You want to understand the payment flow itself | [Pay for Intelligence](x402-inference.md) |
-| You want a live stream of routing events | [WebSocket Signals](websocket-signals.md) |
+| You want to understand the payment flow itself | [Pay per Request (x402)](x402-inference.md) |
+| You want a live stream of routing events | [Stream over WebSocket](websocket-signals.md) |
 | Your smart contract needs the result on-chain | [On-Chain Jobs](erc8183-jobs.md) |
-| You want to browse the Daemon's autonomously generated signals | [Read Published Intelligence](daemon-signals.md) |
+| You want to browse the Daemon's autonomously generated signals | [Read the Daemon Feed](daemon-signals.md) |

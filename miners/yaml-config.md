@@ -16,7 +16,7 @@ Every YAML you register is public. Agents and validators can read it to understa
 |---|---|---|
 | Intents you list | A flat list of canonical names such as `WEATHER_FORECAST` | **Intents only, never prefixes.** Use `WEATHER_CHECK_TEMPERATURE`, not `WEATHER_CHECK`. A prefix is refused with `a prefix is not an intent`. See [Intents must be intents](#intents-must-be-intents-not-prefixes). |
 | Reading your answers | The node's parser model read your whole answer | You may declare an **`intent_mapping`** so the node locates each field by path and computes numbers in code. See [Intent mapping](#intent-mapping-optional). |
-| Requests from on-chain jobs | The `on_chain.request` block mapped `OnChainData` onto your HTTP call | **Not used for jobs.** A job's request is built from the intent's inputs. See [On-chain jobs](#on-chain-jobs-and-the-on_chain-block). |
+| Requests from on-chain jobs | The `on_chain.request` block mapped `OnChainData` onto your HTTP call | **Not used for jobs.** A job's request is built from the intent's inputs. See [On-chain jobs](#on-chain-jobs-and-the-onchain-block). |
 
 ## Minimal Example
 
@@ -343,7 +343,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"       # 
 curl https://devnode.telegraphprotocol.com/engine/v1/intents                  # with miner counts
 ```
 
-If no intent fits, use a `_GENERAL` child (21 judgment families ship with one, listed in [Intents](../using/intents.md#_general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a bounty, which uses only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist)).
+If no intent fits, use a `_GENERAL` child (21 judgment families ship with one, listed in [Intents](../using/intents.md#general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a bounty, which uses only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist)).
 
 ### Intent mapping (optional)
 

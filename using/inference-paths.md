@@ -14,14 +14,14 @@ Start here, then follow the link for the one you want.
 
 | You are... | Use | Page |
 |---|---|---|
-| A script or agent that wants an answer now | **HTTP request** (auto-routed) | [Request Intelligence](engine-ask.md) |
-| Calling often enough that per-request settlement hurts | **Escrow** on the same HTTP endpoints | [Use Escrow](escrow-inference.md) |
-| Sure which miner you want | **Direct HTTP request** | [Request Intelligence](engine-ask.md#direct-ask) |
-| An LLM agent with an MCP client | **MCP server** | [Use Intelligence from AI Agents](mcp-server.md) |
-| Wanting a continuous feed, not one answer | **WebSocket subscribe** | [WebSocket Signals](websocket-signals.md) |
+| A script or agent that wants an answer now | **HTTP request** (auto-routed) | [Make a Request](engine-ask.md) |
+| Calling often enough that per-request settlement hurts | **Escrow** on the same HTTP endpoints | [Pay from Escrow](escrow-inference.md) |
+| Sure which miner you want | **Direct HTTP request** | [Make a Request](engine-ask.md#direct-ask) |
+| An LLM agent with an MCP client | **MCP server** | [AI Agents (MCP)](mcp-server.md) |
+| Wanting a continuous feed, not one answer | **WebSocket subscribe** | [Stream over WebSocket](websocket-signals.md) |
 | A smart contract targeting a capability | **ERC-8183 job** | [On-Chain Jobs](erc8183-jobs.md) |
 | A smart contract that prefers one known miner | **ERC-8183 job** with `createJobForMiner` | [On-Chain Jobs](erc8183-jobs.md) |
-| Just reading what the network already produced | **Published intelligence feed** | [Read Published Intelligence](daemon-signals.md) |
+| Just reading what the network already produced | **Published intelligence feed** | [Read the Daemon Feed](daemon-signals.md) |
 
 ## The comparison
 
@@ -69,11 +69,11 @@ const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine
 ```
 
 The library handles the `402` challenge, signs, and retries. Doing it by hand is
-covered in [Pay for Intelligence](x402-inference.md) — read it before you try,
+covered in [Pay per Request (x402)](x402-inference.md) — read it before you try,
 because a malformed payment comes back as a bare `402`, indistinguishable from
 not having paid at all.
 
-→ [Request Intelligence](engine-ask.md) · [Pay for Intelligence](x402-inference.md)
+→ [Make a Request](engine-ask.md) · [Pay per Request (x402)](x402-inference.md)
 
 ### Direct HTTP request
 
@@ -96,7 +96,7 @@ Unlike the auto-routed path, this one **halts** if the node predicts the call
 will fail — a `422` you are not charged for. See
 [Pre-request validation](engine-ask.md#pre-request-validation).
 
-→ [Request Intelligence](engine-ask.md#direct-ask)
+→ [Make a Request](engine-ask.md#direct-ask)
 
 ### MCP server
 
@@ -123,7 +123,7 @@ every miner as a tool to your agent runtime.
 Node.js 20+ is required — on Node 18 every paid call fails with
 `Crypto API not available`.
 
-→ [Use Intelligence from AI Agents](mcp-server.md)
+→ [AI Agents (MCP)](mcp-server.md)
 
 ### WebSocket
 
@@ -144,7 +144,7 @@ wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=0xYourAddress
 You must have **≥ 1.00 USDC in escrow** before the handshake, or the connection
 is closed. Funding it is [three transactions](websocket-signals.md#funding-your-escrow).
 
-→ [WebSocket Signals](websocket-signals.md)
+→ [Stream over WebSocket](websocket-signals.md)
 
 ### ERC-8183 job
 
@@ -163,7 +163,7 @@ Read the intent's on-chain layout from `GET /engine/v1/intents/{intent}`
 (`onchain`) first. The intent in the command above is a placeholder. If no miner can answer, the validator quorum fails the job,
 you are refunded, and your callback gets `success = false`.
 
-→ [Use Intelligence On-Chain](erc8183-jobs.md)
+→ [On-Chain Jobs](erc8183-jobs.md)
 
 ### On-chain miner request (removed)
 

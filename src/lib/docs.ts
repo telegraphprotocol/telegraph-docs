@@ -125,7 +125,11 @@ export function slugToFilePath(slug: string[]): string | null {
 // ── Heading extraction ────────────────────────────────────────────────────────
 function extractHeadings(content: string): DocHeading[] {
   const headings: DocHeading[] = []
+  let inCode = false
   for (const line of content.split('\n')) {
+    // a `# comment` inside a code block is not a heading
+    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode
+    if (inCode) continue
     const match = line.match(/^(#{1,6})\s+(.+)/)
     if (!match) continue
     const level = match[1].length

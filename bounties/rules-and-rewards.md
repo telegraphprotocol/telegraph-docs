@@ -13,6 +13,12 @@ description: Public contribution rules and the reward terms that govern a Telegr
 5. Use the private security channel for exploitable vulnerabilities.
 6. Do not treat a GitHub status, merge, or comment as a protocol or production action.
 
+### Only intents that already exist
+
+Bounties use the intents that already exist on the network: browse them in
+[Browse Intents & Schemas](/intent-schema). Proposing a new intent is not part
+of a bounty.
+
 ## Rewards
 
 `reward:unfunded` means no bounty payment is committed. A funded Issue must state the amount, denomination, payout asset, eligibility, verification condition, and payout window before it can be claimed.

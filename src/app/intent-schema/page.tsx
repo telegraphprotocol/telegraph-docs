@@ -16,7 +16,7 @@ export default function IntentSchemaPage() {
       headings={[]}
       prevHref={null}
       nextHref={null}
-      breadcrumb={{ section: 'Intelligence', current: 'Explore Capabilities & Schemas' }}
+      breadcrumb={{ section: 'Using Telegraph', current: 'Browse Intents & Schemas' }}
     >
       <IntentSchemaExplorer />
     </DocsLayout>

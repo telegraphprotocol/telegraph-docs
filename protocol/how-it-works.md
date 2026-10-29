@@ -98,7 +98,7 @@ The protocol doesn't wait for agents to ask questions. The **Daemon**, a service
 4. Stores the results in its database.
 5. Serves them read-only over HTTP and pushes new ones to WebSocket subscribers.
 
-This means the network is continuously producing verified intelligence even without active agent demand, building a track record for miners and validators before organic usage scales. These autonomously generated signals are what the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/) displays; you can also read them directly via the [Daemon Signal Feed](../using/daemon-signals.md). The Daemon generates its own questions on a schedule; the Engine answers *your* questions on demand. The two are distinct. The Daemon's own asks are served on a payment-free internal path and are not billed or counted as consumer demand.
+This means the network is continuously producing verified intelligence even without active agent demand, building a track record for miners and validators before organic usage scales. These autonomously generated signals are what the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/) displays; you can also read them directly via the [Read the Daemon Feed](../using/daemon-signals.md). The Daemon generates its own questions on a schedule; the Engine answers *your* questions on demand. The two are distinct. The Daemon's own asks are served on a payment-free internal path and are not billed or counted as consumer demand.
 
 ## Off-Chain Execution, On-Chain Security
 

@@ -23,30 +23,31 @@ At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents 
 3. The miner returns a response, which the node reads into the intent's own answer shape, the same whichever miner answered.
 4. Validators grade miners each epoch with a shared WASM scoring module and sign the epoch's state.
 5. The signal is delivered, either directly to the agent, or as a callback to a smart contract.
-6. The USDC paid gets dripped into Uniswap to purchase MACHINA, which is sent to the miner.
+6. The USDC paid is swapped for MACHINA on Uniswap in spaced, price-limited batches, and the miner claims it.
 
 ## WebSocket: A Continuous Signal Stream
 
 The flow above is on-demand: you ask a question, you get an answer. Telegraph also runs a background **Daemon** that autonomously scrapes real-world data, generates its own questions, and produces signals on a fixed cycle whether or not any agent is asking.
 
-You can subscribe to this feed over WebSocket instead of polling for it: authenticate with your wallet, pick the Intents you care about, and each matching signal is pushed to you as the Daemon produces it. Delivery is settled against your on-chain USDC escrow per signal, rather than paid per call like the Engine. See [WebSocket Signal Subscriptions](using/websocket-signals.md).
+You can subscribe to this feed over WebSocket instead of polling for it: authenticate with your wallet, pick the Intents you care about, and each matching signal is pushed to you as the Daemon produces it. Delivery is settled against your on-chain USDC escrow per signal, rather than paid per call like the Engine. See [Stream over WebSocket](using/websocket-signals.md).
 
 ## Where to Go Next
 
 | I want to... | Go here |
 |---|---|
-| **Get an answer, and not read six pages first** | **[Choosing an Inference Path](using/inference-paths.md)** |
+| **Make my first request, step by step** | **[Start Here](using/consume-intelligence.md)** |
+| Pick between HTTP, WebSocket, on-chain and AI-agent access | [Choose a Delivery Path](using/inference-paths.md) |
 | Understand the full protocol mechanics | [How It Works](protocol/how-it-works.md) |
 | Learn about MACHINA tokenomics | [Tokenomics](protocol/tokenomics.md) |
 | See contract addresses and key parameters | [Addresses & Parameters](protocol/addresses-and-params.md) |
-| Get inference via the Engine | [Engine Inference](using/engine-ask.md) |
-| Understand how paying per call works | [Paying with x402](using/x402-inference.md) |
-| Read the autonomous signal feed | [Daemon Signal Feed](using/daemon-signals.md) |
-| Subscribe to a continuous signal stream | [WebSocket Signals](using/websocket-signals.md) |
-| Trigger inference from a smart contract | [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md) |
+| See every request and response field | [Make a Request](using/engine-ask.md) |
+| Understand how paying per call works | [Pay per Request (x402)](using/x402-inference.md) |
+| Read the autonomous signal feed | [Read the Daemon Feed](using/daemon-signals.md) |
+| Subscribe to a continuous signal stream | [Stream over WebSocket](using/websocket-signals.md) |
+| Trigger inference from a smart contract | [On-Chain Jobs](using/erc8183-jobs.md) |
 | Understand intents, prefixes and how to propose one | [Intents](using/intents.md) |
 | Build a scoring adapter or contribute evaluation data | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
-| Connect an AI agent with zero crypto code | [MCP Server](using/mcp-server.md) |
+| Connect an AI agent with zero crypto code | [AI Agents (MCP)](using/mcp-server.md) |
 | Run a miner and earn MACHINA | [What Miners Do](miners/miner-overview.md) |
 
 ## Reading These Docs With an AI
