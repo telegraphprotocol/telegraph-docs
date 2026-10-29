@@ -12,18 +12,22 @@
 * [Addresses & Parameters](protocol/addresses-and-params.md)
 * [Roles](protocol/roles.md)
 
-## Using Telegraph
+## Consume Intelligence
 
+* [Start Here](using/consume-intelligence.md)
+* [Browse Intents & Schemas](/intent-schema)
 * [Choosing an Inference Path](using/inference-paths.md)
 * [Engine Inference](using/engine-ask.md)
-* [Intents](using/intents.md)
 * [Paying with x402](using/x402-inference.md)
 * [Paying from Escrow](using/escrow-inference.md)
 * [Daemon Signal Feed](using/daemon-signals.md)
 * [WebSocket Signal Subscriptions](using/websocket-signals.md)
 * [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)
-* [On-Chain Miner Requests (removed)](using/onchain-miner-requests.md)
 * [MCP Server](using/mcp-server.md)
+
+## Protocol Reference (Advanced)
+
+* [Intent Catalog & Governance](using/intents.md)
 
 ## Running a Miner
 
