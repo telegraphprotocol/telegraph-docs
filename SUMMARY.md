@@ -37,3 +37,18 @@
 * [Build an Evaluator Adapter](scoring/build-a-scoring-module.md)
 * [Train an Evaluator Adapter](scoring/train-a-scoring-adapter.md)
 * [Contribute Evaluation Data](scoring/contribute-evaluation-data.md)
+
+## Contributing Through Bounties
+
+* [Bounties in Two Minutes](bounties/overview.md)
+* [Your First Bounty, Step by Step](bounties/your-first-bounty.md)
+* [Reading a Bounty](bounties/reading-a-bounty.md)
+* [Adding Evaluation Material](bounties/evaluation-material.md)
+* [Building an Adapter or Comparator](bounties/building-an-adapter.md)
+* [Doing It With an AI Assistant](bounties/using-ai.md)
+* [How a Bounty Works](bounties/how-a-bounty-works.md)
+* [Rules and Rewards](bounties/rules-and-rewards.md)
+* [Bounties and Season II](bounties/season-two.md)
+* [Questions and Fixes](bounties/questions.md)
+* [For Developers and Agents](bounties/command-line.md)
+* [Bounty Glossary](bounties/glossary.md)
