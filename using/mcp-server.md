@@ -1,10 +1,10 @@
 ---
-description: Connect any MCP-compatible AI agent to Telegraph for decentralized inference with automatic x402 micropayments — no blockchain code required.
+description: Connect an MCP-compatible AI agent to Telegraph intelligence with automatic x402 payments.
 ---
 
-# Telegraph MCP Server
+# Use Intelligence from AI Agents
 
-The Telegraph MCP Server is a local Node.js process that exposes the full Telegraph inference network as [Model Context Protocol](https://modelcontextprotocol.io) tools. Any agent runtime that speaks MCP — Claude Desktop, Cursor, ElizaOS, LangChain, OpenClaw, Goose, VS Code / Continue — gains access to Telegraph's miners, the Daemon signal feed, and on-demand Engine inference without writing a single line of payment or blockchain code.
+The Telegraph MCP Server is a local Node.js process that exposes Telegraph intelligence through [Model Context Protocol](https://modelcontextprotocol.io) tools. Any agent runtime that speaks MCP—Claude Desktop, Cursor, ElizaOS, LangChain, OpenClaw, Goose, VS Code, or Continue—can discover Miners, read published intelligence, and make on-demand requests without implementing the payment or blockchain flow itself.
 
 **x402 payments are handled entirely inside the MCP server process.** The agent calls a tool, the server pays, the agent gets the result.
 
@@ -85,7 +85,7 @@ TELEGRAPH_EVM_PRIVATE_KEY=0x_your_private_key_here
 # TELEGRAPH_SOLANA_PRIVATE_KEY=your_base58_key
 ```
 
-**Use a burner wallet funded with only the USDC needed for inference.** Each inference call costs ~$0.01.
+**Use a burner wallet funded with only the USDC needed for intelligence requests.** Each request costs ~$0.01.
 
 ### 3. Run
 
@@ -142,8 +142,8 @@ npm run inspect
 | Tool | Payment | Description |
 |---|---|---|
 | `tg_engine_list_subnets` | Free | List the miners the Engine can route to |
-| `tg_engine_ask` | x402 ~$0.01 | Auto-routed inference — Engine LLM selects the best miner for your query |
-| `tg_engine_ask_subnet` | x402 ~$0.01 | Direct inference through a specific miner by ID |
+| `tg_engine_ask` | x402 ~$0.01 | Auto-routed intelligence — Engine LLM selects the best Miner for your query |
+| `tg_engine_ask_subnet` | x402 ~$0.01 | Direct intelligence request through a specific Miner by ID |
 
 `tg_engine_ask` accepts a single `query` string. The Engine's internal LLM router classifies it and routes to the most appropriate miner automatically.
 

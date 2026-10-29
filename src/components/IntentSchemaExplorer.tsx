@@ -79,23 +79,23 @@ export function IntentSchemaExplorer() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--tg-bg)] px-5 py-12 sm:px-8 lg:px-14">
-      <div className="mx-auto max-w-4xl">
-        <a className="text-sm text-[var(--tg-amber)] underline" href="/docs/using/consume-intelligence">
-          ← Back to Consume Intelligence
-        </a>
-        <h1 className="mt-6 text-3xl font-bold tracking-tight text-[var(--tg-fg)]">
-          Browse Intents & Schemas
-        </h1>
-        <p className="mt-3 max-w-3xl text-[var(--tg-fg-dim)]">
-          Choose a live capability, then use its public request, processed-response, and on-chain
-          schemas as your integration contract.
-        </p>
+    <div className="w-full max-w-4xl">
+        <div className="mb-8 border-b border-[var(--tg-line)] pb-7">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tg-amber)]">
+            Live catalog
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--tg-fg)] sm:text-4xl">
+            Explore capabilities and schemas
+          </h1>
+          <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[var(--tg-fg-dim)]">
+            Find a live capability, inspect its exact request and processed-result schema, then build against that contract.
+          </p>
+        </div>
 
-        <section className="mt-8 rounded-lg border border-[var(--tg-line)] bg-[var(--tg-bg-subtle)] p-5">
+        <section className="rounded-xl border border-[var(--tg-line)] bg-[var(--tg-bg-subtle)] p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--tg-fg)]">Live intent catalog</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--tg-fg)]">Capabilities</h2>
               <p className="mt-1 text-sm text-[var(--tg-fg-dim)]">
                 {intents.length ? `${intents.length} live intents. Select one to inspect its exact schema.` : 'Loading live intents…'}
               </p>
@@ -108,32 +108,32 @@ export function IntentSchemaExplorer() {
               value={filter}
             />
           </div>
-          <div className="mt-4 grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+          <div className="mt-5 grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
             {visibleIntents.map((item) => {
               const name = item.intent_name ?? item.intent_id
               if (!name) return null
               return (
                 <button
-                  className="rounded-md border border-[var(--tg-line)] bg-[var(--tg-bg)] px-3 py-2 text-left transition hover:border-[var(--tg-amber)] hover:bg-[var(--tg-line-soft)]"
+                  className="rounded-lg border border-[var(--tg-line)] bg-[var(--tg-bg)] px-3.5 py-3 text-left transition hover:border-amber-500/70 hover:bg-[var(--tg-line-soft)] focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   key={name}
                   onClick={() => void loadIntent(name)}
                   type="button"
                 >
                   <span className="block font-mono text-sm font-medium text-[var(--tg-fg)]">{name}</span>
-                  <span className="mt-1 block text-xs text-[var(--tg-fg-dim)]">{item.miner_count ?? 0} miners</span>
+                  <span className="mt-1 block text-xs text-[var(--tg-fg-faint)]">{item.miner_count ?? 0} miners available</span>
                 </button>
               )
             })}
           </div>
         </section>
 
-        <form className="mt-8 flex flex-col gap-3 sm:flex-row" onSubmit={load}>
+        <form className="mt-5 flex flex-col gap-3 border-t border-[var(--tg-line)] pt-5 sm:flex-row" onSubmit={load}>
           <input
             aria-label="Intent name"
             className="min-w-0 flex-1 rounded-md border border-[var(--tg-line-strong)] bg-[var(--tg-bg)] px-3 py-2 font-mono text-sm text-[var(--tg-fg)] outline-none focus:border-[var(--tg-amber)]"
             list="intent-names"
             onChange={(event) => setIntent(event.target.value)}
-            placeholder="Or type an exact intent name"
+            placeholder="Enter an exact capability name"
             value={intent}
           />
           <datalist id="intent-names">
@@ -147,7 +147,7 @@ export function IntentSchemaExplorer() {
             disabled={loading}
             type="submit"
           >
-            {loading ? 'Loading…' : 'Load schema'}
+            {loading ? 'Loading…' : 'Inspect schema'}
           </button>
         </form>
 
@@ -159,13 +159,13 @@ export function IntentSchemaExplorer() {
 
         {result !== null && (
           <section className="mt-8">
-            <h2 className="text-xl font-semibold text-[var(--tg-fg)]">Live integration schema</h2>
-            <p className="mt-2 text-sm text-[var(--tg-fg-dim)]">
-              This is the node response used by consumers. Keep the relevant schema version with your integration.
+            <h2 className="text-xl font-semibold tracking-tight text-[var(--tg-fg)]">Integration contract</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--tg-fg-dim)]">
+              This is the live node response. Keep the relevant schema version with your integration.
             </p>
             {!hasConsumptionSchema(result) && (
-              <p className="mt-3 text-sm text-[var(--tg-fg-dim)]">
-                Need a request and processed-response schema for this intent? Ask the Telegraph team in Discord and include the intent name.
+              <p className="mt-3 rounded-lg border border-[var(--tg-line)] bg-[var(--tg-bg-subtle)] px-3 py-2 text-sm text-[var(--tg-fg-dim)]">
+                Need a request and processed-result schema for this capability? Ask the Telegraph team in Discord and include its exact name.
               </p>
             )}
             <pre className="mt-4 overflow-x-auto rounded-lg border border-[var(--tg-line)] bg-[var(--tg-code-bg)] p-4 text-xs leading-6 text-[var(--tg-code-fg)]">
@@ -173,7 +173,6 @@ export function IntentSchemaExplorer() {
             </pre>
           </section>
         )}
-      </div>
-    </main>
+    </div>
   )
 }

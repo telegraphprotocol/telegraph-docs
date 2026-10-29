@@ -109,8 +109,8 @@ export function pageMarkdown(slug: string[]): string | null {
 }
 
 const INTRO =
-  'Telegraph is a permissionless marketplace for verified AI inference: agents pay ' +
-  'in USDC for an answer, miners compete to supply it, and validators score the ' +
+  'Telegraph is a permissionless marketplace for verified intelligence: agents pay ' +
+  'in USDC for a result, Miners compete to supply it, and Validators score the ' +
   'answers and rank the miners.'
 
 export function llmsIndex(): string {

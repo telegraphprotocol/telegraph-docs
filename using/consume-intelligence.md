@@ -2,7 +2,7 @@
 description: Choose a live intelligence capability, read its schema, and consume it through Telegraph.
 ---
 
-# Consume Intelligence
+# Start Using Intelligence
 
 Start here when you want to use Telegraph in an application, agent, or smart
 contract.
@@ -39,9 +39,9 @@ version you built against.
 | Use one Miner while retaining the Intent contract | `/engine/v1/ask/{miner}` + `intent` + `params` or `query` | `POST /engine/v1/ask/weather-miner` |
 | Call a Miner’s native API unchanged | `/engine/v1/ask/{miner}` + `method`, `endpoint`, `payload` | `{"method":"GET","endpoint":"/forecast","payload":{...}}` |
 | A smart contract needs the result | On-chain job and callback | [On-Chain Jobs](erc8183-jobs.md) |
-| Receive intelligence as it is produced | Daemon feed or WebSocket subscription | [Daemon Signal Feed](daemon-signals.md), [WebSocket Signals](websocket-signals.md) |
+| Receive intelligence as it is produced | Daemon feed or WebSocket subscription | [Read Published Intelligence](daemon-signals.md), [Stream Intelligence](websocket-signals.md) |
 
-For HTTP requests, see [Engine Inference](engine-ask.md). Pay per request with
+For HTTP requests, see [Request Intelligence](engine-ask.md). Pay per request with
 [x402](x402-inference.md), or fund once and use [escrow](escrow-inference.md).
 
 When you request a canonical Intent, the node validates supplied parameters,

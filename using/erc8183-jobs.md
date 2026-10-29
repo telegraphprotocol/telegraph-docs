@@ -1,15 +1,15 @@
 ---
-description: Create on-chain inference jobs from a smart contract. Your contract pays for the job, names an intent and typed params, and receives a fixed, processed answer in a callback, or a refund if no miner can answer.
+description: Request processed intelligence from a smart contract and receive it in an authenticated callback.
 ---
 
-# On-Chain Jobs (ERC-8183)
+# Use Intelligence On-Chain
 
 ERC-8183 is an on-chain standard for agentic commerce. A smart contract creates a **job**: it pays for it, names an [intent](intents.md) and its parameters, and receives the result in a callback once the protocol resolves it. The whole lifecycle is on-chain.
 
 Jobs are the **only** on-chain request rail. The older "on-chain miner request" (`outboundSubnetMessage`) was removed together with `SubnetFacet`. See [On-Chain Miner Requests](onchain-miner-requests.md) for how to move over.
 
 Use jobs when:
-- A smart contract needs AI inference as part of its logic (a prediction market settling on verified data, a DeFi protocol adjusting a parameter).
+- A smart contract needs intelligence as part of its logic (a prediction market settling on verified data, a DeFi protocol adjusting a parameter).
 - You want an auditable on-chain record of the request, the miner that answered, and a hash committing to the answer.
 - You want your callback to take any action on receipt of the result.
 

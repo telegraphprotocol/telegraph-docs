@@ -2,13 +2,13 @@
 description: Fund once, then call as often as you like. No per-request settlement, no facilitator round trip, and a receipt for every call.
 ---
 
-# Paying from Escrow
+# Use Escrow for Intelligence Requests
 
 Escrow is the second way to pay a Telegraph node. You deposit USDC into the Port Contract once, and every call after that is authorized against that balance and settled in a single on-chain transaction at the end of the epoch.
 
 It is **not** a separate payment API. It is one more entry in the same x402 `accepts` array, sent in the same `X-PAYMENT` header, with the same base64 envelope and the same field names as the EVM `exact` scheme. Only `scheme` differs. A client that already speaks x402 changes one string.
 
-This page covers the escrow mechanics. For the x402 rail it sits alongside, see [Paying with x402](x402-inference.md). For what to send and get back, see [Engine Inference](engine-ask.md).
+This page covers escrow. For x402, see [Pay for Intelligence](x402-inference.md). For request and result shapes, see [Request Intelligence](engine-ask.md).
 
 ## Why Escrow Instead of x402
 
@@ -66,7 +66,7 @@ IERC20(USDC).approve(DIAMOND, amount);
 EscrowFacet(DIAMOND).depositUSDCFor(userWallet, amount);
 ```
 
-Useful for sponsoring your users' inference, topping up a fleet of agent wallets, or funding a hot agent key from a cold one. Any outstanding debt is cleared against the beneficiary, not you.
+Useful for sponsoring your users' intelligence requests, topping up a fleet of agent wallets, or funding a hot agent key from a cold one. Any outstanding debt is cleared against the beneficiary, not you.
 
 ## Step 2: Read the Challenge
 
@@ -245,7 +245,7 @@ curl -sS -D - -X POST "$NODE/engine/v1/ask" -H 'Content-Type: application/json' 
   -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
 
-The body is a `query`, or an `intent` with `params`. See [Engine Inference](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
+The body is a `query`, or an `intent` with `params`. See [Request Intelligence](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
 
 An unfunded wallet gets `insufficient escrow for delivery: committed=0 μUSDC + price=10000 μUSDC > available=0 μUSDC`, which is a useful signal on its own: it means the signature verified and only the balance is missing.
 
@@ -289,6 +289,6 @@ EscrowFacet(DIAMOND).cancelWithdraw();          // changed your mind
 
 ## Related
 
-- [Paying with x402](x402-inference.md): the per-request rail escrow sits alongside
-- [Choosing an Inference Path](inference-paths.md): which rail fits your workload
-- [WebSocket Signal Subscriptions](websocket-signals.md): escrow is what funds streamed signals
+- [Pay for Intelligence](x402-inference.md): the per-request rail escrow sits alongside
+- [Choose a Delivery Path](inference-paths.md): which rail fits your workload
+- [Stream Intelligence](websocket-signals.md): escrow is what funds streamed signals

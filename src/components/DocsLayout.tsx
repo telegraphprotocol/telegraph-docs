@@ -20,11 +20,12 @@ interface DocsLayoutProps {
   headings: DocHeading[]
   prevHref: string | null
   nextHref: string | null
+  breadcrumb?: { section: string; current: string }
   children: React.ReactNode
 }
 
 export function DocsLayout({
-  nav, slug, headings, prevHref, nextHref, children,
+  nav, slug, headings, prevHref, nextHref, breadcrumb, children,
 }: DocsLayoutProps) {
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [searchOpen,  setSearchOpen]  = useState(false)
@@ -90,7 +91,7 @@ export function DocsLayout({
 
           {/* Main content */}
           <main className="flex-1 min-w-0 py-10 px-5 sm:px-8 lg:px-14">
-            <div className="w-full lg:w-2/3">
+            <div className="w-full max-w-4xl">
               {/* Breadcrumb row with sidebar toggle */}
               <div className="flex items-center gap-1.5 mb-6">
                 <button
@@ -103,7 +104,7 @@ export function DocsLayout({
                 >
                   {menuOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
                 </button>
-                <Breadcrumb nav={nav} slug={slug} />
+                <Breadcrumb nav={nav} slug={slug} override={breadcrumb} />
               </div>
 
               {children}

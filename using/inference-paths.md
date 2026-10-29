@@ -1,13 +1,12 @@
 ---
-description: The rails Telegraph answers questions over, what each one costs, and how to pick the right one before you write any code.
+description: "Choose how your application receives Telegraph intelligence: on demand, streamed, published, or on-chain."
 ---
 
-# Choosing an Inference Path
+# Choose a Delivery Path
 
-Telegraph answers questions over several different rails. They are not variations on
-one API — they differ in who picks the miner, how you pay, whether the answer
-comes back in the same call, and what you need to hold before you start. Picking
-the wrong one usually isn't discovered until the payment step fails.
+Telegraph delivers intelligence in several ways. They differ in who picks the
+Miner, how you pay, when the result arrives, and whether you need to retain
+state. Start with the outcome you need, then use the matching path.
 
 Start here, then follow the link for the one you want.
 
@@ -15,14 +14,14 @@ Start here, then follow the link for the one you want.
 
 | You are... | Use | Page |
 |---|---|---|
-| A script or agent that wants an answer now | **HTTP ask** (auto-routed) | [Engine Inference](engine-ask.md) |
-| Calling often enough that per-request settlement hurts | **Escrow** on the same HTTP endpoints | [Paying from Escrow](escrow-inference.md) |
-| Sure which miner you want | **HTTP ask direct** | [Engine Inference](engine-ask.md#direct-ask) |
-| An LLM agent with an MCP client | **MCP server** | [MCP Server](mcp-server.md) |
+| A script or agent that wants an answer now | **HTTP request** (auto-routed) | [Request Intelligence](engine-ask.md) |
+| Calling often enough that per-request settlement hurts | **Escrow** on the same HTTP endpoints | [Use Escrow](escrow-inference.md) |
+| Sure which miner you want | **Direct HTTP request** | [Request Intelligence](engine-ask.md#direct-ask) |
+| An LLM agent with an MCP client | **MCP server** | [Use Intelligence from AI Agents](mcp-server.md) |
 | Wanting a continuous feed, not one answer | **WebSocket subscribe** | [WebSocket Signals](websocket-signals.md) |
 | A smart contract targeting a capability | **ERC-8183 job** | [On-Chain Jobs](erc8183-jobs.md) |
 | A smart contract that prefers one known miner | **ERC-8183 job** with `createJobForMiner` | [On-Chain Jobs](erc8183-jobs.md) |
-| Just reading what the network already produced | **Daemon feed** (free, no inference) | [Daemon Signal Feed](daemon-signals.md) |
+| Just reading what the network already produced | **Published intelligence feed** | [Read Published Intelligence](daemon-signals.md) |
 
 ## The comparison
 
@@ -33,7 +32,7 @@ Start here, then follow the link for the one you want.
 | **How you pay** | Per call, x402, or from [escrow](escrow-inference.md) | Per call, x402, or from [escrow](escrow-inference.md) | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow |
 | **Answer arrives** | In the response, in the Intent's shape | In the response (raw, or shaped for the canonical form) | As stream events | Pushed, on the Daemon's cycle | Callback + on-chain state |
 | **Synchronous** | Yes | Yes | Yes | No | No |
-| **Fresh inference** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes |
+| **Fresh result** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes |
 | **Concurrency** | Many in flight | Many in flight | Per connection | One subscription per wallet | Many in flight |
 
 Two things that surprise people:
@@ -43,15 +42,15 @@ Two things that surprise people:
   rather than paid up front. It does not count against a subscription's
   `spend_limit_usdc` — that cap is only for pushed signals. Clearing the $1.00
   connect minimum once does not buy you unlimited calls.
-- **The Daemon feed is not inference.** It is a read of answers the network
-  already produced on its own schedule. You cannot ask it your own question.
+- **The Daemon feed is published intelligence.** It is a read of results the
+  network produced on its own schedule. You cannot ask it your own question.
 
 ## The minimum that works, per path
 
 Everything below is the shortest complete call for that rail. Each links to the
 page with the full contract.
 
-### HTTP ask — auto-routed
+### HTTP request — auto-routed
 
 The default. You describe what you want; the Engine classifies it and picks a
 miner.
@@ -70,13 +69,13 @@ const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine
 ```
 
 The library handles the `402` challenge, signs, and retries. Doing it by hand is
-covered in [Paying with x402](x402-inference.md) — read it before you try,
+covered in [Pay for Intelligence](x402-inference.md) — read it before you try,
 because a malformed payment comes back as a bare `402`, indistinguishable from
 not having paid at all.
 
-→ [Engine Inference](engine-ask.md) · [Paying with x402](x402-inference.md)
+→ [Request Intelligence](engine-ask.md) · [Pay for Intelligence](x402-inference.md)
 
-### HTTP ask — direct to a miner
+### Direct HTTP request
 
 You supply the miner ID, the endpoint and the payload. No routing, no
 `reasoning` or `intent` in the response.
@@ -97,7 +96,7 @@ Unlike the auto-routed path, this one **halts** if the node predicts the call
 will fail — a `422` you are not charged for. See
 [Pre-request validation](engine-ask.md#pre-request-validation).
 
-→ [Engine Inference](engine-ask.md#direct-ask)
+→ [Request Intelligence](engine-ask.md#direct-ask)
 
 ### MCP server
 
@@ -124,7 +123,7 @@ every miner as a tool to your agent runtime.
 Node.js 20+ is required — on Node 18 every paid call fails with
 `Crypto API not available`.
 
-→ [MCP Server](mcp-server.md)
+→ [Use Intelligence from AI Agents](mcp-server.md)
 
 ### WebSocket
 
@@ -138,7 +137,7 @@ wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=0xYourAddress
 → {"action": "wallet_verify", "signature": "0x..."}   (personal_sign the message field)
 ← wallet_verified, then connected
 
-→ {"action": "ask", "query": "..."}                    live inference
+→ {"action": "ask", "query": "..."}                    live intelligence request
 → {"action": "subscribe", "intents": ["WEATHER_CHECK_TEMPERATURE"], "spend_limit_usdc": 500000}
 ```
 
@@ -164,7 +163,7 @@ Read the intent's on-chain layout from `GET /engine/v1/intents/{intent}`
 (`onchain`) first. The intent in the command above is a placeholder. If no miner can answer, the validator quorum fails the job,
 you are refunded, and your callback gets `success = false`.
 
-→ [On-Chain Jobs (ERC-8183)](erc8183-jobs.md)
+→ [Use Intelligence On-Chain](erc8183-jobs.md)
 
 ### On-chain miner request (removed)
 

@@ -1,14 +1,14 @@
 ---
-description: Pay per call for AI inference using the x402 HTTP payment standard — no API key, no account, just USDC.
+description: Pay per intelligence request using the x402 HTTP payment standard — no API key, no account, just USDC.
 ---
 
-# Paying with x402
+# Pay for Intelligence
 
 x402 is an HTTP-native payment protocol. Your client makes a request, gets a payment challenge back if it hasn't paid, completes the payment, and retries. The node verifies the payment before calling the miner. The whole exchange happens inside a normal HTTP request cycle — no separate checkout, no account, no API key.
 
-This page covers the payment mechanics. For what to actually send and get back, see [Engine Inference](engine-ask.md).
+This page covers payment. For request and result shapes, see [Request Intelligence](engine-ask.md).
 
-> **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Paying from Escrow](escrow-inference.md).
+> **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Use Escrow](escrow-inference.md).
 
 ## What You Need
 
@@ -148,7 +148,7 @@ The node forwards the payment proof to the PayAI facilitator (`https://facilitat
 
 ## Step 5: Receive the Response
 
-On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Engine Inference](engine-ask.md#the-answers-shape).
+On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Request Intelligence](engine-ask.md#the-answers-shape).
 
 ```json
 {
@@ -248,7 +248,7 @@ A miner's floor price is the `min_price_usdc` field of its `/api/miners` entry, 
 
 ## Endpoints That Don't Require Payment (Discovery)
 
-Inference is paid. Discovery and health endpoints are always open:
+Intelligence requests are paid. Discovery and health endpoints are always open:
 
 | Endpoint | Purpose |
 |---|---|

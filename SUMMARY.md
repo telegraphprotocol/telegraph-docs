@@ -12,18 +12,18 @@
 * [Addresses & Parameters](protocol/addresses-and-params.md)
 * [Roles](protocol/roles.md)
 
-## Consume Intelligence
+## Intelligence
 
-* [Start Here](using/consume-intelligence.md)
-* [Browse Intents & Schemas](/intent-schema)
-* [Choosing an Inference Path](using/inference-paths.md)
-* [Engine Inference](using/engine-ask.md)
-* [Paying with x402](using/x402-inference.md)
-* [Paying from Escrow](using/escrow-inference.md)
-* [Daemon Signal Feed](using/daemon-signals.md)
-* [WebSocket Signal Subscriptions](using/websocket-signals.md)
-* [On-Chain Jobs (ERC-8183)](using/erc8183-jobs.md)
-* [MCP Server](using/mcp-server.md)
+* [Start Using Intelligence](using/consume-intelligence.md)
+* [Explore Capabilities & Schemas](/intent-schema)
+* [Request Intelligence](using/engine-ask.md)
+* [Choose a Delivery Path](using/inference-paths.md)
+* [Pay for Requests](using/x402-inference.md)
+* [Use Escrow](using/escrow-inference.md)
+* [Read Published Intelligence](using/daemon-signals.md)
+* [Stream Intelligence](using/websocket-signals.md)
+* [Use Intelligence On-Chain](using/erc8183-jobs.md)
+* [Use Intelligence from AI Agents](using/mcp-server.md)
 
 ## Protocol Reference (Advanced)
 

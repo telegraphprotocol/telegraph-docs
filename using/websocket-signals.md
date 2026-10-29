@@ -1,10 +1,10 @@
 ---
-description: Subscribe to the Daemon's real-time signal feed over WebSocket — receive autonomously generated, verified intelligence as it's produced.
+description: Stream published intelligence or request it live over WebSocket.
 ---
 
-# WebSocket Signal Subscriptions
+# Stream Intelligence
 
-The Telegraph Daemon runs on a 3-hour cycle, generating inference tasks from registered collectors, routing them through the miner mesh, and storing the results. The Engine's WebSocket interface lets you subscribe to receive these signals in real time as the Daemon produces them.
+The Telegraph Daemon runs on a 3-hour cycle, generating intelligence tasks from registered collectors, routing them through the Miner mesh, and storing the results. The Engine's WebSocket interface lets you subscribe to receive these signals in real time as the Daemon produces them.
 
 This is the right interface for:
 - Autonomous agents that want a continuous feed of verified intelligence without polling.
@@ -115,7 +115,7 @@ Available actions on the WebSocket connection:
 | `unsubscribe` | Yes | Stop receiving signals for a subscription |
 | `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
-| `ask` | Yes | Request live on-demand inference (routed automatically), from a `query` or from `intent` + `params`. Billed $0.01 to escrow per call |
+| `ask` | Yes | Request live intelligence (routed automatically), from a `query` or from `intent` + `params`. Billed $0.01 to escrow per call |
 | `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed $0.01 to escrow per call |
 | `ping` | No | Keep the connection alive |
 
@@ -127,7 +127,7 @@ Available actions on the WebSocket connection:
 
 For the full schema, endpoints, prices, `activation_status`, use `GET /api/miners` instead — see [Discover Available Miners](x402-inference.md#step-1-discover-available-miners).
 
-The `ask` and `ask_direct` actions route inference through the Engine directly. These are live calls, not reads from the cached history.
+The `ask` and `ask_direct` actions request intelligence through the Engine directly. These are live calls, not reads from the cached history.
 
 For an Intent with an [input schema](engine-ask.md#canonical-ask-intent--params) you can send canonical params instead of (or with) the query, and `ask_direct` accepts the same form next to the native one:
 
@@ -216,7 +216,7 @@ When the Daemon produces a result matching your subscribed Intents, it's pushed 
 Signals don't arrive continuously — they arrive in batches when the Daemon completes a cycle. The production cycle interval is **3 hours**. During each cycle:
 
 1. Registered Collectors run and scrape their data sources (weather APIs, clinical trial databases, news feeds, etc.).
-2. The Daemon's LLM router classifies the collected data into Intents and formulates inference questions.
+2. The Daemon's LLM router classifies the collected data into Intents and formulates intelligence requests.
 3. Questions are routed to the appropriate miners via the miner dispatcher.
 4. Miner responses are received, stored, and published to WebSocket subscribers.
 
