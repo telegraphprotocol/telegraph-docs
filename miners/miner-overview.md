@@ -78,7 +78,7 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 
 | Requirement | Detail |
 |---|---|
-| **No bond or stake** | Registration is free — you pay gas on Base Sepolia and nothing else |
+| **A small refundable bond** | $1 in MACHINA for the first intent ($0.10 each after, $0.07 past 9), returned when you deregister. Gas is the only other cost |
 | **YAML configuration** | A YAML file describing your API, Intents, endpoint mapping, and pricing |
 | **Hosted YAML** | Your YAML must be accessible at a public URL (IPFS recommended) |
 | **Fee address** | An EVM wallet address to receive MACHINA payouts |

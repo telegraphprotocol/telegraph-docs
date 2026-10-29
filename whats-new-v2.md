@@ -6,6 +6,14 @@ description: What changed in the V2 release and what you need to change, by role
 
 This page lists what changed between the earlier release and V2, grouped by who you are. Each row says what it was, what it is now, and where to read the details.
 
+## Everyone
+
+| Before | Now | Details |
+|---|---|---|
+| Base Sepolia (chain ID 84532). | **Ethereum Sepolia** (chain ID `11155111`), with new contract addresses. Every call still goes to one Diamond. | [Addresses & Parameters](protocol/addresses-and-params.md) |
+| Circle USDC on Base Sepolia; USDC on Solana Devnet. | A **test USDC on Ethereum Sepolia** that anyone can mint with `mint(address,uint256)`. Payments are EVM only. | [Addresses & Parameters](protocol/addresses-and-params.md) |
+| Emissions: 60% Validators, 20% script authors, 20% Treasury. | **25% Validators, 50% Evaluators, 25% Treasury.** Each intent's Evaluator share goes 30% to its adapter and 70% to the evaluation material it used. | [Tokenomics](protocol/tokenomics.md) |
+
 ## If you call the API
 
 | Before | Now | Details |
@@ -27,13 +35,14 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | `intentId` could be a miner's registration id. | `intentId` must be `keccak256` of a canonical **Intent** name. Use `createJobForMiner` to prefer a miner. | [Step 2](using/erc8183-jobs.md#step-2-find-the-intent-id-and-its-layout) |
 | A failed miner call left the job `Funded` until you cancelled. The callback never fired. | The validator quorum **fails** the job: refund at once, `JobFailed` event, and your callback gets `success = false` with the reason. | [When a job fails](using/erc8183-jobs.md#when-a-job-fails) |
 | `JobCreated` had four fields. | `JobCreated` carries the request (`miner` and `params`). | [Step 3](using/erc8183-jobs.md#step-3-create-the-job) |
-| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, genesis 300,000). | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
+| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, 1,000,000 on the testnet). | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
 
 ## If you run a miner
 
 | Before | Now | Details |
 |---|---|---|
 | You listed canonical intents such as `WEATHER_FORECAST`. | You list **intents**, never family prefixes. `WEATHER_FORECAST` is a prefix. List `WEATHER_FORECAST_LAHORE`, or a `_GENERAL` intent. | [Intents](using/intents.md#prefixes-and-intents) |
+| Registration cost gas only. | A small **bond in MACHINA**: $1 for the first intent, $0.10 each up to 9, then $0.07. Approve the Diamond first. It is returned when you deregister (withdraw after 2 days). | [Registering as a Miner](miners/miner-registration.md#step-4-register-on-chain) |
 | To change anything you deregistered and registered again. | `updateMiner` (and the relayed `updateMinerFor`) changes your YAML, price, address or intents in one transaction. | [Updating your miner](miners/miner-registration.md#updating-your-miner) |
 | The node's model read your whole answer. | You may declare an **`intent_mapping`**: paths and formulas that read each field exactly. | [Intent mapping](miners/yaml-config.md#intent-mapping-optional) |
 | Jobs used your `on_chain.request` and `on_chain.fields` blocks. | Jobs no longer read them. The node builds your request from the Intent's inputs and reads your answer into the Intent's processed answer. | [YAML](miners/yaml-config.md#on-chain-jobs-and-the-on_chain-block) |
@@ -42,19 +51,11 @@ This page lists what changed between the earlier release and V2, grouped by who 
 
 | Before | Now | Details |
 |---|---|---|
-| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent; the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent). Not part of Season II bounties, which use only [intents that already exist](bounties/season-two.md). |
+| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent with a $1 MACHINA bond (returned); the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent). Not part of a bounty: bounties use only [Intents that already exist](bounties/rules-and-rewards.md#only-intents-that-already-exist). |
 
 ## If you write scoring adapters or contribute data
 
 | Before | Now | Details |
 |---|---|---|
 | MiniLM `rank_answer` modules, then Q32.32 packages. | **Float model adapters** in WASM. The older formats are refused. | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
-| `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)`. You register on a **prefix** (a family), supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |
-
-## If you deploy the contracts
-
-| Before | Now | Details |
-|---|---|---|
-| `FullDeploy` and `ConfigureDiamond`. | `DeployProd`, then `UpgradeToFlywheel`, then register the validator, then add intents with `RegisterIntentCatalog`. | — |
-| Genesis seeded 108 intents. | Genesis seeds **prefixes** only. Miners cannot register until intents exist. | [Intents](using/intents.md#prefixes-seeded-at-genesis) |
-| Moving chains meant everyone re-registered. | An admin **imports** every active miner (same owner and id), then closes the migration. | — |
+| `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)` with a **$5 MACHINA bond** (returned on deregistration). You register on a **prefix** (a family) and supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |

@@ -55,6 +55,158 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR
 The chain is the source of truth. This page explains the model; it does not try
 to list every intent, because the set changes as intents are approved.
 
+## Read an intent's consumption contract
+
+Before building an API client, an agent workflow, a miner integration, or a
+smart-contract job, read the exact intent from a node. Do not copy field names,
+array positions, units, or limits from another intent or a miner's YAML.
+
+```bash
+export NODE=https://devnode.telegraphprotocol.com
+export INTENT=FX_NOW_EUR
+
+# Discover canonical intent names and whether any miner currently serves them.
+curl -s "$NODE/engine/v1/intents" | jq '.intents[] | {
+  intent_name, description, miner_count, canonical
+}'
+
+# Read the complete contract for the chosen canonical intent.
+curl -s "$NODE/engine/v1/intents/$INTENT" | jq '{
+  intent_name, class, request, response, onchain, miner_count
+}'
+```
+
+You can also use the browser-based [Intent Schema Explorer](/intent-schema).
+It reads the same public endpoint and displays its unmodified JSON response.
+
+The second response is the public, node-generated contract for consumption. It
+contains four related definitions:
+
+| Definition | Where it appears | What it controls |
+|---|---|---|
+| Canonical request schema | `request` | The named `params` accepted by the API and used to build a miner request. |
+| Processed response schema | `response` | The stable fields the node returns to an API consumer after it reads the miner answer. |
+| On-chain request layout | `onchain.request` | The position, array, type, scale, and limit of each job input in `OnChainData`. |
+| On-chain response layout | `onchain.response` | The position, array, type, scale, and limit of each processed callback value in `OnChainData`. |
+
+`request.schema_version` and `response.format_version` identify the definitions
+the node loaded. `served_by` tells you when the definition is inherited from a
+family. Store the complete response you used alongside your integration so you
+can review a schema change before changing application code.
+
+The shape is intentionally descriptive rather than tied to one intent:
+
+```json
+{
+  "intent_name": "FX_NOW_EUR",
+  "class": "deterministic",
+  "request": {
+    "schema_version": 1,
+    "served_by": "FX_NOW_EUR",
+    "params": [
+      {"name": "...", "type": "string|number|integer|bool|enum|date|datetime"}
+    ]
+  },
+  "response": {
+    "format_version": 1,
+    "served_by": "FX_NOW_EUR",
+    "fields": [
+      {"name": "...", "type": "...", "unit": "..."}
+    ]
+  },
+  "onchain": {
+    "ready": true,
+    "request": [{"name": "...", "slot": "integers|strings|bools", "index": 0}],
+    "response": [{"name": "...", "slot": "integers|strings|bools", "index": 0}]
+  }
+}
+```
+
+The exact fields carry the rules for that intent: `optional`, `default`,
+`pattern`, `examples`, `range`, `allowed`, `unit`, `decimals`, `processed`, and
+`off_chain` appear only where relevant. Treat the returned JSON as data, not a
+free-form prompt: validate a request from `request.params`, and decode a result
+from `response.fields` or the corresponding on-chain layout.
+
+### Off-chain API consumption
+
+An API call sends canonical inputs by name:
+
+```json
+{
+  "intent": "FX_NOW_EUR",
+  "params": {
+    "example_input": "example_value"
+  }
+}
+```
+
+The node validates those values against `request.params` before selecting a
+miner or taking payment. It builds the chosen miner's native request from the
+same canonical inputs, then reads the miner response into `response.fields`.
+The returned result is therefore the intent's processed response shape, not the
+provider's arbitrary raw JSON. Fields marked `processed` are concise
+intent-defined intelligence derived during processing; fields marked
+`off_chain` remain in the API response but are not callback data for a contract.
+
+Do not assume every intent has a schema. `request` or `response` can be `null`;
+in that case the typed canonical route or shaped result is unavailable for that
+intent. Read the endpoint again rather than guessing a fallback shape.
+
+### On-chain consumption
+
+An on-chain job uses the same logical intent inputs and the same processed
+answer, but it cannot send JSON. It uses the contract's `OnChainData` struct:
+
+```solidity
+struct OnChainData {
+    address[] addresses;
+    uint256[] integers;
+    string[] strings;
+    bool[] bools;
+}
+```
+
+`onchain.request` and `onchain.response` are the codec for that struct. Each
+entry gives a field's `slot` and zero-based `index`; fill or read that exact
+location, never the order in which fields happen to appear in a JSON object.
+
+| Schema type | Slot | Encoding rule |
+|---|---|---|
+| `number` | `integers` | Signed fixed-point integer: the logical value × `10^decimals`. |
+| `integer` | `integers` | Signed integer value. |
+| `bool` | `bools` | Boolean value. |
+| `string`, `enum`, `date`, `datetime` | `strings` | UTF-8 text, bounded by the returned `max_bytes`. |
+
+For a job, provide every `onchain.request` slot in the stated position. API-only
+optional/default rules do not remove a job slot. The node decodes those slots,
+validates their range and allowed values, builds the miner request, processes
+the response, and encodes only `onchain.response` into the callback.
+
+Check `onchain.ready` before sending a transaction. If it is `false`, read
+`onchain.reason`; that intent cannot currently produce a bounded callback
+answer. A list or object, a number without a decimal scale, or a response with
+only `off_chain` fields cannot be used as a successful on-chain answer.
+
+The callback contains processed intelligence only. Detailed provider records,
+raw miner JSON, and fields listed in `onchain.off_chain` stay off chain. A field
+the node could not read is a failed job response, never an invented zero, empty
+string, or false value.
+
+This gives contracts a fixed decoding contract while allowing miners to use
+different providers internally:
+
+```text
+canonical API params / OnChainData request
+    → miner-specific request
+    → raw provider answer
+    → intent-defined processing
+    → processed API result
+    → fixed OnChainData callback layout
+```
+
+For the transaction and callback interface, see [On-Chain Jobs](erc8183-jobs.md).
+
 ## The three kinds
 
 Each prefix has a kind. It decides how answers to every intent in the family are
@@ -200,7 +352,17 @@ Anyone can propose an intent under an existing prefix. The admin approves it
 
 ### Propose
 
+A proposal posts a **$1 bond in MACHINA** (at the pool price; read it with
+`intentProposalParams()`). It is released when the proposal is approved,
+rejected or withdrawn; withdraw it to your wallet 2 days later with
+`withdrawMinerBond()`. Need MACHINA? See
+[Getting MACHINA](../protocol/addresses-and-params.md#getting-test-tokens). Approve the Diamond for it first:
+
 ```bash
+MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+cast send $MACHINA "approve(address,uint256)" $DIAMOND 5000000000000000000 \
+  --rpc-url $RPC --private-key $KEY
+
 cast send $DIAMOND \
   "proposeIntent(string,string,(uint8,uint32,uint64,string[],string,string,string,string,string))" \
   "FX_NOW_JPY" "Query asks for the live mid-market rate between USD and the Japanese yen ..." \
@@ -239,6 +401,7 @@ apply it from the **next epoch**.
 | `IntentCatalog: a hybrid intent needs fusion` / `fusion is for hybrid intents` | `fusion` missing for hybrid, or given for deterministic |
 | `IntentCatalog: proposed by someone else` | You tried to edit another address's proposal |
 | `MinerRegistryFacet: empty description` | The description is empty |
+| `ERC20InsufficientAllowance` / `ERC20InsufficientBalance` | The Diamond could not take the $1 MACHINA bond. Hold enough MACHINA and `approve` the Diamond first |
 
 ## After your intent is approved
 

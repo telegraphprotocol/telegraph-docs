@@ -123,7 +123,7 @@ npm run inspect
 | `SVM_NETWORK` | No | `solana:*` | CAIP-2 network for SVM payments |
 | `REFRESH_INTERVAL_MS` | No | `300000` | Dynamic miner-tool refresh interval. `0` to disable. |
 
-*At least one private key must be set.
+*Set `TELEGRAPH_EVM_PRIVATE_KEY`: the testnet node takes USDC payments on Ethereum Sepolia (`eip155:11155111`). Fund the wallet with test USDC by minting it: `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
 
 ---
 

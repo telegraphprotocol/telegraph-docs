@@ -22,7 +22,7 @@ An Agent is anything that consumes intelligence from the Telegraph network — a
 - **Pre-funded escrow**: Deposit USDC into the Diamond contract's EscrowFacet. Subsequent requests deduct from that balance automatically — no per-request transaction needed.
 - **On-chain job**: For dApps, a smart contract creates a job on-chain by funding it with USDC. The result arrives via a callback.
 
-**Requirements:** A wallet with USDC on Base (or Solana for Solana-side payments). No staking, no registration, no approval.
+**Requirements:** A wallet with USDC on Ethereum (Ethereum Sepolia on the testnet). No staking, no registration, no approval.
 
 ---
 
@@ -45,7 +45,7 @@ Miners earn MACHINA, but not from protocol emissions. The earning path is:
 The amount a miner earns per request depends on their declared floor price and the demand multiplier active for that Intent.
 
 **Requirements:**
-- No bond or stake — registration costs gas and nothing else.
+- A small bond in MACHINA: $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, at the pool price. It is returned when you deregister.
 - A hosted YAML configuration describing your capabilities.
 - An operational API endpoint compatible with the declared Intents.
 - A fee address (EVM wallet) to receive MACHINA payouts.
@@ -66,7 +66,7 @@ Validators are the protocol's neutral guarantors. They run the scoring engine, v
 - Submit signed epoch state roots on-chain.
 
 **How Validators earn:**
-Validators earn **60% of daily MACHINA emissions**, split equally among all active Validators. At genesis (7,200 MACHINA/day × 60% = 4,320 MACHINA/day ÷ 64 Validators = ~67.5 MACHINA per Validator per day). This halves every 4 years on the same schedule as total emissions.
+Validators earn **25% of daily MACHINA emissions**, split among the active Validators. At genesis that is 7,200 × 25% = 1,800 MACHINA a day, about 28 MACHINA per Validator per day with 64 Validators. This halves every 4 years on the same schedule as total emissions.
 
 Validators also earn a small gas reimbursement from the Treasury for each on-chain submission.
 
@@ -78,20 +78,23 @@ Validators also earn a small gas reimbursement from the Treasury for each on-cha
 
 ---
 
-## Script Author
+## Evaluator (Adapter Author and Material Contributor)
 
-Script Authors write the WASM programs that define how miner responses are scored. They are the intelligence behind the evaluation layer.
+Evaluators build the layer that scores miners. Adapter authors write the WASM programs (evaluator adapters) that score miner answers; material contributors supply the evaluation data those adapters are judged and ranked on.
 
-**What Script Authors do:**
+**What adapter authors do:**
 - Write a WASM scoring script for an Intent's tier: a comparator for a deterministic Intent, or a model-based adapter that judges answers for a judgment or hybrid Intent.
-- Post the script on-chain. There is no bond or fee — submission costs gas only.
+- Register the adapter on-chain with `registerWasm`, on the intent's family (prefix), with a $5 bond in MACHINA that is returned in full when it is deregistered.
 - A judgment or hybrid script competes with the current Canonical on a hidden sample from the Evaluation Pool. It becomes the new Canonical only if it beats the Canonical's win rate by the replacement margin and clears the minimum win rate. A comparator becomes Canonical only if it reproduces the reference comparison exactly. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md).
 
-**How Script Authors earn:**
-Script Authors earn **20% of daily MACHINA emissions** via Hash-Math — proportional to how often their script's hash is used as the Canonical across all active Intents. A script that becomes Canonical for a high-volume Intent captures a significant share of this pool.
+**What material contributors do:**
+- Upload evaluation material (question + better answer + worse answer) for an intent, signed with their wallet. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
+
+**How Evaluators earn:**
+Evaluators earn **50% of daily MACHINA emissions**, split per intent: 30% to the Canonical adapter that ranks it, 70% to the contributors whose material it used.
 
 **Requirements:**
-- No bond or fee — submission costs gas only.
+- A $5 MACHINA bond per adapter registration (uploading material needs only a signature).
 - WASM binary running within protocol sandbox constraints (no filesystem access, no unrestricted network, only whitelisted URLs).
 
 ---
