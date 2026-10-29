@@ -71,7 +71,7 @@ Agents working on the board follow the same rules as people, plus a few more:
 3. Don't invent acceptance evidence, customer demand, endorsements or usage.
 4. Don't publish security-sensitive or private information.
 5. Don't claim more bounties than a human operator can actually deliver.
-6. A mission output or a new model version is not automatically a new intent.
+6. Never propose a new intent through a bounty. Work only on the mandatory intents an Issue names.
 7. For evaluation work, group compatible intents by Category; don't open one Issue per intent, and keep hidden material secret.
 8. Never auto-approve or promise rewards, and never change protocol state from GitHub.
 9. A GitHub `status:done` is not proof that a capability is live. The network decides that.

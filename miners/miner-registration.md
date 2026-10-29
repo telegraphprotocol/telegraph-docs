@@ -60,7 +60,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"   # fami
 
 If your service does not fit any listed intent, you have two options:
 - **Serve a `_GENERAL` intent.** 21 judgment families ship with one, for example `CONTENT_EXTRACTION_GENERAL` for OCR and speech-to-text miners, or `FRAUD_DETECTION_GENERAL` for breach checks. The list is in [Intents](../using/intents.md#_general-intents).
-- **Propose a new intent** under the right prefix. See [Proposing a new intent](../using/intents.md#proposing-a-new-intent).
+- **Propose a new intent** under the right prefix. See [Proposing a new intent](../using/intents.md#proposing-a-new-intent). This is never part of a Season II bounty: bounties use the [mandatory intents](../bounties/season-two.md) only.
 
 Every intent you list also needs to appear in your YAML. See [YAML Configuration](yaml-config.md#intents-must-be-intents-not-prefixes).
 

@@ -59,8 +59,8 @@ Post this comment:
 /claim
 ```
 
-The bot records you as the claimant and changes the label to `status:claimed`.
-Nobody else can claim it while you hold it.
+The bot records your claim and changes the label to `status:claimed`. Other
+people can claim it too and work alongside you; each claim is tracked on its own.
 
 ## 4. Build, and post progress
 
@@ -99,10 +99,10 @@ The label changes to `status:review`.
 
 A maintainer who is not you reproduces each acceptance criterion:
 
-- **Approved:** they post `/approve` and the Issue becomes `status:done`.
-- **Needs changes:** they post `/changes <reason>`. The Issue goes back to
-  `status:claimed`, it is still yours, and you get a fresh 72-hour window. Fix the
-  issue, then `/submit` again.
+- **Approved:** they post `/approve @you`. Your part is accepted. When nobody
+  else is still working, the Issue becomes `status:done`.
+- **Needs changes:** they post `/changes @you <reason>`. You are back to
+  `status:claimed` with a fresh 72-hour window. Fix it, then `/submit` again.
 
 `status:done` means the acceptance criteria passed. Whether the network ranks
 your miner is decided separately by the protocol.

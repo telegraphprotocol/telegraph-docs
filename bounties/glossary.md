@@ -1,5 +1,5 @@
 ---
-description: Short definitions of the terms used on the bounty board — intent, mission, gap, bounty, triage, claim, slot Issue, provider opportunity, evaluator, release coverage and more.
+description: Short definitions of the terms used on the bounty board — intent, mission, gap, bounty, triage, claim, provider opportunity, evaluator, release coverage and more.
 ---
 
 # Bounty Glossary
@@ -22,8 +22,7 @@ the protocol wins.
 | **Bounty** | A claimable Issue (`status:open`) with clear acceptance criteria. It may or may not carry a reward. |
 | **Acceptance criteria** | The checklist that defines done. A maintainer reproduces every item before approving. |
 | **Triage** | The first state of every report (`status:triage`). A maintainer checks it is real, reusable, not a duplicate, safe to publish and verifiable. |
-| **Claim** | Your exclusive right to work an Issue, taken with `/claim`. Released after 72 hours without `/progress`. |
-| **Slot Issue** | One of several related Issues (`1/3`, `2/3`, `3/3`) when the network needs several independent implementations. Each has its own claim and reward. |
+| **Claim** | Your recorded right to work an Issue, taken with `/claim`. Several people can hold claims on one Issue. Yours is released after 72 hours without `/progress`. |
 | **Provider opportunity** | `opportunity:provider`. A commercial listing inviting an established service to join. Not claimable, never a bounty. |
 | **Release coverage** | Work that lets a newly released model, API or tool be measured fairly in an existing market. Success is fair measurement, not a particular rank. |
 | **Funded / unfunded** | Whether a bounty carries a committed reward. Every bounty is unfunded at launch. See [Rewards](rewards.md). |

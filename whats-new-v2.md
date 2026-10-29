@@ -42,7 +42,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 
 | Before | Now | Details |
 |---|---|---|
-| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent; the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent) |
+| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent; the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent). Not part of Season II bounties, which use the [mandatory intents](bounties/season-two.md) only. |
 
 ## If you write scoring adapters or contribute data
 

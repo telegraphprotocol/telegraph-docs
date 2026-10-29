@@ -42,12 +42,12 @@ When `/claim` succeeds, the bot posts a receipt containing a visible copy and a
 SHA-256 hash of the Issue's `## Reward` section. That records the terms you
 accepted, even if the Issue is edited later.
 
-If reward terms need to change, the maintainer releases the claim and updates
-the Issue, and you decide whether to claim again under the new terms.
+If reward terms need to change, the maintainer releases the claims and updates
+the Issue, and each person decides whether to claim again under the new terms.
 
 The receipt is an audit record, not proof of funding. Payment also needs a
 separate funding approval, and the person approving the work must be someone
-other than the claimant and submitter.
+other than every claimant and submitter on the Issue.
 
 ## Paying in a different asset
 

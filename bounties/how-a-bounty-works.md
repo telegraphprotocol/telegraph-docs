@@ -13,7 +13,7 @@ records each change and updates the Issue's labels.
 
 1. **Pick** an Issue labelled `status:open`.
 2. **Read** the acceptance criteria and the `## Reward` section before writing any code.
-3. **Claim** it by commenting `/claim`. One person holds an Issue at a time.
+3. **Claim** it by commenting `/claim`. Several people can claim the same Issue and work on it at once.
 4. **Build** the smallest thing that meets the acceptance criteria. Post `/progress <update>` at least every 72 hours.
 5. **Submit** proof with `/submit <links and evidence>`.
 6. A **maintainer reproduces** your result, then approves it or asks for changes.
@@ -26,8 +26,8 @@ A bounty is complete when its acceptance criteria are reproducibly met.
 |---|---|
 | `status:triage` | A proposal. A maintainer is checking it is real, reusable and verifiable. It cannot be claimed yet. |
 | `status:open` | Ready to claim. |
-| `status:claimed` | Someone is working on it. |
-| `status:review` | Proof submitted; a maintainer is checking it. |
+| `status:claimed` | One or more people are working on it. |
+| `status:review` | Proof submitted; a maintainer is checking it. Others can still join and keep working. |
 | `status:blocked` | Paused by a maintainer, for example while waiting on another change. |
 | `status:done` | Approved. |
 
@@ -35,10 +35,10 @@ A bounty is complete when its acceptance criteria are reproducibly met.
 
 | Command | What it does |
 |---|---|
-| `/claim` | Takes the Issue. The bot records you as the claimant and moves it to `status:claimed`. |
+| `/claim` | Adds your claim. The bot records you, lists who else is working on it, and moves it to `status:claimed`. |
 | `/progress <update>` | Keeps your claim alive and resets the 72-hour timer. |
 | `/submit <links and proof>` | Moves the Issue to `status:review`. |
-| `/release` | Gives the Issue back so someone else can take it. |
+| `/release` | Gives up your own claim. Other people keep theirs. |
 
 ```text
 /claim
@@ -48,10 +48,10 @@ A bounty is complete when its acceptance criteria are reproducibly met.
 
 ## The 72-hour rule
 
-A claim reserves the Issue only while work is active.
+Each person's claim stays active only while that person is working.
 
-- After **48 hours** without `/progress`, the bot posts a warning.
-- After **72 hours** without `/progress`, the claim is released and the Issue is open again.
+- After **48 hours** without your `/progress`, the bot warns you.
+- After **72 hours** without your `/progress`, your claim is released. Other people's claims stay. A submission waiting for review keeps you in.
 
 Post a real update each time. It only has to say what changed.
 
@@ -61,17 +61,20 @@ Post a real update each time. It only has to say what changed.
 |---|---|
 | `/open` | Moves a triage Issue to `status:open`, so it can be claimed. |
 | `/block`, `/unblock` | Pauses and resumes an Issue. |
-| `/changes <reason>` | Returns a submission to the claimant. The Issue goes back to `status:claimed` with the same claimant and a fresh 72-hour window. |
-| `/approve` | Accepts a submission and marks the Issue done. |
-| `/release` | Releases any claim. |
+| `/changes @user <reason>` | Returns that person's submission. They are back to `status:claimed` with a fresh 72-hour window. |
+| `/approve @user` | Accepts that person's part. If nobody else is still working, the Issue is done. |
+| `/done` | Closes the Issue as complete once at least one part is approved. |
+| `/release @user` | Releases that person's claim. |
+
+With only one submission waiting, `/approve` and `/changes <reason>` can leave the name out.
 
 Maintainer commands are checked against the person's real permission on the
 repository. Commenting `/approve` without that permission does nothing.
 
 ## How a submission is verified
 
-The approving maintainer must be someone other than the claimant and the
-submitter. They reproduce the acceptance criteria directly, using screenshots
+The approving maintainer must be someone other than every claimant and
+submitter on the Issue. They reproduce the acceptance criteria directly, using screenshots
 only as supporting evidence. Depending on the bounty, they check that:
 
 - the endpoint responds;
@@ -98,9 +101,17 @@ Good proof is something a maintainer can repeat:
 Only open a pull request on the bounty repository itself when the Issue asks
 for a change there, and reference it with `Closes #123`.
 
-## One claim, one award
+## Several people, one Issue
 
-Each Issue has exactly one claimant and at most one award. When the network
-needs several independent implementations, for example three separate miners
-for one intent, maintainers open separate **slot Issues** (`1/3`, `2/3`, `3/3`),
-each with its own claim and reward.
+Several people can claim one Issue. Each claim, submission and approval is
+recorded per person, so one person's delay never blocks another. This suits
+work that needs many hands, such as evaluation material: an intent's material is
+only used once at least 5 different people have contributed. A funded Issue
+states how many parts it can pay (`max_awards`).
+
+## Which intents
+
+Season II bounties use the bounty board's **mandatory intents** only. Nobody
+proposes or adds a new intent through a bounty; work only on the intents an
+Issue names. The work for them happens in
+[Anjoman](https://anjoman.ai/dashboard/eval).

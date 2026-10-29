@@ -15,8 +15,8 @@ Every report starts as a proposal in `status:triage`.
 - **Start from evidence**: real demand, an observed failure, or a verified,
   time-sensitive release. Don't open an Issue just because an improvement is
   imaginable.
-- **Reuse an intent** when one fits. Propose a new intent only for a reusable
-  intelligence primitive, not for one application's output.
+- **Name an existing intent.** Season II bounties use the mandatory intents
+  only. A gap report never proposes a new intent.
 
 ## What to include
 

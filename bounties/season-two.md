@@ -25,8 +25,11 @@ satellite, sensor and logistics answers. The destocking clock is the app's own
 logic. The reusable pieces underneath it, such as `WEATHER_FORECAST_VERIFY` and
 `SATELLITE_IMAGERY_ANALYSIS`, are intents.
 
-A mission-specific output becomes a new intent only when it is genuinely a
-reusable intelligence primitive.
+Season II bounties use the bounty board's **mandatory intents** only. Nobody
+proposes or adds a new intent through a bounty, and a mission-specific output is
+never a new intent. The first bounties ask for what each mandatory intent needs
+before its miners can be ranked: evaluation material and an evaluator adapter,
+done in [Anjoman](https://anjoman.ai/dashboard/eval).
 
 The bounty repository publishes the starting map:
 

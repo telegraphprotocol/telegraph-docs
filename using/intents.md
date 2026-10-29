@@ -178,6 +178,8 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR/miners
 
 ## Proposing a new intent
 
+> **Not part of Season II bounties.** Bounty work uses the [mandatory intents](../bounties/season-two.md) only. Nobody proposes a new intent to complete a bounty.
+
 Anyone can propose an intent under an existing prefix. The admin approves it
 (possibly after editing the description or spec) or rejects it. Only an approved intent becomes canonical and reaches nodes.
 
