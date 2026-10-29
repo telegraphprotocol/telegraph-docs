@@ -111,7 +111,7 @@ states how many parts it can pay (`max_awards`).
 
 ## Which intents
 
-Season II bounties use the bounty board's **mandatory intents** only. Nobody
-proposes or adds a new intent through a bounty; work only on the intents an
-Issue names. The work for them happens in
-[Anjoman](https://anjoman.ai/dashboard/eval).
+Season II bounties use only intents that already exist: every intent in the
+bounty board's catalogue, mandatory ones first. Nobody proposes or adds a new
+intent through a bounty; work only on the intents an Issue names. The work for
+them happens in [Anjoman](https://anjoman.ai/dashboard/eval).
