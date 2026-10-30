@@ -19,7 +19,7 @@ that file:
 | 5. Package | Add the version label, check it the way a node will, get its hash | `<INTENT>.wasm` plus its keccak256 hash |
 
 Then you host the `.wasm`, provide the required runnable endpoint, and register
-it as described in [Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit--register-your-module).
+it as described in [Build an Evaluator Adapter](build-a-scoring-module.md#how-to-submit-register-your-module).
 
 The adapter kit includes `cmd/adapterrunner`, a reference endpoint that runs
 the packaged WASM with Wasmtime. It is the starting point for `wasmRunnableUrl`;

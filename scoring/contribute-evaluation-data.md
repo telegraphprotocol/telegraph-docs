@@ -111,7 +111,7 @@ The whole flow from the command line with [Foundry](https://getfoundry.sh):
 
 ```bash
 NODE=https://devnode.telegraphprotocol.com
-INTENT=CODE_REVIEW
+INTENT=CODE_REVIEW_GENERAL
 FILE=items.jsonl
 ADDR=0xYourContributorAddress
 
@@ -144,7 +144,7 @@ There is no fee or bond for uploading.
 
 ```json
 {
-  "intent_id": "CODE_REVIEW",
+  "intent_id": "CODE_REVIEW_GENERAL",
   "submitter": "0xabc…",
   "signed": true,
   "received": 120,
@@ -399,7 +399,7 @@ older snapshot.
 Your rows, newest first, with state and reason. No content is returned.
 
 ```bash
-curl -s "https://devnode.telegraphprotocol.com/api/evalpool/submissions/mine?submitter=0xYourAddress&intent_id=CODE_REVIEW"
+curl -s "https://devnode.telegraphprotocol.com/api/evalpool/submissions/mine?submitter=0xYourAddress&intent_id=CODE_REVIEW_GENERAL"
 ```
 
 ```json
@@ -407,10 +407,10 @@ curl -s "https://devnode.telegraphprotocol.com/api/evalpool/submissions/mine?sub
   "submitter": "0xabc…",
   "count": 2,
   "rows": [
-    { "intent_id": "CODE_REVIEW", "row_hash": "9a…", "case_id": "41…", "status": "eligible",
+    { "intent_id": "CODE_REVIEW_GENERAL", "row_hash": "9a…", "case_id": "41…", "status": "eligible",
       "provenance_class": "attested", "quality_rules_version": "evalpool-quality-v1",
       "created_at": "…", "updated_at": "…" },
-    { "intent_id": "CODE_REVIEW", "row_hash": "c0…", "case_id": "77…", "status": "rejected",
+    { "intent_id": "CODE_REVIEW_GENERAL", "row_hash": "c0…", "case_id": "77…", "status": "rejected",
       "reason_code": "near_duplicate", "provenance_class": "unverified",
       "created_at": "…", "updated_at": "…" }
   ]
@@ -423,12 +423,12 @@ through the list.
 The pool for one intent:
 
 ```bash
-curl -s "https://devnode.telegraphprotocol.com/api/evalpool/status?intent_id=CODE_REVIEW"
+curl -s "https://devnode.telegraphprotocol.com/api/evalpool/status?intent_id=CODE_REVIEW_GENERAL"
 ```
 
 ```json
 {
-  "intent_id": "CODE_REVIEW",
+  "intent_id": "CODE_REVIEW_GENERAL",
   "counts": [
     { "status": "eligible", "count": 1180 },
     { "status": "quarantine", "reason": "rate_limited", "count": 40 }

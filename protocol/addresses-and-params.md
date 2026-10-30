@@ -76,7 +76,7 @@ Bonds are always taken at the pool price, so read the current amount from the Di
 |---|---|
 | **HTTP API** | `https://devnode.telegraphprotocol.com` |
 | **WebSocket** | `wss://devnode.telegraphprotocol.com/engine/ws` |
-| **x402 Facilitator** | `https://facilitator.payai.network` |
+| **x402 Facilitator** | `https://facilitator.x402.rs` |
 
 Engine and Daemon are the same node, reached via `/engine` and `/daemon` path prefixes on the HTTP API base above (e.g. `https://devnode.telegraphprotocol.com/engine/v1/ask`) — not separate services.
 
@@ -112,9 +112,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Evaluator emission share | 50% (of each intent's share: 30% to its adapter, 70% to its evaluation material) |
 | Treasury emission share | 25% |
 | Protocol fee | 2% (200 basis points) |
-| TWAP settlement minimum | 100 USDC |
-| TWAP drip size | 0.01 USDC per drip |
-| TWAP drip jitter | ±30 seconds |
+| Miner-pay swaps | In batches on the MACHINA/USDC pool. Live settings from `twapSettlerConfig()`: batch count, interval, price limit, averaging window, minimum batch, maximum wait |
 | Minimum signal floor price | 0.01 USDC (10,000 in 6-decimal) |
 
 ### Validator & Consensus

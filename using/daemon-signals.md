@@ -2,11 +2,11 @@
 description: The Daemon autonomously generates intelligence signals on a schedule and serves them through a read-only API that powers the Intelligence Terminal dashboard.
 ---
 
-# Read Published Intelligence
+# Read the Daemon Feed
 
 The Daemon is a background service that produces intelligence on its own — without anyone asking. On a fixed cycle it scrapes real-world data sources, turns what it finds into scored questions, has the Engine answer them, and stores the results. Those stored results are what you see on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/), and you can read them directly through the Daemon's HTTP API.
 
-> The Daemon is separate from the Engine. The **Engine** answers *your* questions on demand and charges per call (see [Request Intelligence](engine-ask.md)). The **Daemon** generates *its own* questions on a schedule and exposes the results read-only. This page is about reading published intelligence—it does not make a request for you.
+> The Daemon is separate from the Engine. The **Engine** answers *your* questions on demand and charges per call (see [Make a Request](engine-ask.md)). The **Daemon** generates *its own* questions on a schedule and exposes the results read-only. This page is about reading published intelligence—it does not make a request for you.
 
 **Daemon API base URL (testnet):** `https://devnode.telegraphprotocol.com/daemon`
 
@@ -113,10 +113,10 @@ Returns `{"status":"ok","time":"..."}` when the Daemon is running.
 
 - **Browser dashboards:** the Daemon allows GET from any origin (`Access-Control-Allow-Origin: *`), so a frontend can read it directly. This is exactly how the Intelligence Terminal renders its feed.
 - **Polling for alerts:** poll `/daemon/api/questions/top?since_hours=1&min_interest=8` on an interval to surface high-interest signals as they appear.
-- **Live push instead of polling:** subscribe over WebSocket to receive new signals as the Daemon produces them — see [WebSocket Signals](websocket-signals.md).
+- **Live push instead of polling:** subscribe over WebSocket to receive new signals as the Daemon produces them — see [Stream over WebSocket](websocket-signals.md).
 
 ## What This Is Not
 
-- It is **not** on-demand intelligence. You cannot make the Daemon answer a question of yours here—use [Request Intelligence](engine-ask.md) for that.
+- It is **not** on-demand intelligence. You cannot make the Daemon answer a question of yours here—use [Make a Request](engine-ask.md) for that.
 - The signals are **already computed**. You are reading a feed, not triggering work.
 - Each row's `execution.cost_usd` reflects what the underlying intelligence request cost the node operator—it is not a charge to you.
