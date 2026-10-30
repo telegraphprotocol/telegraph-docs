@@ -44,6 +44,23 @@ response or another intent's layout.
 | The result in a smart contract | An on-chain job with a callback | [On-Chain Jobs](erc8183-jobs.md) |
 | A stream of results as they are produced | The Daemon feed or a WebSocket subscription | [Read the Daemon Feed](daemon-signals.md), [Stream over WebSocket](websocket-signals.md) |
 
+## Copy-paste request
+
+This request was checked against the live schema for `CRYPTO_PRICE_USD` on
+October 30, 2026. Run it unchanged to receive the current payment challenge;
+then follow the payment instructions and retry the same request.
+
+```bash
+curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}'
+```
+
+The no-payment response is expected to be `402 Payment Required`, not a failed
+request. The live schema for this intent currently requires one `symbol` string
+and returns `price_usd`. Always re-read the selected intent's schema before
+using a typed request in an application.
+
 For HTTP request formats, payments and response handling, see [Request Intelligence](engine-ask.md).
 
 When you name an intent, the node checks your params against its schema before

@@ -151,25 +151,25 @@ the same whichever miner serves that intent, and the same off-chain and
 on-chain. Read the selected intent first:
 
 ```bash
-curl https://devnode.telegraphprotocol.com/engine/v1/intents/YOUR_INTENT
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/CRYPTO_PRICE_USD
 ```
 
 ```json
 {
-  "intent_id": "YOUR_INTENT",
+  "intent_id": "CRYPTO_PRICE_USD",
   "class": "deterministic",
   "request": {
     "schema_version": 1,
     "params": [
-      { "name": "example_input", "type": "string", "required": true,
-        "description": "The meaning declared by this intent" }
+      { "name": "symbol", "type": "string", "required": true,
+        "description": "Asset symbol, e.g. BTC" }
     ]
   },
   "response": {
     "format_version": 1,
     "fields": [
-      { "name": "example_result", "type": "string",
-        "description": "The result declared by this intent" }
+      { "name": "price_usd", "type": "number", "unit": "US dollars",
+        "description": "Current price of the requested asset, in US dollars" }
     ]
   },
   "onchain": { "ready": true }
@@ -184,7 +184,7 @@ Then send it:
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
-  -d '{"intent": "YOUR_INTENT", "params": {"example_input": "your value"}}'
+  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}'
 ```
 
 ### What a param can say
