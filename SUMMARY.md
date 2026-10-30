@@ -5,25 +5,18 @@
 * [Introduction](introduction.md)
 * [What Changed in V2](whats-new-v2.md)
 
-## Protocol Reference
+## Using Telegraph
 
-* [How It Works](protocol/how-it-works.md)
-* [Tokenomics](protocol/tokenomics.md)
-* [Addresses & Parameters](protocol/addresses-and-params.md)
-* [Roles](protocol/roles.md)
-
-## Intelligence
-
-* [Start Using Intelligence](using/consume-intelligence.md)
-* [Explore Capabilities & Schemas](/intent-schema)
-* [Request Intelligence](using/engine-ask.md)
+* [Start Here](using/consume-intelligence.md)
+* [Browse Intents & Schemas](/intent-schema)
+* [Make a Request](using/engine-ask.md)
 * [Choose a Delivery Path](using/inference-paths.md)
-* [Pay for Requests](using/x402-inference.md)
-* [Use Escrow](using/escrow-inference.md)
-* [Read Published Intelligence](using/daemon-signals.md)
-* [Stream Intelligence](using/websocket-signals.md)
-* [Use Intelligence On-Chain](using/erc8183-jobs.md)
-* [Use Intelligence from AI Agents](using/mcp-server.md)
+* [Pay per Request (x402)](using/x402-inference.md)
+* [Pay from Escrow](using/escrow-inference.md)
+* [Read the Daemon Feed](using/daemon-signals.md)
+* [Stream over WebSocket](using/websocket-signals.md)
+* [On-Chain Jobs](using/erc8183-jobs.md)
+* [AI Agents (MCP)](using/mcp-server.md)
 
 ## Running a Miner
 
@@ -53,6 +46,10 @@
 * [For Developers and Agents](bounties/command-line.md)
 * [Bounty Glossary](bounties/glossary.md)
 
-## Protocol Reference (Advanced)
+## Protocol Reference
 
-* [Intent Catalog & Governance](using/intents.md)
+* [How It Works](protocol/how-it-works.md)
+* [Tokenomics](protocol/tokenomics.md)
+* [Addresses & Parameters](protocol/addresses-and-params.md)
+* [Roles](protocol/roles.md)
+* [Intents](using/intents.md)
