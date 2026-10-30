@@ -36,13 +36,13 @@ When an agent pays for a signal, the USDC flows through a settlement pipeline be
 
 1. Agent pays the signal price in USDC.
 2. The protocol deducts a **2% fee** (200 basis points) to the Treasury.
-3. The remaining **98%** enters a TWAP Settler escrow.
-4. Over 24 hours, this USDC is dripped into a Uniswap V3 liquidity pool in small increments (0.01 USDC each, with ±30-second jitter), purchasing MACHINA at the prevailing market price.
-5. The MACHINA purchased is delivered to the miner's registered fee address.
+3. The remaining **98%** is queued for the miner.
+4. At the end of each epoch, the settler swaps the queue into MACHINA on the MACHINA/USDC Uniswap V3 pool in batches. Each batch is a share of what is queued, batches are spaced out in time, and no batch may push the price more than a set limit past the pool's recent average price. Small amounts wait for a minimum batch size, but never longer than a maximum wait. The live settings are on the diamond: `twapSettlerConfig()`.
+5. The MACHINA bought is credited to the miner, who claims it to their payout address (see [Getting paid](../miners/miner-overview.md#getting-paid)).
 
-This TWAP mechanism serves two purposes. For miners: it smooths out price volatility. For the protocol: every USDC spent on inference creates persistent buy pressure on MACHINA, directly linking token value to network utility.
+Swapping in spaced, price-limited batches serves two purposes. For miners: it smooths out price volatility. For the protocol: every USDC spent on inference creates persistent buy pressure on MACHINA, directly linking token value to network utility.
 
-A minimum threshold of **100 USDC** must accumulate before a settlement cycle executes. Below this threshold, USDC rolls over to the next epoch.
+Below the minimum batch size, miner pay waits and is swapped together with later epochs' pay, up to the maximum wait.
 
 ## Signal Pricing: Floor + Demand Multiplier
 

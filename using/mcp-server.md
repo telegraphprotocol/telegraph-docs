@@ -2,7 +2,7 @@
 description: Connect an MCP-compatible AI agent to Telegraph intelligence with automatic x402 payments.
 ---
 
-# Use Intelligence from AI Agents
+# AI Agents (MCP)
 
 The Telegraph MCP Server is a local Node.js process that exposes Telegraph intelligence through [Model Context Protocol](https://modelcontextprotocol.io) tools. Any agent runtime that speaks MCP—Claude Desktop, Cursor, ElizaOS, LangChain, OpenClaw, Goose, VS Code, or Continue—can discover Miners, read published intelligence, and make on-demand requests without implementing the payment or blockchain flow itself.
 
@@ -70,7 +70,7 @@ npm install && npm run build
 cp .env.example .env
 ```
 
-Edit `.env` — at minimum, set your EVM private key:
+Edit `.env`: set the three URLs below and your EVM private key. The URLs in `.env.example` are out of date, so do not keep them.
 
 ```bash
 # ── Telegraph Node URLs ─────────────────────────────────
@@ -81,8 +81,6 @@ TELEGRAPH_DAEMON_URL=https://devnode.telegraphprotocol.com/daemon
 # ── Payment Key (Required) ──────────────────────────────
 TELEGRAPH_EVM_PRIVATE_KEY=0x_your_private_key_here
 
-# ── Optional: Solana payments ───────────────────────────
-# TELEGRAPH_SOLANA_PRIVATE_KEY=your_base58_key
 ```
 
 **Use a burner wallet funded with only the USDC needed for intelligence requests.** Each request costs ~$0.01.
@@ -118,7 +116,7 @@ npm run inspect
 | `TELEGRAPH_ENGINE_URL` | Yes | `https://devnode.telegraphprotocol.com/engine` | Same node, `/engine` prefix — used bare after this (e.g. `/v1/ask`) |
 | `TELEGRAPH_DAEMON_URL` | Yes | `https://devnode.telegraphprotocol.com/daemon` | Same node, `/daemon` prefix — used bare after this (e.g. `/health`) |
 | `TELEGRAPH_EVM_PRIVATE_KEY` | Yes* | — | EVM private key (`0x`-prefixed hex) |
-| `TELEGRAPH_SOLANA_PRIVATE_KEY` | No* | — | Solana private key (base58) |
+| `TELEGRAPH_SOLANA_PRIVATE_KEY` | No* | — | Solana private key (base58). The testnet node takes EVM payments only. |
 | `EVM_NETWORK` | No | `eip155:*` | CAIP-2 network for EVM payments |
 | `SVM_NETWORK` | No | `solana:*` | CAIP-2 network for SVM payments |
 | `REFRESH_INTERVAL_MS` | No | `300000` | Dynamic miner-tool refresh interval. `0` to disable. |
@@ -205,7 +203,7 @@ When an agent calls a paid tool:
 1. The MCP server sends the request to the Telegraph Engine.
 2. The Engine returns HTTP 402 with payment requirements in response headers.
 3. `@x402/fetch` intercepts the 402, signs an EIP-3009 `TransferWithAuthorization` using your configured private key, attaches the signature as a `PAYMENT-SIGNATURE` header, and retries automatically.
-4. The Engine verifies payment via the PayAI facilitator and returns the result.
+4. The Engine verifies payment through its x402 facilitator and returns the result.
 
 The agent and LLM never see the payment flow, the private key, or any blockchain transaction. From the agent's perspective, the tool call returns a result.
 

@@ -4,7 +4,7 @@ description: Advanced protocol reference for intent families, scoring, and gover
 
 # Intents
 
-> **Looking to consume intelligence?** Start with [Consume Intelligence](consume-intelligence.md)
+> **Looking to consume intelligence?** Start with [Start Here](consume-intelligence.md)
 > and [Browse Intents & Schemas](/intent-schema). This page covers the advanced
 > protocol catalog and governance mechanics.
 
@@ -80,7 +80,7 @@ curl -s "$NODE/engine/v1/intents/$INTENT" | jq '{
 }'
 ```
 
-You can also use the browser-based [Intent Schema Explorer](/intent-schema).
+You can also use the browser-based [Browse Intents & Schemas](/intent-schema).
 It reads the same public endpoint and displays its unmodified JSON response.
 
 The second response is the public, node-generated contract for consumption. It
@@ -89,9 +89,9 @@ contains four related definitions:
 | Definition | Where it appears | What it controls |
 |---|---|---|
 | Canonical request schema | `request` | The named `params` accepted by the API and used to build a miner request. |
-| Processed response schema | `response` | The stable fields the node returns to an API consumer after it reads the miner answer. |
+| Response schema | `response` | The stable fields the node returns to an API consumer after it reads the miner answer. |
 | On-chain request layout | `onchain.request` | The position, array, type, scale, and limit of each job input in `OnChainData`. |
-| On-chain response layout | `onchain.response` | The position, array, type, scale, and limit of each processed callback value in `OnChainData`. |
+| On-chain response layout | `onchain.response` | The position, array, type, scale, and limit of each callback value in `OnChainData`. |
 
 `request.schema_version` and `response.format_version` identify the definitions
 the node loaded. `served_by` tells you when the definition is inherited from a
@@ -140,7 +140,7 @@ An API call sends canonical inputs by name:
 {
   "intent": "FX_NOW_EUR",
   "params": {
-    "example_input": "example_value"
+    "currency": "EUR"
   }
 }
 ```
@@ -148,10 +148,11 @@ An API call sends canonical inputs by name:
 The node validates those values against `request.params` before selecting a
 miner or taking payment. It builds the chosen miner's native request from the
 same canonical inputs, then reads the miner response into `response.fields`.
-The returned result is therefore the intent's processed response shape, not the
-provider's arbitrary raw JSON. Fields marked `processed` are concise
-intent-defined intelligence derived during processing; fields marked
-`off_chain` remain in the API response but are not callback data for a contract.
+The returned result uses the intent's response shape rather than the provider's
+arbitrary raw JSON when the node can read the answer into that shape. Fields
+marked `off_chain` remain in the API response but are not callback data for a
+contract. A shaped response is not, by itself, independent verification that a
+provider's claim is true.
 
 Do not assume every intent has a schema. `request` or `response` can be `null`;
 in that case the typed canonical route or shaped result is unavailable for that
@@ -184,18 +185,19 @@ location, never the order in which fields happen to appear in a JSON object.
 
 For a job, provide every `onchain.request` slot in the stated position. API-only
 optional/default rules do not remove a job slot. The node decodes those slots,
-validates their range and allowed values, builds the miner request, processes
-the response, and encodes only `onchain.response` into the callback.
+validates their range and allowed values, builds the miner request, reads the
+response into the declared fields, and encodes only `onchain.response` into the
+callback.
 
 Check `onchain.ready` before sending a transaction. If it is `false`, read
 `onchain.reason`; that intent cannot currently produce a bounded callback
 answer. A list or object, a number without a decimal scale, or a response with
 only `off_chain` fields cannot be used as a successful on-chain answer.
 
-The callback contains processed intelligence only. Detailed provider records,
-raw miner JSON, and fields listed in `onchain.off_chain` stay off chain. A field
-the node could not read is a failed job response, never an invented zero, empty
-string, or false value.
+The callback contains only the fixed `OnChainData` layout. Detailed provider
+records, raw miner JSON, and fields listed in `onchain.off_chain` stay off
+chain. A field the node could not read is a failed job response, never an
+invented zero, empty string, or false value.
 
 This gives contracts a fixed decoding contract while allowing miners to use
 different providers internally:
@@ -308,7 +310,7 @@ curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
 Every intent has one **request schema**. Read it, then send matching `params`:
 
 ```bash
-curl https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR
 ```
 
 The `request.params` list says what each param is called, its type, whether it is
@@ -318,12 +320,12 @@ required, and its limits. Then:
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-payment-payload>" \
-  -d '{"intent": "WEATHER_CHECK", "params": {"location": "Tokyo"}}'
+  -d '{"intent": "FX_NOW_EUR", "params": {"currency": "EUR"}}'
 ```
 
 The node checks `params` against the schema **before any miner is chosen or any
 payment is taken**. A bad request returns `400 invalid_params` and costs nothing.
-The full set of errors is in [Engine Inference](engine-ask.md#canonical-ask-intent--params).
+The full set of errors is in [Make a Request](engine-ask.md#canonical-ask-intent-params).
 You get the answer in the intent's shape, the same keys whichever miner answers.
 
 To see who serves an intent before you spend anything:

@@ -18,8 +18,8 @@ This page lists what changed between the earlier release and V2, grouped by who 
 
 | Before | Now | Details |
 |---|---|---|
-| `result` was the miner's raw JSON. A separate `parsed` object held extracted fields. | `result` is read into the **Intent's own shape**: the same keys, in the same order, whichever miner answered. `parsed` is gone. New fields: `result_shape`, `field_status`, `format_version`, `shape_error`. | [Engine Inference](using/engine-ask.md#the-answers-shape) |
-| Only a `query` on `/ask`. Native `method`/`endpoint`/`payload` on `/ask/{id}`. | You can also send **`intent` + `params`** on both, validated against the Intent's request schema **before any payment**. A bad request returns `400 invalid_params` and costs nothing. | [Canonical ask](using/engine-ask.md#canonical-ask-intent--params) |
+| `result` was the miner's raw JSON. A separate `parsed` object held extracted fields. | `result` is read into the **Intent's own shape**: the same keys, in the same order, whichever miner answered. `parsed` is gone. New fields: `result_shape`, `field_status`, `format_version`, `shape_error`. | [Make a Request](using/engine-ask.md#the-answers-shape) |
+| Only a `query` on `/ask`. Native `method`/`endpoint`/`payload` on `/ask/{id}`. | You can also send **`intent` + `params`** on both, validated against the Intent's request schema **before any payment**. A bad request returns `400 invalid_params` and costs nothing. | [Canonical ask](using/engine-ask.md#canonical-ask-intent-params) |
 | No way to see what an Intent expects or returns. | `GET /engine/v1/intents/{intent}` returns the request schema, the response format and the exact on-chain layout. | [Intents](using/intents.md#asking-with-an-intent) |
 | Escrow withdrawals unlocked after 4 hours. | They unlock after **two more blocks settle** (blocks are 24 hours) or **7 days**, whichever comes first. | [Withdrawing](using/escrow-inference.md#withdrawing) |
 | The escrow payment message had no chain in it. | It includes `Network: eip155:<chainId>`. Sign the template exactly as given. | [Escrow](using/escrow-inference.md#step-2-read-the-challenge) |
@@ -45,7 +45,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | Registration cost gas only. | A small **bond in MACHINA**: $1 for the first intent, $0.10 each up to 9, then $0.07. Approve the Diamond first. It is returned when you deregister (withdraw after 2 days). | [Registering as a Miner](miners/miner-registration.md#step-4-register-on-chain) |
 | To change anything you deregistered and registered again. | `updateMiner` (and the relayed `updateMinerFor`) changes your YAML, price, address or intents in one transaction. | [Updating your miner](miners/miner-registration.md#updating-your-miner) |
 | The node's model read your whole answer. | You may declare an **`intent_mapping`**: paths and formulas that read each field exactly. | [Intent mapping](miners/yaml-config.md#intent-mapping-optional) |
-| Jobs used your `on_chain.request` and `on_chain.fields` blocks. | Jobs no longer read them. The node builds your request from the Intent's inputs and reads your answer into the Intent's processed answer. | [YAML](miners/yaml-config.md#on-chain-jobs-and-the-on_chain-block) |
+| Jobs used your `on_chain.request` and `on_chain.fields` blocks. | Jobs no longer read them. The node builds your request from the Intent's inputs and reads your answer into the Intent's processed answer. | [YAML](miners/yaml-config.md#on-chain-jobs-and-the-onchain-block) |
 
 ## If you want a new Intent
 

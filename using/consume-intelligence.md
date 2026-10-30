@@ -1,52 +1,51 @@
 ---
-description: Choose a live intelligence capability, read its schema, and consume it through Telegraph.
+description: Choose a live intelligence capability, read its published schema, and consume it through Telegraph.
 ---
 
 # Start Using Intelligence
 
-Start here when you want to use Telegraph in an application, agent, or smart
+Start here when you want to use Telegraph in an application, an agent or a smart
 contract.
 
 1. Open [Browse Intents & Schemas](/intent-schema).
-2. Choose a live intent with miners.
-3. Read its request and processed-response schema.
-4. Send a typed request through the [Engine API](engine-ask.md), or use an
-   [on-chain job](erc8183-jobs.md).
+2. Pick an intent that has miners (the explorer shows the count).
+3. Read its request params and its result fields.
+4. Send a request through the [Engine API](engine-ask.md), or from a smart
+   contract with an [on-chain job](erc8183-jobs.md).
 
 ## The integration contract
 
-Every live intent publishes a node-generated contract containing:
+Where an intent publishes them, the node exposes its request and response schemas:
 
-| You need | Read this schema |
+| You need | Read this part of the schema |
 |---|---|
-| Valid API inputs | `request.params` |
-| Stable processed API result | `response.fields` |
+| Valid typed inputs | `request.params` |
+| Stable result fields | `response.fields` |
 | Smart-contract inputs | `onchain.request` |
 | Callback values | `onchain.response` |
 
-Do not infer fields from a miner response or copy another intent's layout. Read
-the selected intent's live schema before integrating, and retain the schema
-version you built against.
+The explorer shows which schemas are available for a particular intent. If the
+intent you need has no published consumption schema, ask the team in Discord
+with its exact name before building a typed or on-chain integration.
+
+Build against the selected intent's live schema, not against one miner's raw
+response or another intent's layout.
 
 ## Ways to request intelligence
 
-| You need | Send | Example |
-|---|---|---|
-| Let Telegraph choose the capability and Miner | `query` | `{"query":"Will Lahore receive over 50 mm of rain in 24 hours?"}` |
-| A typed, predictable result | `intent` + `params` | `{"intent":"WEATHER_CHECK","params":{"location":"Lahore"}}` |
-| Help complete an Intent request from natural language | `intent` + partial `params` + `query` | `{"intent":"WEATHER_CHECK","params":{"location":"Lahore"},"query":"Forecast for the next 24 hours"}` |
-| Supply structured facts with the request | `query` or `intent` + `context` | `{"query":"...","context":{"location":"Lahore"}}` |
-| Use one Miner while retaining the Intent contract | `/engine/v1/ask/{miner}` + `intent` + `params` or `query` | `POST /engine/v1/ask/weather-miner` |
-| Call a Miner’s native API unchanged | `/engine/v1/ask/{miner}` + `method`, `endpoint`, `payload` | `{"method":"GET","endpoint":"/forecast","payload":{...}}` |
-| A smart contract needs the result | On-chain job and callback | [On-Chain Jobs](erc8183-jobs.md) |
-| Receive intelligence as it is produced | Daemon feed or WebSocket subscription | [Read Published Intelligence](daemon-signals.md), [Stream Intelligence](websocket-signals.md) |
+| You want | Send | Example |
+|---|---|
+| Telegraph to pick the intent and the miner | `query` | `{"query":"Will Lahore get more than 50 mm of rain in the next 24 hours?"}` |
+| A typed, predictable result | `intent` + `params` | Take the field names and values from that intent's live request schema. |
+| A typed result, with Telegraph completing omitted parameters | `intent` + partial `params` + `query` | Provide the intent and known values; state the remaining values in the query. |
+| To pass known values next to a question | `query` or `intent` + `context` | Supply structured context alongside the question. |
+| One specific miner, same typed result | `POST /engine/v1/ask/{minerId}` + `intent` + `params` | Discover the current miner ID first; do not copy one from documentation. |
+| A miner's own API, unchanged | `POST /engine/v1/ask/{minerId}` + `method`, `endpoint`, `payload` | `{"method":"GET","endpoint":"/forecast","payload":{"city":"London"}}` |
+| The result in a smart contract | An on-chain job with a callback | [On-Chain Jobs](erc8183-jobs.md) |
+| A stream of results as they are produced | The Daemon feed or a WebSocket subscription | [Read the Daemon Feed](daemon-signals.md), [Stream over WebSocket](websocket-signals.md) |
 
-For HTTP requests, see [Request Intelligence](engine-ask.md). Pay per request with
-[x402](x402-inference.md), or fund once and use [escrow](escrow-inference.md).
+For HTTP request formats, payments and response handling, see [Request Intelligence](engine-ask.md).
 
-When you request a canonical Intent, the node validates supplied parameters,
-uses the query or context only to complete missing values, and never silently
-replaces an explicit Intent or explicitly selected Miner.
-
-The intent catalog itself is protocol reference material. Intent governance and
-proposal mechanics are intentionally separate from consuming live intelligence.
+When you name an intent, the node checks your params against its schema before
+you pay. It uses `query` and `context` only to fill params you left out, and it
+never swaps the intent or the miner you chose.

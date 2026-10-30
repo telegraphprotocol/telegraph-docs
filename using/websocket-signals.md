@@ -2,7 +2,7 @@
 description: Stream published intelligence or request it live over WebSocket.
 ---
 
-# Stream Intelligence
+# Stream over WebSocket
 
 The Telegraph Daemon runs on a 3-hour cycle, generating intelligence tasks from registered collectors, routing them through the Miner mesh, and storing the results. The Engine's WebSocket interface lets you subscribe to receive these signals in real time as the Daemon produces them.
 
@@ -29,7 +29,7 @@ On an anonymous connection the server greets you as soon as the socket opens, be
 
 Read and discard it. If your client pairs each reply with the last message it sent, this greeting shifts every response by one — your `ping` appears to return the miner catalogue. Match on the `type` field instead of on arrival order.
 
-Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` are billed against your escrow per call — see [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
+Every other action, including `ask` and `ask_direct`, requires a verified wallet (see the actions table in Step 2). `ask`/`ask_direct` are billed against your escrow per call — see [How `ask` and `ask_direct` are billed](#how-ask-and-askdirect-are-billed).
 
 **Wallet-authenticated connections** unlock `ask`, `ask_direct`, subscriptions, and escrow-based signal delivery. Connect with your EVM address as a query parameter:
 
@@ -129,18 +129,18 @@ For the full schema, endpoints, prices, `activation_status`, use `GET /api/miner
 
 The `ask` and `ask_direct` actions request intelligence through the Engine directly. These are live calls, not reads from the cached history.
 
-For an Intent with an [input schema](engine-ask.md#canonical-ask-intent--params) you can send canonical params instead of (or with) the query, and `ask_direct` accepts the same form next to the native one:
+For an Intent with an [input schema](engine-ask.md#canonical-ask-intent-params) you can send canonical params instead of (or with) the query, and `ask_direct` accepts the same form next to the native one:
 
 ```json
-{ "action": "ask", "intent": "WEATHER_CHECK", "params": { "location": "Tokyo" } }
-{ "action": "ask_direct", "subnet_id": "wx-openmeteo", "intent": "WEATHER_CHECK", "params": { "location": "Tokyo" } }
+{ "action": "ask", "intent": "FX_NOW_EUR", "params": { "currency": "EUR" } }
+{ "action": "ask_direct", "subnet_id": "31009", "intent": "FX_NOW_EUR", "params": { "currency": "EUR" } }
 ```
 
 A request refused for its input gets an `error` message carrying the HTTP body (`invalid_params`, `no_input_schema`, `intent_required`, `no_compatible_miner`, ...) plus a `message`, before any routing and before the escrow check. Nothing is charged. Mixing native and canonical fields in one `ask_direct` is refused.
 
 The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). A native `ask_direct` result is the miner's raw output and carries `result_shape: "raw"`; a canonical `ask_direct` result is shaped like `ask`'s. Subscription pushes are raw and carry no `result_shape`.
 
-**They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-ask_direct-are-billed).
+**They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-askdirect-are-billed).
 
 ### Pre-request validation on `ask` and `ask_direct`
 
@@ -220,7 +220,7 @@ Signals don't arrive continuously — they arrive in batches when the Daemon com
 3. Questions are routed to the appropriate miners via the miner dispatcher.
 4. Miner responses are received, stored, and published to WebSocket subscribers.
 
-If you connect and nothing arrives within minutes, that's expected — the next Daemon cycle will deliver signals when it runs. To read what the Daemon has already produced (instead of waiting for the next push), use the [Daemon Signal Feed](daemon-signals.md) API.
+If you connect and nothing arrives within minutes, that's expected — the next Daemon cycle will deliver signals when it runs. To read what the Daemon has already produced (instead of waiting for the next push), use the [Read the Daemon Feed](daemon-signals.md) API.
 
 ## How Delivery is Settled
 

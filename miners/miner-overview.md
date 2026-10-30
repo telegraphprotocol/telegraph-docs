@@ -15,11 +15,28 @@ Miners earn exclusively from demand — not from protocol emissions.
 When an agent pays to use a miner's capability:
 1. The agent pays the signal price in USDC.
 2. 2% goes to the Protocol Treasury.
-3. The remaining 98% enters a TWAP Settler escrow.
-4. Over the next 24 hours, that USDC is dripped into Uniswap V3 to purchase MACHINA at market price.
-5. The purchased MACHINA is sent to the miner's registered fee address.
+3. The remaining 98% is queued for you.
+4. At the end of each epoch, the settler swaps the queue into MACHINA on the MACHINA/USDC Uniswap V3 pool in batches. Each batch is a share of what is queued, batches are spaced out in time, and no batch may push the price more than a set limit past the pool's recent average price. Small amounts wait for a minimum batch size, but never longer than a maximum wait. The live settings are on the diamond: `twapSettlerConfig()`.
+5. The MACHINA bought is credited to you. You claim it (below); it is paid to your payout address.
 
-The rate of dripping (0.01 USDC at a time, ±30 seconds jitter) prevents flash price manipulation. A minimum of 100 USDC must accumulate before a settlement cycle executes — earnings below this threshold roll over to the next epoch.
+Spacing the swaps out and limiting how far each one may move the price protects your pay from short price spikes.
+
+### Getting paid
+
+Your MACHINA is not pushed to you: you claim it. Read what you are owed by your
+registration ID, then claim it. Anyone may send the claim; the MACHINA always goes
+to your payout address.
+
+```bash
+curl https://devnode.telegraphprotocol.com/v1/entitlements/miner/$REGISTRATION_ID
+# returns lifetime, proof and claim_function
+
+cast send $DIAMOND "claimMinerEntitlement(uint256,uint256,bytes32[])" \
+  $REGISTRATION_ID $LIFETIME "[$PROOF_1,$PROOF_2,...]" --rpc-url $RPC --private-key $KEY
+```
+
+`lifetime` is everything you have earned so far; the claim pays the part you have
+not claimed yet. Claim as often as you like.
 
 **Your earnings per request:**
 `Earnings = min_price_usdc × demand_multiplier × 0.98 → MACHINA at market price`

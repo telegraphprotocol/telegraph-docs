@@ -1,8 +1,8 @@
 ---
-description: Request processed intelligence from a smart contract and receive it in an authenticated callback.
+description: Request schema-shaped intelligence from a smart contract and receive it in an authenticated callback.
 ---
 
-# Use Intelligence On-Chain
+# On-Chain Jobs
 
 ERC-8183 is an on-chain standard for agentic commerce. A smart contract creates a **job**: it pays for it, names an [intent](intents.md) and its parameters, and receives the result in a callback once the protocol resolves it. The whole lifecycle is on-chain.
 
@@ -52,14 +52,14 @@ cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RP
 
 **Pay in the same call.** `createJobAndPay` pulls the price from the caller's own USDC with `transferFrom`, so the caller only approves the Diamond. Escrow is not touched. This lets a dapp pull its user's USDC and pay in one transaction.
 
-> Escrow withdrawals unlock after two more blocks settle (blocks are 24h) or after 7 days, whichever comes first. They no longer use a 4-hour timelock. See [Paying from Escrow](escrow-inference.md#withdrawing).
+> Escrow withdrawals unlock after two more blocks settle (blocks are 24h) or after 7 days, whichever comes first. They no longer use a 4-hour timelock. See [Pay from Escrow](escrow-inference.md#withdrawing).
 
 ## Step 2: Find the intent id and its layout
 
 `createJob*` takes a `bytes32 intentId`. It is the `keccak256` of the **canonical intent name**:
 
 ```bash
-cast keccak "FX_NOW_EUR"
+cast keccak "YOUR_INTENT"
 ```
 
 It must be a canonical **intent**, not a prefix and not a miner registration id. Anything else reverts with `not a canonical intent`. A prefix such as `FX_NOW` is not an intent. See [Intents](intents.md).
@@ -67,7 +67,7 @@ It must be a canonical **intent**, not a prefix and not a miner registration id.
 Then read the intent's layout. This is the contract between you and the node:
 
 ```bash
-curl https://devnode.telegraphprotocol.com/engine/v1/intents/FX_NOW_EUR
+curl https://devnode.telegraphprotocol.com/engine/v1/intents/YOUR_INTENT
 ```
 
 Look at three things in the reply.
