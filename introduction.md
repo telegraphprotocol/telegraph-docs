@@ -6,7 +6,7 @@ description: Telegraph is a permissionless marketplace for verified AI inference
 
 Autonomous agents need intelligence they can trust and pay for programmatically — without API key management, without centralized gatekeepers, and without a human in the loop. Telegraph is the protocol that makes this possible.
 
-At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents pay in USDC for a question answered. Miners from across the world compete to supply the best answer. A network of validators grades those answers using shared scoring modules, signs the result with an aggregate signature, and delivers a finalized signal. Every USDC paid to get that answer flows back through an open market to buy the protocol's native token, MACHINA, meaning every real use of the network creates direct, permanent demand for the token that secures it.
+At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents pay in USDC for a question answered. Miners from across the world compete to supply the best answer. A network of validators grades those answers using shared scoring modules, signs the result with an aggregate signature, and delivers a finalized signal. Every USDC paid for an answer flows back through an open market to buy the protocol's native token, MACHINA. So every real use of the network creates direct, permanent demand for the token that secures it.
 
 ## The Three Forces
 
