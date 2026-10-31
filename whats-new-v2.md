@@ -57,5 +57,5 @@ This page lists what changed between the earlier release and V2, grouped by who 
 
 | Before | Now | Details |
 |---|---|---|
-| MiniLM `rank_answer` modules, then Q32.32 packages. | **Float model adapters** in WASM. The older formats are refused. | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
+| MiniLM `rank_answer` modules, then Q32.32 packages, then full-model float `.wasm` adapters. | **Evaluator adapters as safetensors deltas** (a few MB of LoRA deltas and a reward head) on the validators' **shared Foundation Model**. Every older format is refused (a full-model `.wasm` with `legacy_full_model`). | [Upgrading to the Shared Foundation Model](scoring/upgrade-shared-foundation.md) |
 | `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)` with a **$5 MACHINA bond** (returned on deregistration). You register on a **prefix** (a family) and supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |

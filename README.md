@@ -9,7 +9,7 @@ This is the source repository for [docs.telegraphprotocol.com](https://docs.tele
 | `protocol/` | How the protocol works — tokenomics, roles, addresses |
 | `using/` | How to discover, request, pay for, and receive Telegraph intelligence |
 | `miners/` | How to become a miner — YAML config, validation API, registration |
-| `scoring/` | How to build and register a WASM scoring module, and contribute evaluation data |
+| `scoring/` | How to build and register an evaluator adapter (comparator module or delta on the shared Foundation Model), upgrade from full-model adapters, and contribute evaluation data |
 | `bounties/` | Bounties, for everyone: a step-by-step first bounty, adding evaluation material, building a judge, using an AI assistant, commands, rules and rewards |
 
 ## Contributing

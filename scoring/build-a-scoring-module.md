@@ -1,5 +1,5 @@
 ---
-description: Write, test and register your own evaluator adapter (a WASM module) that scores how good a miner's answer is. Start here — no prior Telegraph knowledge needed.
+description: Write, test and register your own evaluator adapter (a comparator WASM module or a safetensors delta on the shared Foundation Model) that scores how good a miner's answer is. Start here — no prior Telegraph knowledge needed.
 ---
 
 # Build an Evaluator Adapter
@@ -14,9 +14,10 @@ instead: this page is about the judge, not the contestant.
 
 When someone asks the network a question, several miners may answer it. The
 network needs a way to decide which answer was best. That job is done by a
-small program compiled to **WebAssembly (WASM)**, a compact, sandboxed
-binary format that runs safely inside the node without needing to trust your
-code.
+scoring module that runs in a **WebAssembly (WASM)** sandbox inside the node,
+without needing to trust your code: a small WASM program of your own for a
+deterministic intent, or, for a judgment or hybrid intent, a model delta that
+the node runs on its shared Foundation Model.
 
 Every intent has a **class**, and the class decides which kind of module scores
 it (see [How answers are scored](../using/intents.md#the-three-kinds)):
@@ -24,8 +25,8 @@ it (see [How answers are scored](../using/intents.md#the-three-kinds)):
 | Intent class | Module you register | What it does |
 |---|---|---|
 | Deterministic | **Comparator module** | Compares the value read from a miner's answer with the epoch's reference value (the median of up to 3 truth sources from the [evaluation pool](contribute-evaluation-data.md#truth-sources-deterministic-intents)), using the intent's comparison rule and tolerance. |
-| Judgment | **Model adapter** | A reward model judges each answer on its own merits. No reference answer is needed. |
-| Hybrid | **Model adapter**, hybrid class | A comparator score for the checkable part, combined with the model's judgment of the rest. |
+| Judgment | **Evaluator adapter** (a safetensors delta on the shared Foundation Model) | A reward model judges each answer on its own merits. No reference answer is needed. |
+| Hybrid | **Evaluator adapter**, hybrid class | A comparator score for the checkable part, combined with the model's judgment of the rest. |
 
 Each intent has one live module at a time, its **canonical** module. A judgment
 or hybrid intent with no module of its own can use its family's (see
@@ -42,8 +43,9 @@ serves is not scored, and its miners keep their previous ranking.
 ## What environment does it run in?
 
 Your module runs inside a lightweight WASM sandbox built into the node
-itself, not a separate VM or Docker container, just an in-process sandbox.
-That means:
+itself, not a separate VM or Docker container, just an in-process sandbox. (An
+Evaluator adapter brings no code at all: its deltas are fed to the node's own
+Foundation Model engine, in the same kind of sandbox.) That means:
 
 - **No network access.** Your code can't make HTTP calls, open sockets, or
   reach the internet.
@@ -115,8 +117,8 @@ Details that matter:
 ### Size and build
 
 Your compiled **comparator** `.wasm` file must be **32 MB or smaller**; a
-comparator is usually tens of KB. This limit does not apply to model adapters,
-which have their own limit below. Anything that compiles to a standalone WASM
+comparator is usually tens of KB. Evaluator adapters have their own limit
+below. Anything that compiles to a standalone WASM
 binary works.
 Rust is the easiest (`#![no_std]`, `crate-type = ["cdylib"]`), and C/C++,
 TinyGo and AssemblyScript also work.
@@ -148,104 +150,83 @@ inputs like these:
 Every result must match the rule within ±10 basis points, and a second run must
 give exactly the same results.
 
-## Model adapters (judgment and hybrid intents)
+## Evaluator adapters (judgment and hybrid intents)
 
-A model adapter is a reward model: it reads a question and a miner's answer
-and returns a score, and a better answer should get a higher score. You
-register it as **one `.wasm` file** that carries both the model (a ModernBERT
-reward model in 32-bit floating point) and the engine that runs it, so the
-hash you register covers both. One file is about 574 MB.
+An Evaluator adapter is a reward model: it reads a question and a miner's answer and
+returns a score, and a better answer should get a higher score. Every validator runs **one
+shared Foundation Model** (ModernBERT-base with a reward head, loaded once per validator),
+and your adapter is only what you trained on top of it: a **safetensors delta package**
+holding the LoRA deltas and the reward head, a few MB (6.8 MB at rank 8). The validator
+applies it to the Foundation Model at score time; the base weights never travel with your
+adapter. The hash you register is the package's keccak256.
 
-Answers reach your model as tokens from the network's pinned ModernBERT
-tokenizer, so build the model for that vocabulary.
+Answers reach your model as tokens from the network's pinned ModernBERT tokenizer, so
+train on that vocabulary.
 
-The tools to train, bake and package one are in the adapter kit,
+The tools to train, export and check one are in the adapter kit,
 [telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
-[Train an Evaluator Adapter](train-a-scoring-adapter.md) walks through them step by
-step, and lists the exact input format and what the file must print. This
-section lists what the node checks when a file arrives.
+[Train an Evaluator Adapter](train-a-scoring-adapter.md) walks through them step by step
+and lists the exact package format. Nothing is baked into a `.wasm` any more.
 
-> **Q32.32 packages are retired.** The earlier adapter format (an integer
-> "Q32.32" interpreter with an embedded `.imwq` model, exporting `imwq_*`
-> functions) is refused at registration with `Q32.32 wide adapters are retired;
-> rebuild as a float adapter (abi_version 2)`. Rebuild with the current kit.
+> **Earlier formats are rejected.** A full-model float `.wasm` (the model baked into a
+> WASI command, about 600 MB) is rejected with `legacy_full_model: full-model float
+> adapters are no longer accepted; …`, and an adapter already Active in that format stops
+> serving when validators upgrade: export it again as a delta and register it again (see
+> [Upgrading to the Shared Foundation Model](upgrade-shared-foundation.md)). Q32.32
+> packages (`imwq_*` exports, `.imwq` files) are rejected with `Q32.32 wide adapters are
+> retired; package the adapter as a safetensors delta for the shared Foundation Model`.
 
 ### What the node checks
 
 | Requirement | Detail |
 |---|---|
-| Kind | A WASI **command**: it exports `_start`. A module that also exports `_initialize` (a reactor), or any `imwq_*` function, is refused. |
-| Imports | Only functions from `wasi_snapshot_preview1` on the node's allow-list (arguments, environment, clocks, random, file reads and writes, `path_open`, `proc_exit` and a few more). No other import modules. |
-| Memory | Exactly one memory, at most 3 GiB. |
-| Version label | A valid `telegraph.adapter` section with `abi_version` 2 and `runtime` `onnx_f32`, whose `class` matches the intent you register for (see below). Required. |
-| Intent | A judgment or hybrid intent. A model adapter registered for a deterministic intent is refused. |
-| Size | At most 1 GiB by default (a node setting, hard maximum 2 GiB), downloaded within 30 minutes. |
+| Format | A safetensors file whose `__metadata__` declares `abi` `lora-v1` and `format_version` `1`. |
+| Foundation and tokenizer | `foundation_hash` is the sha256 of the validator's Foundation Model, and `tokenizer_hash` the pinned ModernBERT tokenizer. A validator that runs no Foundation Model rejects every package (`no_foundation`). |
+| Class | `class` is `judgment` or `hybrid`, the class of the intent you register for. A package registered for a deterministic intent is refused. |
+| LoRA | `rank` 1 to 16, `target_modules` among `Wqkv`, `Wo`, `Wi`, a positive `alpha`. |
+| Tensors | Exactly the LoRA A/B tensors of every layer and the reward head, `F32`, each the exact shape for the Foundation Model, tiling the data with nothing left over, every value finite. |
+| Tokens | `max_tokens` 1 to 512. |
+| Size | At most 64 MiB by default (a node setting), downloaded within 120 seconds. |
 
-The node recognises a model adapter from its export section, which it reads
-from the first MiB of the download. A file it doesn't recognise as one is held
-to the 32 MB limit instead. Check failures start with `float adapter: …` or
-`adapter metadata: …`.
+The node recognises a package by parsing its header, from the first MiB of the download; a
+full-model `.wasm` is recognised there too and its download stops at once. Check failures
+start with `lora adapter: <reason>: …`; the reasons and their fixes are in
+[Rejection reasons for Evaluator adapters](#rejection-reasons-for-evaluator-adapters).
+The engine checks the package again when it loads it.
 
 When the adapter reaches
-[Stage 2](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool),
-the node runs it in a fixed sandbox: a fresh start for every score, one
-read-only input file, an empty environment, a frozen clock, a fixed random
-stream and no network. This removes external state from execution. FP32
-cross-machine bit identity must still be demonstrated on the node versions and
-CPU environments that will execute the adapter; it is not established merely by
-packaging a module.
+[Stage 2](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool), every
+validator scores it on the same Foundation Model and engine, in a fixed sandbox (no files,
+an empty environment, a frozen clock, a fixed random stream, no network). A score is
+identified by the foundation hash, your package's hash, the tokenizer hash and the input.
 
-### The `telegraph.adapter` section
+### The training record
 
-A model adapter must carry a WASM custom section named `telegraph.adapter`,
-holding JSON that says which scoring version it was built for. It is inside the
-module, so the registered hash covers it. The kit's `adapterbuild` writes it for
-you.
+A package may carry a self-reported training record in its `training` metadata key (a JSON
+string). The kit's `export_adapter --training-record` writes it.
 
 ```json
 {
-  "abi_version": 2,
-  "runtime": "onnx_f32",
-  "class": "judgment",
-  "max_tokens": 512,
-  "tool": "adapterbuild",
-  "training": {
-    "family": "CODE_REVIEW",
-    "children": [
-      { "intent": "CODE_REVIEW", "pairs": 4000, "accuracy": 0.81, "spearman": 0.62, "held_out": false },
-      { "intent": "CODE_REVIEW_PYTHON", "pairs": 1200, "accuracy": 0.77, "spearman": 0.55, "held_out": true }
-    ]
-  }
+  "family": "CODE_REVIEW",
+  "children": [
+    { "intent": "CODE_REVIEW", "pairs": 4000, "accuracy": 0.81, "spearman": 0.62, "held_out": false },
+    { "intent": "CODE_REVIEW_PYTHON", "pairs": 1200, "accuracy": 0.77, "spearman": 0.55, "held_out": true }
+  ]
 }
 ```
 
-| Field | Required | Meaning |
-|---|---|---|
-| `abi_version` | Yes | `2` for a model adapter. `1` is the retired Q32.32 format and is refused; any other value is refused too. |
-| `runtime` | Yes (model adapter) | `onnx_f32`. |
-| `class` | Yes (model adapter) | `judgment` or `hybrid`, and it must be the class of the intent you register for. |
-| `max_tokens` | No | 1–512, how many tokens the model reads. Absent means 512. Set it if you trained shorter. |
-| `tool` | No | The builder that wrote the section. Informational. |
-| `training` | No | A self-reported record of what the adapter was trained on. |
+Fields: `family` (required), `children` (at least one), and optionally `trainer`,
+`backbone` and `backbone_version`. Each child has `intent`, `pairs`, `accuracy`,
+`spearman`, `held_out` and an optional `dataset_version`.
 
-A comparator module may carry the section too, with `abi_version` `1` and
-`class` `comparator` (the comparator interface did not change). For a
-comparator the section is optional.
+The node checks the record's shape only: `family` is set, `children` is not empty, every
+child is the family itself or a `_`-child of it, no child is listed twice, `pairs` is not
+negative, `accuracy` is between 0 and 1, and `spearman` is between −1 and 1. It never uses
+the numbers to decide anything; the hidden evaluation is the real test. A malformed record
+is rejected with `lora adapter: training_record: …`.
 
-`training` fields: `family` (required), `children` (at least one), and
-optionally `trainer`, `backbone` and `backbone_version`. Each child has
-`intent`, `pairs`, `accuracy`, `spearman`, `held_out` and an optional
-`dataset_version`.
-
-The node checks the training record's shape only: `family` is set, `children` is
-not empty, every child is the family itself or a `_`-child of it, no child is
-listed twice, `pairs` is not negative, `accuracy` is between 0 and 1, and
-`spearman` is between −1 and 1. It never uses the numbers to decide anything;
-the hidden evaluation is the real test.
-
-A model adapter without the section is refused. A section that is present but
-wrong is rejected with `adapter metadata: …` (or `adapter metadata: training
-record: …`).
+A comparator module may carry a `telegraph.adapter` custom section with `abi_version` `1`
+and `class` `comparator` (the comparator interface did not change). It is optional.
 
 ## Families: one module for many intents
 
@@ -318,21 +299,25 @@ Registering on-chain is only the first step. Before your module is allowed to
 score real traffic, the node runs it through automatic checks. If it fails, it's
 rejected and won't serve traffic (the rejection reason is recorded, so you can
 see exactly what went wrong). There are two stages, and you have to clear both.
+Before either, the node checks your module at its
+[runnable endpoint](#the-runnable-endpoint), so a module that would fail costs a
+few HTTP requests instead of a download.
 
 ### Stage 1: structural checks
 
 Run as soon as the node has downloaded your file.
 
-1. **It is a kind the node accepts.** A model adapter registered for a judgment
-   or hybrid intent, or a comparator module registered for a deterministic
-   intent. A retired kind (a MiniLM `rank_answer` module or a Q32.32 package) is
-   rejected with its retirement message.
-2. **It passes the checks for its kind.** For a model adapter, the table in
-   [What the node checks](#what-the-node-checks); reasons start with
-   `float adapter: …`. A comparator module must load, with its three exports.
-3. **Its `telegraph.adapter` section is valid** (required for a model adapter,
-   optional for a comparator).
-4. **It is not a child registration under a live family** (judgment and hybrid
+1. **It is a kind the node accepts.** An Evaluator adapter (a safetensors delta
+   package) registered for a judgment or hybrid intent, or a comparator module
+   registered for a deterministic intent. A full-model float `.wasm`
+   (`legacy_full_model`), a MiniLM `rank_answer` module or a Q32.32 package is
+   rejected with its own message.
+2. **It passes the checks for its kind.** For an Evaluator adapter, the table in
+   [What the node checks](#what-the-node-checks), against the validator's own
+   Foundation Model and tokenizer; reasons start with `lora adapter: …`. A
+   comparator module must load, with its three exports, and any
+   `telegraph.adapter` section it carries must be valid.
+3. **It is not a child registration under a live family** (judgment and hybrid
    intents only).
 
 Running out of time is not a rejection. A check that times out, or a download or
@@ -358,7 +343,7 @@ one.
 
 ### Stage 2 for model adapters: competition on the hidden evaluation pool
 
-A new model adapter replaces the current one **only by beating it**. Passing a
+A new Evaluator adapter replaces the current one **only by beating it**. Passing a
 threshold is not enough.
 
 The test material is the intent's [evaluation pool](contribute-evaluation-data.md):
@@ -411,7 +396,7 @@ Whether your module is promoted or rejected, the node records a **score** and a
 **breakdown** on your registration, and the rejection reason spells out which
 bar you missed.
 
-For a **model adapter**, the score is its win rate on the round's sample. The
+For an **Evaluator adapter**, the score is its win rate on the round's sample. The
 breakdown fields:
 
 | Field | What it means |
@@ -443,7 +428,8 @@ calling the contract yourself.
 
 ### The easy way
 
-Build your `.wasm`, host it somewhere it can be downloaded from a public URL
+Build your module (a comparator `.wasm`, or an Evaluator adapter's
+`.safetensors` package), host it somewhere it can be downloaded from a public URL
 (IPFS or any file host), then submit it at
 [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com/).
 The platform hashes the file and sends the transaction for you.
@@ -467,14 +453,15 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
   `CODE_REVIEW` or `FX_NOW`. It must be a registered prefix or the call reverts
   with `not a registered prefix`. Read the prefixes from the chain with
   `getPrefixes()`. Your module then scores every intent under that prefix (see
-  [Families](#families-one-module-for-many-intents)). A model adapter's class
-  must match the prefix's kind.
-- **`wasmRunnableUrl`**: a **hosted, runnable endpoint** that serves the same
-  module as `wasmUrl`. It must be non-empty or the call reverts with
+  [Families](#families-one-module-for-many-intents)). An Evaluator adapter's
+  class must match the prefix's kind.
+- **`wasmRunnableUrl`**: a **hosted, runnable endpoint** that runs the same
+  module as `wasmUrl` (for an Evaluator adapter: your package on the Foundation
+  Model). It must be non-empty or the call reverts with
   `IntentRegistryFacet: empty runnable URL`. The node scores a candidate at this
-  endpoint *before* it downloads the binary, so a module that would fail costs one
-  or two batch requests instead of a download of up to about 1 GB. See
-  [The runnable endpoint](#the-runnable-endpoint).
+  endpoint *before* it downloads the file, so a module that would fail costs one
+  or two batch requests instead of a download, a Stage 1 pass and a competition
+  round. See [The runnable endpoint](#the-runnable-endpoint).
 - **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
   reverts with `zero fee address`. This is the same field miners and collectors
   have always had. It is deliberately a separate argument rather than being
@@ -517,10 +504,11 @@ cast send "$DIAMOND" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
 
-The `xxd` one-liner suits a comparator module. A model adapter (about 574 MB) is
-far too large to pass as a shell argument; hash it with a tool that reads the
-file directly and computes Ethereum's Keccak-256 (not NIST SHA3-256, which gives
-a different result).
+The `xxd` one-liner suits a comparator module. An Evaluator adapter (6.8 MB at
+rank 8) is too large to pass as a shell argument: take the `keccak256` that the
+kit's `adapterbuild lora` prints, or hash the file with a tool that reads it
+directly and computes Ethereum's Keccak-256 (not NIST SHA3-256, which gives a
+different result).
 
 Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
@@ -535,70 +523,83 @@ with `ERC20InsufficientAllowance`. The Diamond's address is on the
 
 ### The runnable endpoint
 
-The public adapter kit includes a reference implementation:
+`wasmRunnableUrl` must be a real endpoint that runs **the module you registered**. A
+placeholder passes the on-chain check, but the node then fails to reach it and rejects
+the registration after three attempts. For an Evaluator adapter that means your package
+running on the **same Foundation Model file and engine module the validators run**: the
+node later re-scores the same texts itself and rejects any score that differs by a single
+bit, so a different runtime (for example native ONNX Runtime, or a full-model `.wasm`)
+does not pass. A reference executor that runs the Foundation Model and a delta with the
+node's own runtime is not published yet (to be announced); the examples repository's
+[`evaluator-adapter`](https://github.com/telegraphprotocol/telegraph-examples/tree/master/evaluator-adapter)
+folder has a script that sends your endpoint the request a validator sends and checks the
+reply.
 
-```bash
-go build -o adapterrunner ./cmd/adapterrunner
-ADAPTER_WASM=runs/CODE_REVIEW/CODE_REVIEW.wasm ./adapterrunner
-```
+Run it behind your own public HTTPS reverse proxy: the node does not follow redirects, and
+in production it refuses loopback, private and link-local addresses. One Foundation Model
+copy needs about 1.8 GB of RAM. Keep the endpoint up until your registration leaves
+`pending`.
 
-It exposes `POST /runnable` on port 8080. Deploy that process behind your own
-public HTTPS reverse proxy and use its `/runnable` URL as `wasmRunnableUrl`.
-It executes the exact package through Wasmtime, so its returned score bits can
-be checked against the downloaded binary. See the kit's `Run the required
-endpoint` section for the required Wasmtime installation, configuration and
-capacity check.
+The endpoint must implement the **batch request**:
 
-The reference service is deliberately conservative: it runs one model input at
-a time by default. A real 512-token ModernBERT package can be expensive. Before
-registering, benchmark the full validation batch on the hardware you deploy;
-the node gives the endpoint 30 minutes for the whole check (30 texts). On a
-CPU, a 256-token model takes about 8-28 seconds a text and a 512-token one up
-to about a minute, so a plain CPU host fits; keep the endpoint up until your
-registration leaves `pending`.
+- **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never one
+  question per request. A comparator question is `{"ground_truth_value": <int64>,
+  "miner_value": <int64>, "spec": [<comparator kind>, <tolerance>]}`, with both values
+  already on the same fixed-point scale. An Evaluator adapter question is
+  `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with the
+  pinned vocabulary, so your endpoint needs no tokenizer; score each list as given
+  (truncated to the package's `max_tokens`). A batch holds at most 100 questions, and the
+  body is at most a few hundred KB, so accept bodies of at least 1 MiB.
+- **Score identity (Evaluator adapters).** Next to `batch` the request carries
+  `foundation_hash` (the sha256 of the validator's Foundation Model), `adapter_hash` (the
+  registered keccak256, lowercase hex, no `0x`), `tokenizer_hash` (the sha256 of the
+  validator's `tokenizer.json`) and `input_root` (a sha256 binding the batch's token
+  inputs). Your reply must echo the first three at its top level, next to `results`, with
+  the values **you actually scored with**:
 
-`wasmRunnableUrl` must be a real endpoint. A placeholder passes the on-chain
-check, but the node then fails to reach it and rejects the registration after
-three attempts. The endpoint serves the same module you registered, and it must
-implement the **batch request**:
+  ```json
+  {"results": [{"score": 3204838382}],
+   "foundation_hash": "<sha256 of your foundation file>",
+   "adapter_hash": "<keccak256 of the package you loaded>",
+   "tokenizer_hash": "<that package's tokenizer_hash>"}
+  ```
 
-- **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never
-  one question per request. A comparator question is `{"ground_truth_value":
-  <int64>, "miner_value": <int64>, "spec": [<comparator kind>, <tolerance>]}`, with
-  both values already on the same fixed-point scale. A model adapter question is
-  `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with
-  the pinned vocabulary, so your endpoint needs no tokenizer. A batch holds at most
-  100 questions, and the body is at most a few hundred KB, so accept bodies of at
-  least 1 MiB.
-- **Reply.** `200` with `{"results": [<result>, ...]}`, exactly one result per
-  question, **in the same order**. A result is `{"score": <integer>}` or
-  `{"error": "..."}` when your module rejects that input. For a comparator the
-  score is in basis points, `0` to `10000`. For a model adapter it is the **f32 bit
-  pattern** of the output as an unsigned 32-bit integer (the value of the
-  adapter's `HEX : 0x...` line, for example `1104535916` for `0x41d5e16c`), never a
-  decimal, which would be rounded. NaN and infinity bit patterns are refused. A
-  reply over 64 KiB, a different number of results than questions, or an
-  out-of-range score counts as a failed attempt.
-- **When it is called.** Not straight away. The cases are picked by a seed from
-  the first epoch that settles after your registration, so nobody can know them
-  when registering. Until then the registration stays `pending`, your endpoint is
-  not called, your binary is not downloaded and no attempt is used. For a
-  comparator the node asks 100 cases out of its correctness battery (two batch
-  requests). For a model adapter it asks 30 questions (15 public pairs, two texts
-  each) in one batch. The hidden competition split is never sent to your endpoint.
-- **Time limit.** The whole check must finish within 30 minutes for a model adapter (2 minutes for a comparator).
-- **Failures.** A `4xx`, or a `200` with no `results` array (for example the old
-  single `{"score": N}` form), means the endpoint does not implement the batch
-  request: the registration is rejected at once with `its runnable URL did not
-  accept the batch request`. `408`, `429` and `5xx` are retried at the next epoch
-  rollover or within the hour (not at once, so a briefly busy endpoint can recover); after 3 failed
-  attempts the registration is rejected with `remote executor unreachable`. For a model adapter,
-  after the binary downloads the node re-scores the same public pairs and rejects a
-  candidate whose binary does not reproduce your endpoint's answers bit for bit.
+  A different echo rejects the registration at once (`identity echo mismatch`); a missing
+  echo rejects it after the download (`its runnable URL did not echo the score
+  identity`). Echoing `input_root` is optional, but an echo that differs is the same
+  mismatch.
+- **Reply.** `200` with `{"results": [<result>, ...]}`, exactly one result per question,
+  **in the same order**. A result is `{"score": <integer>}` or `{"error": "..."}` when your
+  module rejects that input. For a comparator the score is in basis points, `0` to
+  `10000`. For an Evaluator adapter it is the **f32 bit pattern** of the reward logit as an
+  unsigned 32-bit integer (for example `3204838382` for `0xbf05f3ee`), never a decimal,
+  which would be rounded. NaN and infinity bit patterns are refused. A reply over 64 KiB, a
+  different number of results than questions, or an out-of-range score counts as a failed
+  attempt.
+- **When it is called.** Not straight away. The cases are picked by a seed from the first
+  epoch that settles after your registration, so nobody can know them when registering.
+  Until then the registration stays `pending`, your endpoint is not called, your file is
+  not downloaded and no attempt is used. For a comparator the node asks 100 cases out of its
+  correctness battery (two batch requests). For an Evaluator adapter it asks up to 30
+  questions (15 public pairs, two texts each) in one batch, and at least 70% of the pairs
+  must come out in the right order. The hidden competition split is never sent to your
+  endpoint.
+- **Time limit.** The whole check must finish within 30 minutes for an Evaluator adapter
+  (2 minutes for a comparator). On a laptop CPU one 512-token text takes about 13-14
+  seconds on the Foundation Model, so 30 texts take about 7 minutes.
+- **Failures.** A `4xx`, or a `200` with no `results` array (for example the old single
+  `{"score": N}` form), means the endpoint does not implement the batch request: the
+  registration is rejected at once with `its runnable URL did not accept the batch
+  request`. `408`, `429` and `5xx` are retried at the next epoch rollover or within the hour
+  (not at once, so a briefly busy endpoint can recover); after 3 failed attempts the
+  registration is rejected with `remote executor unreachable`. For an Evaluator adapter,
+  after the file downloads the node re-scores the same public pairs and rejects a candidate
+  whose package does not reproduce your endpoint's answers bit for bit (`remote score
+  mismatch`).
 
-If the intent has no public evaluation material yet, there is nothing to check
-your endpoint against: the registration stays `pending`
-(`awaiting_compatible_material`) and is re-evaluated when a snapshot is published.
+If the intent has no public evaluation material yet, there is nothing to check your
+endpoint against: the registration stays `pending` (`awaiting_compatible_material`) and is
+re-evaluated when a snapshot is published.
 
 ### Registering without holding gas
 
@@ -739,7 +740,7 @@ Your module doesn't go live instantly. It moves through a handful of states:
 | `pending` | Registered, being fetched and evaluated, or waiting for evaluation material. |
 | `active` | Won (or passed, for a comparator) and is the live module for its intent. |
 | `rejected` | Failed a check or lost its competition round; the reason is recorded. |
-| `superseded` | Was active, then a better module took over the intent. |
+| `superseded` | Was active, then a better module took over the intent, or a validator upgrade took it out of service (a full-model `.wasm`, or a foundation update: `foundation_updated: …`). |
 | `deregistered` | Taken down by its author (see the next section). |
 
 `GET /api/wasm` adds a `stage` field that splits these into the module
@@ -754,11 +755,14 @@ lifecycle:
 | `rejected` | `rejected`. |
 | `deactivated` | `deregistered`. |
 
-A comparator module is usually decided within minutes. A model adapter takes
-longer: the download alone can take up to 30 minutes, its round waits for an
-epoch to be confirmed after it registered, and it can wait for evaluation
-material with no time limit. A rejection is final — which is why it's worth
-testing first: every re-registration is another transaction.
+A comparator module is usually decided within minutes. An Evaluator adapter
+takes longer: it waits for an epoch to be confirmed after it registered, then
+every check scores real texts on the Foundation Model at about 10-15 seconds each
+on a CPU (up to 30 at your endpoint, the same 30 again on the validator, then 60
+in the competition round), and it can wait for evaluation material with no time
+limit. A local end-to-end run took about 21 minutes from registration to
+`active`, on top of the epoch wait. A rejection is final — which is why it's
+worth testing first: every re-registration is another transaction.
 
 ### Checking your module's status
 
@@ -791,7 +795,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 |---|---|
 | `ActivationStatus` | The state from the table above. This is what you poll for. |
 | `RejectionReason` | Exactly which bar you missed, in the evaluator's own words. `null` unless rejected. |
-| `EvalScore` | Your win rate (model adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
+| `EvalScore` | Your win rate (Evaluator adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
 | `EvalDetails` | The full [breakdown](#the-numbers-on-your-registration) as a JSON string. On a waiting module it carries `decision: "awaiting_material"` and the reason. |
 | `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator errored). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. Waiting for material is not an error and is not counted. |
 
@@ -808,6 +812,40 @@ All are free, unauthenticated `GET`s.
 
 `400` means a non-numeric or out-of-range id · `404` no registration with that
 id · `503` the node has no WASM store configured.
+
+### Rejection reasons for Evaluator adapters
+
+An Evaluator adapter's `rejection_reason` names the rule it broke. Stage 1 reasons read
+`structural validation failed: lora adapter: <reason>: …` (or `… failed on re-fetch: …`);
+remote-check reasons start with `remote executor check failed before download: …`.
+
+| Reason | What it means | Fix |
+|---|---|---|
+| `legacy_full_model` | The file is a full-model float `.wasm` (the model baked into a WASI command), the format before the shared Foundation Model. Its download is stopped at the first MiB. | Export the delta from the adapter's training run with the kit's `export_adapter.py` and register the `.safetensors`. See [Upgrading](upgrade-shared-foundation.md). |
+| `foundation_mismatch` | The package's `foundation_hash` is not the validator's Foundation Model. | Export again with the current `foundation.json`. A package built for another foundation is never served on this one. |
+| `tokenizer_mismatch` | `tokenizer_hash` is not the pinned ModernBERT tokenizer. | Train and export with ModernBERT-base's `tokenizer.json`. |
+| `no_foundation` | The validator runs no Foundation Model, so it scores no Evaluator adapter. | Nothing on your side: that validator must be configured. All validators of the network run one. |
+| `class_mismatch` | `class` is not the intent's (a judgment package for a hybrid intent, or the reverse). | `export_adapter --class` with the intent's class. |
+| `rank_too_large` | `rank` is above 16. | Train with `--lora-rank` 16 or less. |
+| `bad_target_module` | A `target_modules` entry other than `Wqkv`, `Wo`, `Wi`, or one listed twice. | Train plain PEFT LoRA on those modules. |
+| `bad_shape` | A tensor is missing, repeated, unexpected or the wrong shape for the Foundation Model. | The package was built for another base model, or edited by hand. Export again with the kit. |
+| `bad_dtype` | A tensor is not `F32`. | Export again with the kit. |
+| `bad_offsets`, `trailing_bytes`, `truncated` | The tensors do not tile the data exactly (an overlap, a gap, bytes after the last tensor, or a short file). | Upload the file again unchanged, or export again. |
+| `non_finite` | A NaN or infinite value. | Retrain or export again. |
+| `too_large`, or `gave up after 3 failed evaluation attempts: binary fetch failed` | Above the validator's size cap (64 MiB by default). A download over the cap counts as a failed fetch (the node logs `exceeds the N-byte lora-adapter limit`) and is rejected after 3 attempts. | A rank-8 package is 6.8 MB; check you uploaded the delta, not another file. |
+| `bad_max_tokens` | `max_tokens` outside 1 to 512. | `export_adapter --max-tokens`. |
+| `training_record` | The optional training record is malformed. | Fix or drop `--training-record`. |
+| `bad_header`, `bad_abi`, `bad_version`, `bad_container`, `missing_metadata` | Not a safetensors file, no `__metadata__`, a missing or malformed field, or an unknown metadata key (extension keys start with `x-`). | Export again with the current kit. |
+| `identity echo mismatch` | Your runnable URL echoed a different `foundation_hash`, `adapter_hash`, `tokenizer_hash` or `input_root` than the node sent. Rejected before the download. | Run the registered package on the validators' Foundation Model and echo what you actually ran. |
+| `its runnable URL did not echo the score identity` | Your runnable URL returned scores without the identity echo. Rejected after the download. | Add the three fields to the reply (see [The runnable endpoint](#the-runnable-endpoint)). |
+| `remote score mismatch` | The node re-scored a public pair and got different bits than your runnable URL. | Serve the same foundation, engine and package the validators run. |
+| `wasm hash mismatch` | The downloaded file's keccak256 is not the registered hash. Rejected on the first attempt. | Register the keccak256 of the exact bytes you host. |
+| `Q32.32 wide adapters are retired; …` / `MiniLM rank_answer scoring modules are retired …` | A retired module format. | Build a delta package. |
+
+A `superseded` adapter whose `rejection_reason` starts with `foundation_updated` was taken
+out of service by a Foundation Model update: it was built for the previous foundation, or
+failed Stage 1 under the new one. It is never rolled back to; export a delta for the
+current foundation and register it.
 
 ### Knowing what you're up against
 
@@ -899,7 +937,7 @@ Once the network sees the deregistration:
 ### Replacing a module
 
 You usually **don't** need to deregister to upgrade. Just register the new
-module. A model adapter takes over only if it wins its competition round against
+module. An Evaluator adapter takes over only if it wins its competition round against
 the current module (see
 [Stage 2 for model adapters](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool));
 a comparator module takes over once it passes the correctness gate.
@@ -923,7 +961,7 @@ Nothing is ever slashed.
 - **Comparator modules:** reproduce the reference rule exactly, including the
   awkward parts — truth first, saturating multiplication, 128-bit RelTol, unknown
   codes treated as Exact. Test at the window edges and at wei scale.
-- **Model adapters:** the test is ordering. On every pair your model should score
+- **Evaluator adapters:** the test is ordering. On every pair your model should score
   the better answer above the worse one. A model that gives everything the same
   score wins nothing.
 - **Families:** a family module has to hold up on each child, not just on
