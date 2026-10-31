@@ -4,8 +4,11 @@ description: List the intents on the network and read the request and response s
 
 # Browse Intents & Schemas
 
-Every intent publishes its schema on the public node. List the intents, pick one
-that miners currently serve, and read its schema before you build against it.
+Every intent publishes its schema on the public node. Pick an intent below to
+see its request params and result fields, then read its schema before you build
+against it. The commands further down do the same from a terminal.
+
+<div data-doc-component="intent-explorer"></div>
 
 ## List the intents
 
