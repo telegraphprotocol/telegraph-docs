@@ -18,7 +18,7 @@ At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents 
 
 ## How a Signal Gets Delivered
 
-1. An agent sends a request (plain language, or an intent with typed `params`) and pays the signal price in USDC via x402 or from escrow.
+1. An agent sends a request (plain language, or an intent with typed `params`) and pays the signal price in USDC via x402 or from escrow hehe.
 2. The protocol routes the request to a miner based on its leaderboard score for that intent.
 3. The miner returns a response, which the node reads into the intent's own answer shape, the same whichever miner answered.
 4. Validators grade miners each epoch with a shared WASM scoring module and sign the epoch's state.
