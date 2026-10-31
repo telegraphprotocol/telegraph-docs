@@ -5,7 +5,7 @@ description: Advanced protocol reference for intent families, scoring, and gover
 # Intents
 
 > **Looking to consume intelligence?** Start with [Start Here](consume-intelligence.md)
-> and [Browse Intents & Schemas](/intent-schema). This page covers the advanced
+> and [Browse Intents & Schemas](intent-schema.md). This page covers the advanced
 > protocol catalog and governance mechanics.
 
 An **intent** is a capability the protocol recognises: "get the EUR/USD rate",
@@ -80,8 +80,7 @@ curl -s "$NODE/engine/v1/intents/$INTENT" | jq '{
 }'
 ```
 
-You can also use the browser-based [Browse Intents & Schemas](/intent-schema).
-It reads the same public endpoint and displays its unmodified JSON response.
+The same commands are on [Browse Intents & Schemas](intent-schema.md).
 
 The second response is the public, node-generated contract for consumption. It
 contains four related definitions:
