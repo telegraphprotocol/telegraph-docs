@@ -29,6 +29,7 @@
 
 * [Build an Evaluator Adapter](scoring/build-a-scoring-module.md)
 * [Train an Evaluator Adapter](scoring/train-a-scoring-adapter.md)
+* [Upgrading to the Shared Foundation Model](scoring/upgrade-shared-foundation.md)
 * [Contribute Evaluation Data](scoring/contribute-evaluation-data.md)
 
 ## Contributing Through Bounties
