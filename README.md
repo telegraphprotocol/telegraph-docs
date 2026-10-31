@@ -11,7 +11,7 @@ This repository holds the content only: Markdown pages and the table of contents
 | `introduction.md`, `whats-new-v2.md` | What Telegraph is, and what changed in V2 |
 | `using/` | How to discover intents, make a request, pay for it, and receive the result |
 | `miners/` | How to run a miner: YAML configuration, the validation API, registration |
-| `scoring/` | How to build, train and register an evaluator adapter, and contribute evaluation data |
+| `scoring/` | How to build and register an evaluator adapter (a comparator module, or a delta on the shared Foundation Model), upgrade from full-model adapters, and contribute evaluation data |
 | `bounties/` | Contributing through bounties: your first bounty, evaluation material, rules and rewards |
 | `protocol/` | How the protocol works: tokenomics, roles, addresses and parameters |
 | `SUMMARY.md` | The table of contents. It sets the sidebar order and which pages are published |

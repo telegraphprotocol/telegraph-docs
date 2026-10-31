@@ -41,10 +41,10 @@ When a miner returns a response, it isn't taken at face value. Validators run a 
 **1. Reference Values from Truth Sources**
 Deterministic Intents (and the checkable part of hybrid Intents) are checked against a reference value. There is no built-in data source per Intent. Instead, contributors upload **truth sources** to the Evaluation Pool (below): descriptions of public, key-less APIs that answer the Intent's question, in the same format as a miner YAML. Each epoch, for each question, the node picks up to 3 of them, calls each one, reads the value out of each answer, and takes the median. That median is fixed once for the epoch, so every miner is scored against the same value. An Intent with no usable truth source is not ranked that epoch, and its miners keep their previous ranking.
 
-**2. Canonical Scoring Module (WASM)**
-Every family has at most one canonical scoring module at a time, a WASM module that defines how to score a miner response. Which kind depends on the family's kind (see [Intents](../using/intents.md#the-three-kinds)):
+**2. Canonical Scoring Module**
+Every family has at most one canonical scoring module at a time, which defines how to score a miner response. Which kind depends on the family's kind (see [Intents](../using/intents.md#the-three-kinds)):
 - **Deterministic** families use a comparator: the value in the miner's answer is compared with the epoch's reference value from truth sources (step 1), within the Intent's tolerance.
-- **Judgment** families use a model-based **evaluator adapter** that judges each answer on its own merits. The question miners are asked comes from the Evaluation Pool (below).
+- **Judgment** families use a model-based **evaluator adapter** that judges each answer on its own merits. The question miners are asked comes from the Evaluation Pool (below). An adapter is a small delta (LoRA weights and a reward head) that every Validator runs on the same shared Foundation Model, so every Validator computes the same score.
 - **Hybrid** families combine a comparator score with a model's judgment, using the Intent's fusion rule.
 
 Each Validator independently executes the module on the miner's response, producing a Local Score between 0 and 1.
