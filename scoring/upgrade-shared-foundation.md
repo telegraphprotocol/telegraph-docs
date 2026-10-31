@@ -53,7 +53,8 @@ structural validation failed: legacy_full_model: full-model float adapters are n
    ```
 
    Pass `--max-tokens` if you trained shorter than 512 tokens. `foundation.json` names the
-   Foundation Model validators run; where it is published is still to be announced.
+   Foundation Model validators run. It is not published yet: the Telegraph team will
+   publish it with the deploy (see [Train an Evaluator Adapter](train-a-scoring-adapter.md#what-you-need)).
 3. **Check it** the way a node will, and get the hash to register:
 
    ```bash
@@ -115,8 +116,8 @@ echo it:
 registered package, and answer each item with the f32 bits of the score. Echo what you
 actually ran, not what you were sent. The full contract is in
 [The runnable endpoint](build-a-scoring-module.md#the-runnable-endpoint). A reference
-executor that does this with the node's own runtime is not published yet (to be
-announced). The examples repository's
+executor that does this with the node's own runtime is the adapter kit's
+[`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec). The examples repository's
 [`evaluator-adapter`](https://github.com/telegraphprotocol/telegraph-examples/tree/master/evaluator-adapter)
 folder has a script that sends your endpoint the request a validator sends and checks the
 reply.
@@ -152,8 +153,11 @@ hash**: an adapter is built for one hash and is rejected elsewhere
    publishes no model ranking. Both are idempotent.
 2. **Install the foundation files**: the ONNX graph (`foundation_lora_fp32.onnx`, about
    599 MB), the engine module (`foundation_engine.wasm`, about 2.6 MB), and ModernBERT-base's
-   `tokenizer.json`. Where the files are published is still to be announced; their hashes
-   come with them.
+   `tokenizer.json`. The engine is in the adapter kit
+   ([`float_runtime/engine/foundation_engine.wasm`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/float_runtime/engine))
+   and the tokenizer is public on Hugging Face. The ONNX graph is not published yet: the
+   Telegraph team will publish it, with the hash every validator must run, at a public
+   location announced with the deploy.
 3. **Set the environment:**
 
    | Variable | Default | Meaning |

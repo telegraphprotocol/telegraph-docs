@@ -49,9 +49,14 @@ this: deterministic intents use a comparator module instead. See
 - **A GPU** for training. Training works on a CPU, but it is very slow. Export and the
   check run in seconds on a CPU.
 - **`foundation.json`** for the Foundation Model validators run: a small file with its
-  hash, version, tokenizer hash and LoRA layout. **Where it is published is still to be
-  announced.** The Foundation Model file itself (`foundation_lora_fp32.onnx`, ~599 MB) is
-  only needed to score your package locally and to run your executor.
+  hash, version, tokenizer hash and LoRA layout. The Foundation Model file itself
+  (`foundation_lora_fp32.onnx`, ~599 MB) is only needed to score your package locally and
+  to run your executor. **Neither is published yet**: the Telegraph team will publish both
+  at a public location announced with the deploy. The engine module is already in the kit
+  (`float_runtime/engine/foundation_engine.wasm`), and the tokenizer is ModernBERT-base's
+  public `tokenizer.json`. A foundation you export yourself with `export_foundation.py` is
+  not guaranteed to have the same hash, and a package built against a different hash is
+  rejected (`foundation_mismatch`).
 
 Run every command from the root of the kit.
 
@@ -226,7 +231,7 @@ competition still decide.
    echoing the score identity. The contract is in
    [The runnable endpoint](build-a-scoring-module.md#the-runnable-endpoint). Its scores must
    be the exact bits the validators compute, so run the same foundation, engine and package.
-   A reference executor is not published yet (to be announced).
+   The kit's [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec) is the reference executor.
 
 ## Step 6: Register and compete
 
