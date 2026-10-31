@@ -1,6 +1,6 @@
 # Telegraph Documentation
 
-This is the source repository for [docs.telegraphprotocol.com](https://docs.telegraphprotocol.com) — the user-facing documentation site for the Telegraph protocol. Built with Next.js and powered by GitBook.
+This is the source repository for [docs.telegraphprotocol.com](https://docs.telegraphprotocol.com) — the user-facing documentation for the Telegraph protocol. This repo holds only the content; it is published at `/docs` on the Anjoman site.
 
 ## Structure
 
@@ -14,7 +14,9 @@ This is the source repository for [docs.telegraphprotocol.com](https://docs.tele
 
 ## Contributing
 
-Edit markdown files and open a PR. The site auto-publishes via GitBook sync.
+Edit markdown files and open a PR. Merging to `main` publishes the change to the Anjoman site automatically.
+
+A page is published only if it is listed in `SUMMARY.md`. Link between pages with relative `.md` links, for example `[x](../using/intents.md)`.
 
 Documentation should be self-contained — engineers and users should be able to understand, build, and troubleshoot without external dependencies.
 

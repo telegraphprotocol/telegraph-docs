@@ -1,0 +1,45 @@
+name: Publish to Anjoman
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One publish at a time; a newer push waits for the running one.
+concurrency:
+  group: publish-anjoman
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check SUMMARY.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every page listed in SUMMARY.md exists
+        run: |
+          missing=0
+          for f in $(grep -oE '\]\([^)]+\)' SUMMARY.md | sed -E 's/^\]\((.*)\)$/\1/'); do
+            case "$f" in
+              *.md) [ -f "$f" ] || { echo "SUMMARY.md lists a missing file: $f"; missing=1; } ;;
+              *) echo "SUMMARY.md entry is not a .md file: $f"; missing=1 ;;
+            esac
+          done
+          exit $missing
+
+  publish:
+    name: Publish
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      # The key behind these secrets can only run the deploy script on the server,
+      # whatever command is sent (see scripts/deploy-docs.sh in the Anjoman repo).
+      - name: Deploy on the Anjoman server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ANJOMAN_SSH_HOST }}
+          username: ${{ secrets.ANJOMAN_SSH_USER }}
+          key: ${{ secrets.ANJOMAN_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.ANJOMAN_SSH_PORT }}
+          script: deploy-docs
