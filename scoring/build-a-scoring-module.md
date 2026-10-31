@@ -529,8 +529,9 @@ the registration after three attempts. For an Evaluator adapter that means your 
 running on the **same Foundation Model file and engine module the validators run**: the
 node later re-scores the same texts itself and rejects any score that differs by a single
 bit, so a different runtime (for example native ONNX Runtime, or a full-model `.wasm`)
-does not pass. A reference executor that runs the Foundation Model and a delta with the
-node's own runtime is not published yet (to be announced); the examples repository's
+does not pass. The adapter kit's [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec) is the reference
+executor: it runs the Foundation Model and your package with the node's own runtime. The
+examples repository's
 [`evaluator-adapter`](https://github.com/telegraphprotocol/telegraph-examples/tree/master/evaluator-adapter)
 folder has a script that sends your endpoint the request a validator sends and checks the
 reply.
