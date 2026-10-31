@@ -8,7 +8,7 @@
 ## Using Telegraph
 
 * [Start Here](using/consume-intelligence.md)
-* [Browse Intents & Schemas](/intent-schema)
+* [Browse Intents & Schemas](using/intent-schema.md)
 * [Make a Request](using/engine-ask.md)
 * [Choose a Delivery Path](using/inference-paths.md)
 * [Pay per Request (x402)](using/x402-inference.md)

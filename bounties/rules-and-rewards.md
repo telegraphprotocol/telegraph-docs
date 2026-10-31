@@ -16,7 +16,7 @@ description: Public contribution rules and the reward terms that govern a Telegr
 ### Only intents that already exist
 
 Bounties use the intents that already exist on the network: browse them in
-[Browse Intents & Schemas](/intent-schema). Proposing a new intent is not part
+[Browse Intents & Schemas](../using/intent-schema.md). Proposing a new intent is not part
 of a bounty.
 
 ## Rewards

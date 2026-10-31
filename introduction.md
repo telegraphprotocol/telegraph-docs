@@ -6,7 +6,7 @@ description: Telegraph is a permissionless marketplace for verified AI inference
 
 Autonomous agents need intelligence they can trust and pay for programmatically — without API key management, without centralized gatekeepers, and without a human in the loop. Telegraph is the protocol that makes this possible.
 
-At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents pay in USDC for a question answered. Miners from across the world compete to supply the best answer. A network of validators grades those answers using shared scoring modules, signs the result with an aggregate signature, and delivers a finalized signal. Every USDC paid to get that answer flows back through an open market to buy the protocol's native token, MACHINA, meaning every real use of the network creates direct, permanent demand for the token that secures it.
+At its core, Telegraph is a **marketplace for verifiable AI inference**. Agents pay in USDC for a question answered. Miners from across the world compete to supply the best answer. A network of validators grades those answers using shared scoring modules, signs the result with an aggregate signature, and delivers a finalized signal. Every USDC paid for an answer flows back through an open market to buy the protocol's native token, MACHINA. So every real use of the network creates direct, permanent demand for the token that secures it.
 
 ## The Three Forces
 
@@ -49,17 +49,3 @@ You can subscribe to this feed over WebSocket instead of polling for it: authent
 | Build a scoring adapter or contribute evaluation data | [Build an Evaluator Adapter](scoring/build-a-scoring-module.md) |
 | Connect an AI agent with zero crypto code | [AI Agents (MCP)](using/mcp-server.md) |
 | Run a miner and earn MACHINA | [What Miners Do](miners/miner-overview.md) |
-
-## Reading These Docs With an AI
-
-Every page is also available as plain Markdown, which AI assistants read more
-reliably than a web page:
-
-| What you want | Use |
-|---|---|
-| Give an AI the whole documentation at once | [`/llms-full.txt`](https://docs.telegraphprotocol.com/llms-full.txt): every page in one file. Paste the link, or download the file and attach it. |
-| Let an AI pick the pages it needs | [`/llms.txt`](https://docs.telegraphprotocol.com/llms.txt): a list of every page with a one-line summary and a link to its Markdown |
-| Share one page | Add `.md` to the page's address (for example `/docs/using/intents.md`), click **View as Markdown**, or click **Copy for LLM** at the top of the page |
-
-Links inside the Markdown point to the full address of the other pages, so a
-copied page still works when your AI reads it on its own.

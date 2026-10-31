@@ -7,8 +7,8 @@ description: Pick an intent, read its schema, and make your first paid request t
 Start here when you want to use Telegraph in an application, an agent or a smart
 contract.
 
-1. Open [Browse Intents & Schemas](/intent-schema).
-2. Pick an intent that has miners (the explorer shows the count).
+1. Open [Browse Intents & Schemas](intent-schema.md).
+2. Pick an intent that has miners (the list shows the count).
 3. Read its request params and its result fields.
 4. Send a request through the [Engine API](engine-ask.md), or from a smart
    contract with an [on-chain job](erc8183-jobs.md).
@@ -40,7 +40,7 @@ Where published, the node exposes these schemas:
 | Smart-contract inputs | `onchain.request` |
 | Callback values | `onchain.response` |
 
-The explorer shows which schemas are available for an intent. If the intent you
+The node response shows which schemas are available for an intent. If the intent you
 need has no published schema, ask the team in Discord with its exact name
 before building a typed or on-chain integration.
 
