@@ -51,12 +51,21 @@ this: deterministic intents use a comparator module instead. See
 - **`foundation.json`** for the Foundation Model validators run: a small file with its
   hash, version, tokenizer hash and LoRA layout. The Foundation Model file itself
   (`foundation_lora_fp32.onnx`, ~599 MB) is only needed to score your package locally and
-  to run your executor. **Neither is published yet**: the Telegraph team will publish both
-  at a public location announced with the deploy. The engine module is already in the kit
-  (`float_runtime/engine/foundation_engine.wasm`), and the tokenizer is ModernBERT-base's
-  public `tokenizer.json`. A foundation you export yourself with `export_foundation.py` is
-  not guaranteed to have the same hash, and a package built against a different hash is
-  rejected (`foundation_mismatch`).
+  to run your executor. Download both, with the engine, the pinned `tokenizer.json` and
+  `SHA256SUMS`, from the [`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1) of
+  [telegraph-foundation](https://github.com/telegraphprotocol/telegraph-foundation), and
+  check the hashes:
+
+  ```bash
+  mkdir -p foundation && cd foundation
+  curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/foundation.json
+  curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/SHA256SUMS
+  sha256sum -c --ignore-missing SHA256SUMS
+  ```
+
+  Use the released files, not a foundation you export yourself with `export_foundation.py`:
+  a local export is not guaranteed to have the same hash, and a package built against a
+  different hash is rejected (`foundation_mismatch`).
 
 Run every command from the root of the kit.
 

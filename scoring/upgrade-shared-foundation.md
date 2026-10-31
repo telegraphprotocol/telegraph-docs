@@ -53,8 +53,7 @@ structural validation failed: legacy_full_model: full-model float adapters are n
    ```
 
    Pass `--max-tokens` if you trained shorter than 512 tokens. `foundation.json` names the
-   Foundation Model validators run. It is not published yet: the Telegraph team will
-   publish it with the deploy (see [Train an Evaluator Adapter](train-a-scoring-adapter.md#what-you-need)).
+   Foundation Model validators run; download it from the [`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1).
 3. **Check it** the way a node will, and get the hash to register:
 
    ```bash
@@ -153,11 +152,14 @@ hash**: an adapter is built for one hash and is rejected elsewhere
    publishes no model ranking. Both are idempotent.
 2. **Install the foundation files**: the ONNX graph (`foundation_lora_fp32.onnx`, about
    599 MB), the engine module (`foundation_engine.wasm`, about 2.6 MB), and ModernBERT-base's
-   `tokenizer.json`. The engine is in the adapter kit
-   ([`float_runtime/engine/foundation_engine.wasm`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/float_runtime/engine))
-   and the tokenizer is public on Hugging Face. The ONNX graph is not published yet: the
-   Telegraph team will publish it, with the hash every validator must run, at a public
-   location announced with the deploy.
+   `tokenizer.json`. All three, with `foundation.json` and `SHA256SUMS`, are assets of the
+   [`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1); its
+   [README](https://github.com/telegraphprotocol/telegraph-foundation#readme) has the
+   download and verification commands. Check every file with `sha256sum -c SHA256SUMS`
+   before you start the node. The hashes every validator must run:
+   `FOUNDATION_MODEL_HASH=0a49b325304bb4cf292e683929689d0457966be264f60bfc94d0072b614bf8e6`,
+   `FOUNDATION_ENGINE_WASM_HASH=77643d6e1176ab8744801cef93ccb844d0136ed32b8daa865d541f37d13292de`,
+   `FOUNDATION_MODEL_VERSION=modernbert-base-lora16-v1`.
 3. **Set the environment:**
 
    | Variable | Default | Meaning |
