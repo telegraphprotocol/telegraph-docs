@@ -260,12 +260,13 @@ competition still decide.
    4. **Competition** on the intent's hidden evaluation pool. Your adapter replaces the
       current one only if it wins by at least 2 points and scores at least 70%. See
       [Stage 2 for model adapters](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).
-3. **Expect one to two hours on the testnet.** The node sees your transaction about 10 to
+3. **Expect up to about an hour and a half on the testnet.** The node sees your transaction about 10 to
    15 minutes after it is mined, then waits for the next confirmed epoch (1 hour on the
    testnet). On a laptop CPU one 512-token text takes about 13-14 seconds on the
    Foundation Model: the remote check is several minutes on your executor, the
    confirmation the same again on the validator, and the hidden round (60 texts) about
-   twice as long. On the testnet the checks after the epoch take about 30 to 60 minutes.
+   twice as long. On the testnet the checks after the epoch usually take about 5 to 15 minutes;
+   most of the wait is the epoch.
 
 Follow it with
 [Checking your module's status](build-a-scoring-module.md#checking-your-modules-status);

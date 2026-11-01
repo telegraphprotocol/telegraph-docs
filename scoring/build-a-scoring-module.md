@@ -777,9 +777,9 @@ An Evaluator adapter takes longer. It waits for an epoch to be confirmed after i
 registered (epochs are 1 hour on the testnet), then every check scores real texts
 on the Foundation Model (up to 30 at your endpoint, the same 30 again on the
 validator, then 60 in the competition round), and it can wait for evaluation
-material with no time limit. On the testnet, the checks after that epoch take
-about 30 to 60 minutes, so **plan for one to two hours from your transaction to
-`active`**. A rejection is final — which is why it's worth testing first: every
+material with no time limit. On the testnet, the checks after that epoch usually
+take about 5 to 15 minutes, so **plan for up to about an hour and a half from your
+transaction to `active`**, most of it the wait for the epoch. A rejection is final — which is why it's worth testing first: every
 re-registration is another transaction.
 
 ### Checking your module's status

@@ -79,7 +79,8 @@ checked as described below.
 epoch (1 hour on the testnet), the remote check scores up to 30 texts at your executor
 (about 10-15 s each on a laptop CPU), the validator downloads the package and re-scores
 the same texts, and then the competition round on the hidden split scores 60 more texts.
-On the testnet, plan for one to two hours from your transaction to Active. With no
+On the testnet, plan for up to about an hour and a half from your transaction to Active;
+most of it is the wait for the epoch. With no
 incumbent, the first adapter that reaches 70% becomes the first canonical one
 (`decision: "first_canonical"`).
 
