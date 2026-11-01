@@ -14,7 +14,7 @@ runs when you paste a YAML into it. The web interface is the easier path if you
 have a browser; this page is the API behind it, for scripts and agents.
 
 > [!WARNING]
-> `POST https://integrate.telegraphprotocol.com/api/validate` answers `404`, so
+> `POST https://anjoman.ai/dashboard/validate` answers `404`, so
 > the calls on this page do not work. Use the web interface, or register and
 > read the node's verdict with `GET /api/miners/{registrationId}` (see
 > [If it isn't there](miner-registration.md#if-it-isnt-there)). The rules and
@@ -24,7 +24,7 @@ have a browser; this page is the API behind it, for scripts and agents.
 > `registerMiner` with `cast call` first.
 
 ```
-POST https://integrate.telegraphprotocol.com/api/validate
+POST https://anjoman.ai/dashboard/validate
 Content-Type: application/json
 ```
 
@@ -63,7 +63,7 @@ hand it to a JSON encoder:
 ```bash
 node -e '
 const fs = require("fs");
-fetch("https://integrate.telegraphprotocol.com/api/validate", {
+fetch("https://anjoman.ai/dashboard/validate", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ yaml: fs.readFileSync("my-miner.yaml", "utf8") }),
@@ -74,7 +74,7 @@ fetch("https://integrate.telegraphprotocol.com/api/validate", {
 ```python
 import requests
 body = {"yaml": open("my-miner.yaml").read()}
-print(requests.post("https://integrate.telegraphprotocol.com/api/validate", json=body).json())
+print(requests.post("https://anjoman.ai/dashboard/validate", json=body).json())
 ```
 
 ## Response
@@ -275,7 +275,7 @@ back out.
 ## Worked example
 
 ```bash
-$ node -e 'const fs=require("fs");fetch("https://integrate.telegraphprotocol.com/api/validate",
+$ node -e 'const fs=require("fs");fetch("https://anjoman.ai/dashboard/validate",
   {method:"POST",headers:{"Content-Type":"application/json"},
    body:JSON.stringify({yaml:fs.readFileSync("demo-miner.yaml","utf8")})})
   .then(r=>r.json()).then(r=>console.log(JSON.stringify(r,null,2)))'
@@ -318,7 +318,7 @@ curl -X POST http://localhost:8080/miner-dispatcher/validate \
 | `503` | `INTERNAL_SECRET` is not configured on that node, so the endpoint refuses to serve at all |
 
 A public node's `/miner-dispatcher/validate` will return `401` to you. Use
-`https://integrate.telegraphprotocol.com/api/validate` instead — it is the same
+`https://anjoman.ai/dashboard/validate` instead — it is the same
 check, proxied.
 
 ## Next Steps

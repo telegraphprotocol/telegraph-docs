@@ -19,7 +19,7 @@ Note the order: the key is stored **after** registration, because it is bound to
 
 This is the recommended path, and the only one that lets you supply an API key yourself.
 
-**Scripting it, or driving it from an agent?** The [Validation API](validation-api.md) page describes the HTTP form of the same checks. Its public endpoint, `https://integrate.telegraphprotocol.com/api/validate`, answers `404` (see the note on that page), so check your YAML against [YAML Configuration](yaml-config.md), send the registration transaction below yourself, and read the node's verdict with `GET /api/miners/{registrationId}` ([Step 6](#step-6-wait-for-nodes-to-activate-you)).
+**Scripting it, or driving it from an agent?** The [Validation API](validation-api.md) page describes the HTTP form of the same checks. Its public endpoint, `https://anjoman.ai/dashboard/validate`, answers `404` (see the note on that page), so check your YAML against [YAML Configuration](yaml-config.md), send the registration transaction below yourself, and read the node's verdict with `GET /api/miners/{registrationId}` ([Step 6](#step-6-wait-for-nodes-to-activate-you)).
 
 The rest of this page covers doing the same thing by hand with `cast`.
 
