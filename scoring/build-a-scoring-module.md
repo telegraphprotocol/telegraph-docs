@@ -156,7 +156,7 @@ An Evaluator adapter is a reward model: it reads a question and a miner's answer
 returns a score, and a better answer should get a higher score. Every validator runs **one
 shared Foundation Model** (ModernBERT-base with a reward head, loaded once per validator),
 and your adapter is only what you trained on top of it: a **safetensors delta package**
-holding the LoRA deltas and the reward head, a few MB (6.8 MB at rank 8). The validator
+holding the LoRA deltas and the reward head, a few MB (6.8 MB at rank 8, 13.5 MB at rank 16). The validator
 applies it to the Foundation Model at score time; the base weights never travel with your
 adapter. The hash you register is the package's keccak256.
 
@@ -434,6 +434,12 @@ Build your module (a comparator `.wasm`, or an Evaluator adapter's
 [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com/).
 The platform hashes the file and sends the transaction for you.
 
+> [!WARNING]
+> The platform's form asks for the file link, the intent and the payout address,
+> but not for a runnable URL. Every registration needs a real
+> [runnable endpoint](#the-runnable-endpoint) that the node checks before anything
+> else, so register an Evaluator adapter directly, as below.
+
 ### Registering directly
 
 If you're wiring this into your own app, registration is a single call on the
@@ -506,9 +512,15 @@ cast send "$DIAMOND" \
 
 The `xxd` one-liner suits a comparator module. An Evaluator adapter (6.8 MB at
 rank 8) is too large to pass as a shell argument: take the `keccak256` that the
-kit's `adapterbuild lora` prints, or hash the file with a tool that reads it
-directly and computes Ethereum's Keccak-256 (not NIST SHA3-256, which gives a
-different result).
+kit's `adapterbuild lora` prints, or let `cast` read the file from standard
+input, which hashes its raw bytes:
+
+```bash
+export WASM_HASH=$(cast keccak < runs/CODE_REVIEW/CODE_REVIEW.safetensors)
+```
+
+Do not use a NIST SHA3-256 tool (for example Python's `hashlib.sha3_256`): it
+gives a different result than Ethereum's Keccak-256.
 
 Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
@@ -537,9 +549,10 @@ folder has a script that sends your endpoint the request a validator sends and c
 reply.
 
 Run it behind your own public HTTPS reverse proxy: the node does not follow redirects, and
-in production it refuses loopback, private and link-local addresses. One Foundation Model
-copy needs about 1.8 GB of RAM. Keep the endpoint up until your registration leaves
-`pending`.
+it refuses loopback, private and link-local addresses (`refusing to connect to blocked
+address`). Give the executor at least 5 GB of RAM: with the Foundation Model loaded it uses
+about 4.2 GB, and it is killed while loading under a 4 GB limit. Keep the endpoint up until
+your registration leaves `pending`.
 
 The endpoint must implement the **batch request**:
 
@@ -756,14 +769,18 @@ lifecycle:
 | `rejected` | `rejected`. |
 | `deactivated` | `deregistered`. |
 
-A comparator module is usually decided within minutes. An Evaluator adapter
-takes longer: it waits for an epoch to be confirmed after it registered, then
-every check scores real texts on the Foundation Model at about 10-15 seconds each
-on a CPU (up to 30 at your endpoint, the same 30 again on the validator, then 60
-in the competition round), and it can wait for evaluation material with no time
-limit. A local end-to-end run took about 21 minutes from registration to
-`active`, on top of the epoch wait. A rejection is final — which is why it's
-worth testing first: every re-registration is another transaction.
+First, the node has to see your transaction. It reads the chain at Sepolia's
+`safe` block, so your registration appears about 10 to 15 minutes after the
+transaction. A comparator module is then usually decided within minutes.
+
+An Evaluator adapter takes longer. It waits for an epoch to be confirmed after it
+registered (epochs are 1 hour on the testnet), then every check scores real texts
+on the Foundation Model (up to 30 at your endpoint, the same 30 again on the
+validator, then 60 in the competition round), and it can wait for evaluation
+material with no time limit. On the testnet, the checks after that epoch usually
+take about 5 to 15 minutes, so **plan for up to about an hour and a half from your
+transaction to `active`**, most of it the wait for the epoch. A rejection is final — which is why it's worth testing first: every
+re-registration is another transaction.
 
 ### Checking your module's status
 
@@ -806,8 +823,7 @@ Lookups, depending on what you have:
 |---|---|
 | `GET /engine/validator/v1/wasm/{registrationId}` | You have the ID and want one module's status. |
 | `GET /engine/validator/v1/addresses/{yourAddress}/wasm` | You lost the ID, or want everything you have ever registered. |
-| `GET /engine/v1/intents/{INTENT}/wasm` | You want every module registered for an intent — including whichever one is currently `active`. |
-| `GET /api/wasm?intent={INTENT}` | The same per-intent list with snake_case keys, the `stage` field and `eval` as a parsed object. `GET /api/wasm/{registrationId}` is the single-record view. |
+| `GET /api/wasm?intent={PREFIX}` | You want every module registered for a prefix, including the current one (`champion`), with snake_case keys, the `stage` field and `eval` as a parsed object. `GET /api/wasm/{registrationId}` is the single-record view. |
 
 All are free, unauthenticated `GET`s.
 
@@ -853,21 +869,23 @@ current foundation and register it.
 Before you build, look at who currently holds the intent you're targeting:
 
 ```bash
-curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/CODE_REVIEW/wasm
+curl -s "https://devnode.telegraphprotocol.com/api/wasm?intent=CUSTOMER_TICKET_RESOLUTION" \
+  | jq '.intents[] | {champion: .champion | {registration_id, eval_score}, entries: [.entries[] | {registration_id, activation_status, stage}]}'
 ```
 
 ```json
 {
-  "count": 5,
-  "intent_id": "CODE_REVIEW",
-  "wasm": [
-    { "RegistrationID": 5, "ActivationStatus": "active", "EvalScore": 0.75, "...": "..." }
+  "champion": { "registration_id": 25, "eval_score": 0.89285713 },
+  "entries": [
+    { "registration_id": 25, "activation_status": "active", "stage": "canonical" },
+    { "registration_id": 24, "activation_status": "superseded", "stage": "replaced" },
+    { "registration_id": 20, "activation_status": "rejected", "stage": "rejected" }
   ]
 }
 ```
 
-The entry with `ActivationStatus: "active"` is the current module. For a model
-adapter, its `EvalScore` is the win rate from the round it won. That is a guide,
+`champion` is the current module (`null` when there is none). For a model
+adapter, its `eval_score` is the win rate from the round it won. That is a guide,
 not your target: your round uses a new sample, and the current module is scored
 again on that same sample. You need its win rate there plus 2 points.
 
@@ -879,7 +897,7 @@ the family is where you register.
 with no module (its own or a family's), your module only has to reach the 70%
 floor to become the first canonical module.
 
-The `rejected` entries are worth reading too. Their `RejectionReason` strings are
+The `rejected` entries are worth reading too. Their `rejection_reason` strings are
 a free list of the ways modules have already failed on that intent.
 
 ## Removing or replacing your module
@@ -901,8 +919,8 @@ deregisterEntity(registrationId, 2)
   or a collector).
 
 Only the original registering address can do this, so no one else can take your
-module down. The change is picked up **immediately**: the module stops serving and you
-don't need to wait for an epoch to roll over.
+module down. The module stops serving as soon as the node sees the transaction (about
+10 to 15 minutes, as above); you don't need to wait for an epoch to roll over.
 
 If the registering address holds no gas, sign instead and let anyone relay it:
 

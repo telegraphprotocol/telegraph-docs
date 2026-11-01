@@ -132,12 +132,6 @@ curl -s -X POST "$NODE/api/evalpool/submissions?intent_id=$INTENT&submitter=$ADD
 Use `--data-binary`, not `-d`. `curl -d` strips the newlines, so the node hashes
 different bytes than you signed and the upload fails with `signer_mismatch`.
 
-If you have access to the node source, its `cmd/evalpool-upload` command does
-the same thing: it reads the key from `EVALPOOL_PRIVATE_KEY` (or `--key-file`),
-signs, and splits a large file into parts on whole lines, each part with its own
-nonce. With `--kind truth_source` it uploads one truth source file instead (see
-[Uploading a truth source](#uploading-a-truth-source)).
-
 There is no fee or bond for uploading.
 
 ### The response
@@ -304,17 +298,11 @@ the document as a JSON object. The row has no `prompt`, `chosen` or `rejected`.
 Sign and send that line exactly as in [Signing and uploading](#signing-and-uploading).
 A source that serves several intents is uploaded once per intent.
 
-With the node source, `cmd/evalpool-upload` wraps the YAML file into this row and
-signs it for you:
+To build the row from a YAML file, let `jq` do the JSON string escaping:
 
 ```bash
-export EVALPOOL_PRIVATE_KEY=<contributor key>
-go run ./cmd/evalpool-upload --node https://<node> --chain-id <CHAIN_ID> \
-  --intent FX_NOW --kind truth_source \
-  --file cmd/evalpool-upload/examples/truth_source.example.yaml
+jq -Rsc '{label_kind: "truth_source", source: .}' truth-source.yaml > items.jsonl
 ```
-
-`--kind truth_source` is assumed for a `.yaml` or `.yml` file.
 
 ### What a truth source must pass
 

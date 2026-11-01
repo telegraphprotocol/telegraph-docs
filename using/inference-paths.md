@@ -56,10 +56,16 @@ The default. You describe what you want; the Engine classifies it and picks a
 miner.
 
 ```js
-import { wrapFetchWithPayment } from "@x402/fetch";
-import { createSigner } from "@x402/evm";
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm";
+import { privateKeyToAccount } from "viem/accounts";
 
-const fetchWithPayment = wrapFetchWithPayment(fetch, createSigner(process.env.EVM_PRIVATE_KEY));
+const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:11155111",
+              client: new ExactEvmScheme(privateKeyToAccount(process.env.EVM_PRIVATE_KEY)) }],
+  spendControls: { allowedAssets: [{ network: "eip155:11155111",
+    asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17", maxAmountPerPayment: "100000" }] },
+});
 
 const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
   method: "POST",
@@ -68,7 +74,8 @@ const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine
 });
 ```
 
-The library handles the `402` challenge, signs, and retries. Doing it by hand is
+The library handles the `402` challenge, signs, and retries. The `spendControls`
+block lets it pay with the testnet USDC. Doing it by hand is
 covered in [Pay per Request (x402)](x402-inference.md) — read it before you try,
 because a malformed payment comes back as a bare `402`, indistinguishable from
 not having paid at all.
@@ -82,11 +89,12 @@ You supply the miner ID, the endpoint and the payload. No routing, no
 
 ```bash
 # 1. find a miner and a valid endpoint (free)
-curl 'https://devnode.telegraphprotocol.com/api/miners?intent=WEATHER_CHECK_TEMPERATURE'
+curl 'https://devnode.telegraphprotocol.com/api/miners?intent=WEATHER_FORECAST_GENERAL'
 
-# 2. call it — same x402 flow as above
-POST /engine/v1/ask/18
-{ "method": "GET", "endpoint": "/predict", "payload": { "lat": 25.2, "lon": 55.3 } }
+# 2. call it — same x402 flow as above. Use the miner's `id` and one of its
+#    `endpoints[].path` values from step 1, for example:
+POST /engine/v1/ask/{minerId}
+{ "method": "GET", "endpoint": "/forecast", "payload": { "latitude": 25.2, "longitude": 55.3 } }
 ```
 
 Miner IDs are not stable over time. Always take them from `/api/miners`, never
@@ -155,13 +163,15 @@ delivered to a callback. Priced at `jobBasePrice`, not the miner's floor.
 ```bash
 cast send $DIAMOND \
   "createJobCapped(bytes32,(address[],uint256[],string[],bool[]),address,uint256)(uint256)" \
-  "$(cast keccak 'WEATHER_FORECAST_LAHORE')" '([],[24],["Lahore"],[])' $CALLBACK 2000000 \
+  "$(cast keccak 'WEATHER_CHECK_TEMPERATURE')" '([],[],["Lahore"],[])' $CALLBACK 2000000 \
   --rpc-url $RPC --private-key $KEY
 ```
 
 Read the intent's on-chain layout from `GET /engine/v1/intents/{intent}`
-(`onchain`) first. The intent in the command above is a placeholder. If no miner can answer, the validator quorum fails the job,
-you are refunded, and your callback gets `success = false`.
+(`onchain`) first. For `WEATHER_CHECK_TEMPERATURE` the location goes in
+`strings[0]` and the temperature comes back in `integers[0]`. If no miner can
+answer, the validator quorum fails the job, you are refunded, and your callback
+gets `success = false`.
 
 → [On-Chain Jobs](erc8183-jobs.md)
 

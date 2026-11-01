@@ -4,7 +4,7 @@ description: Stream published intelligence or request it live over WebSocket.
 
 # Stream over WebSocket
 
-The Telegraph Daemon runs on a 3-hour cycle, generating intelligence tasks from registered collectors, routing them through the Miner mesh, and storing the results. The Engine's WebSocket interface lets you subscribe to receive these signals in real time as the Daemon produces them.
+The Telegraph Daemon runs on a fixed cycle (every hour on the testnet node), generating intelligence tasks from registered collectors, routing them through the Miner mesh, and storing the results. The Engine's WebSocket interface lets you subscribe to receive these signals in real time as the Daemon produces them.
 
 This is the right interface for:
 - Autonomous agents that want a continuous feed of verified intelligence without polling.
@@ -119,10 +119,10 @@ Available actions on the WebSocket connection:
 | `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed $0.01 to escrow per call |
 | `ping` | No | Keep the connection alive |
 
-`list_subnets` responds with the catalog under a `subnets`/`miners` key:
+`list_subnets` responds with the catalog under a `subnets` key:
 
 ```json
-{"type": "result", "data": {"count": 41, "subnets": [{"id": "203", "name": "VirusTotal Threat Intelligence", "slug": "virustotal", "description": "...", "base_url": "...", "capabilities": ["URL_SCAN"], "cost_per_call": "0.00", "protocol": "generic"}]}}
+{"type": "result", "data": {"count": 1880, "subnets": [{"id": "203", "name": "VirusTotal Threat Intelligence", "slug": "virustotal", "description": "...", "base_url": "...", "capabilities": ["URL_SCAN"], "cost_per_call": "0.00", "protocol": "generic"}]}}
 ```
 
 For the full schema, endpoints, prices, `activation_status`, use `GET /api/miners` instead — see [Discover Available Miners](x402-inference.md#step-1-discover-available-miners).
@@ -213,7 +213,7 @@ When the Daemon produces a result matching your subscribed Intents, it's pushed 
 
 ## Understanding the Daemon Cycle
 
-Signals don't arrive continuously — they arrive in batches when the Daemon completes a cycle. The production cycle interval is **3 hours**. During each cycle:
+Signals don't arrive continuously — they arrive in batches when the Daemon completes a cycle. The node operator sets the cycle; on the testnet node it runs **every hour**. During each cycle:
 
 1. Registered Collectors run and scrape their data sources (weather APIs, clinical trial databases, news feeds, etc.).
 2. The Daemon's LLM router classifies the collected data into Intents and formulates intelligence requests.
@@ -305,7 +305,7 @@ do not need to reconnect.
 
 Escrow lives on the Diamond, in the token the Diamond is configured to use — on
 the testnet that is a test USDC anyone can mint (step 0 below). Three transactions, in this order.
-Skipping the approval fails with `ERC20: transfer amount exceeds allowance`:
+Skipping the approval fails with `ERC20: insufficient allowance`:
 
 ```bash
 export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
@@ -329,14 +329,15 @@ cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RP
 # 2000000
 ```
 
-`escrowBalance(address)` is the only escrow getter on the Diamond —
-`getEscrowBalance()` and `available()` are not part of the external surface.
+`escrowBalance(address)` is your raw deposit. `effectiveBalance(address)` is what
+you can spend, and `agentDebt(address)` shows any unpaid deliveries. Other names
+such as `getEscrowBalance()` and `available()` do not exist on the Diamond.
 
 Deposit more than the $1.00 minimum. That figure is only the gate to *connect* —
 both meters then draw against the same balance: every pushed subscription signal
 and every `ask`/`ask_direct` call. An escrow that runs dry mid-epoch silently
 stops subscription delivery rather than queueing, and starts refusing asks.
-A withdrawal unlocks once two more blocks settle (blocks are 24 hours) or after 7 days, whichever comes first, so deposit what you will actually use. See [Withdrawing](escrow-inference.md#withdrawing).
+A withdrawal unlocks once two more blocks settle (1 hour each on the testnet, 24 hours on mainnet) or after 7 days, whichever comes first, so deposit what you will actually use. See [Withdrawing](escrow-inference.md#withdrawing).
 
 The same escrow funds [ERC-8183 jobs](erc8183-jobs.md) — one balance, both rails.
 
@@ -350,9 +351,13 @@ For long-running subscribers, send a periodic `ping` message to prevent the conn
 
 ## What Collectors Produce
 
-The signals you receive over WebSocket come from the Daemon's registered Collectors. Each Collector is a YAML-configured scraper pointed at a real-world data source. Current active collectors on testnet include:
+The signals you receive over WebSocket come from the Daemon's registered Collectors. Each Collector is a YAML-configured scraper pointed at a real-world data source. Collectors on the testnet node include:
 
-- **collector-openmeteo-weather** — extreme heat and weather condition monitoring across cities.
-- **clinicaltrials** — clinical trial status and research summaries.
+- **collector-clinicaltrials** — clinical trial status and research summaries.
+- **collector-hackernews** — popular technology stories.
+- **collector-openfda-approvals** and **collector-openfda-adverse-events** — drug approvals and serious adverse events.
+- **collector-polymarket** — high-volume prediction markets.
+
+The `source` field of each row in the [Daemon feed](daemon-signals.md) names the collector that produced it.
 
 Collectors are registered on-chain via `IntentRegistryFacet` — node operators and third parties can register new collectors to expand what the Daemon monitors.

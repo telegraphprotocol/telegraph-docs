@@ -157,9 +157,11 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents/CRYPTO_PRICE_USD
 ```json
 {
   "intent_id": "CRYPTO_PRICE_USD",
+  "intent_name": "CRYPTO_PRICE_USD",
   "class": "deterministic",
   "request": {
-    "schema_version": 1,
+    "schema_version": 3,
+    "served_by": "CRYPTO_PRICE",
     "params": [
       { "name": "symbol", "type": "string", "required": true,
         "description": "Asset symbol, e.g. BTC" }
@@ -169,14 +171,15 @@ curl https://devnode.telegraphprotocol.com/engine/v1/intents/CRYPTO_PRICE_USD
     "format_version": 1,
     "fields": [
       { "name": "price_usd", "type": "number", "unit": "US dollars",
-        "description": "Current price of the requested asset, in US dollars" }
+        "description": "Current price of {key}, in US dollars",
+        "range": [0.000001, 10000000], "scored": true }
     ]
   },
   "onchain": { "ready": true }
 }
 ```
 
-The response is trimmed here; the live one also lists the miners and the on-chain layouts.
+The response is trimmed here; the live one also lists the miners (`miners`, `miner_count`) and the on-chain layouts.
 
 Then send it:
 

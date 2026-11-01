@@ -13,6 +13,13 @@ This is the same check [integrate.telegraphprotocol.com](https://integrate.teleg
 runs when you paste a YAML into it. The web interface is the easier path if you
 have a browser; this page is the API behind it, for scripts and agents.
 
+> [!WARNING]
+> `POST https://integrate.telegraphprotocol.com/api/validate` answers `404`, so
+> the calls on this page do not work. Use the web interface, or register and
+> read the node's verdict with `GET /api/miners/{registrationId}` (see
+> [If it isn't there](miner-registration.md#if-it-isnt-there)). The rules and
+> error strings below are still the ones a node applies at registration.
+
 ```
 POST https://integrate.telegraphprotocol.com/api/validate
 Content-Type: application/json

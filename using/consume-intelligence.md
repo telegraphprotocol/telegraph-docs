@@ -62,9 +62,9 @@ response or another intent's layout.
 
 ## Copy-paste request
 
-This request was checked against the live schema for `CRYPTO_PRICE_USD` on
-October 30, 2026. Run it unchanged to receive the current payment challenge;
-then follow the payment instructions and retry the same request.
+This request matches the live schema for `CRYPTO_PRICE_USD`. Run it unchanged
+to receive the current payment challenge; then follow the payment instructions
+and retry the same request.
 
 ```bash
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
@@ -73,9 +73,24 @@ curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
 ```
 
 The no-payment response is expected to be `402 Payment Required`, not a failed
-request. The live schema for this intent currently requires one `symbol` string
-and returns `price_usd`. Always re-read the selected intent's schema before
-using a typed request in an application.
+request. Its body starts with `{"error": "payment required", "accepts": [...]}`
+and lists the two ways to pay: `exact` (x402) and `escrow`. The live schema for
+this intent requires one `symbol` string and returns `price_usd`. Once paid, the
+same request returns the answer in the intent's shape, for example:
+
+```json
+{
+  "miner_id": "190069",
+  "result": { "price_usd": 77648.845 },
+  "result_shape": "intent",
+  "field_status": { "price_usd": "ok" },
+  "intent": "CRYPTO_PRICE_USD",
+  "cost_usd": 0.01
+}
+```
+
+The full reply has more fields. Always re-read the selected intent's schema
+before using a typed request in an application.
 
 For the full request and response, see [Make a Request](engine-ask.md).
 

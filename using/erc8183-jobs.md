@@ -32,7 +32,7 @@ Your contract → createJob*() → [JobCreated event, carries the request]
        transitionToTerminal()  or  failJob()   called on-chain
                                           ↓
    resolved: 98% USDC → TWAP → MACHINA → miner, 2% USDC → Treasury, callback gets the answer
-   failed:   agent refunded at once, callback gets ok = false
+   failed:   agent refunded at once (less the 2% fee), callback gets ok = false
 ```
 
 States: `Funded (0)`, then `Terminal (1)` when resolved, or `Cancelled (2)` when cancelled or failed.
@@ -52,7 +52,7 @@ cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RP
 
 **Pay in the same call.** `createJobAndPay` pulls the price from the caller's own USDC with `transferFrom`, so the caller only approves the Diamond. Escrow is not touched. This lets a dapp pull its user's USDC and pay in one transaction.
 
-> Escrow withdrawals unlock after two more blocks settle (blocks are 24h) or after 7 days, whichever comes first. They no longer use a 4-hour timelock. See [Pay from Escrow](escrow-inference.md#withdrawing).
+> Escrow withdrawals unlock after two more blocks settle (1 hour each on the testnet, 24 hours on mainnet) or after 7 days, whichever comes first. See [Pay from Escrow](escrow-inference.md#withdrawing).
 
 ## Step 2: Find the intent id and its layout
 
@@ -76,20 +76,24 @@ Look at three things in the reply.
 - `onchain.request` is where each input goes in your `params`.
 - `onchain.response` is where each field of the answer arrives in your callback.
 
-Each entry has a `slot` (`strings`, `integers` or `bools`) and an `index` within it:
+Each entry has a `slot` (`strings`, `integers` or `bools`) and an `index` within it. This is the live layout of `WEATHER_CHECK_TEMPERATURE`:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK_TEMPERATURE | jq .onchain
+```
 
 ```json
-"onchain": {
+{
+  "format_version": 3,
   "ready": true,
-  "request":  [ { "name": "location", "type": "string",  "slot": "strings",  "index": 0, "max_bytes": 256 },
-                { "name": "window_hours", "type": "integer", "slot": "integers", "index": 0, "range": [1, 240] } ],
-  "response": [ { "name": "temp_c", "type": "number", "slot": "integers", "index": 0, "decimals": 2,
+  "request":  [ { "name": "location", "type": "string", "slot": "strings", "index": 0, "max_bytes": 256 } ],
+  "response": [ { "name": "temp_c", "type": "number", "slot": "integers", "index": 0, "decimals": 6,
                   "unit": "degrees Celsius", "range": [-90, 60] } ],
-  "off_chain": ["summary"]
+  "served_by": "WEATHER_CHECK"
 }
 ```
 
-(The names above are illustrative. Read the real ones from the node.)
+Other intents have other fields, and some list `off_chain` fields. Read the layout of the intent you use.
 
 ### How values are laid out
 
@@ -100,7 +104,7 @@ Each entry has a `slot` (`strings`, `integers` or `bools`) and an `index` within
 | `bool` | `bools` | the value |
 | `string`, `enum`, `date`, `datetime` | `strings` | the value as text, at most 256 bytes |
 
-So a temperature of `-3.5` degrees with `decimals: 2` is `-350` in `integers[0]`, and the callback must cast it with `int256(response.integers[0])`.
+So a temperature of `-3.5` degrees with `decimals: 6` is `-3500000` in `integers[0]`, and the callback must cast it with `int256(response.integers[0])`.
 
 Fields marked `off_chain` (lists, objects, long free text, values only given "when stated", values that just echo your request) stay in the API answer and are **left out** of the callback. The callback gets the other fields in order.
 
@@ -132,16 +136,18 @@ struct OnChainData {
 }
 ```
 
-Example (layout from step 2). `WEATHER_FORECAST_LAHORE` here is a **placeholder** with the layout `integers[0]` = hours, `strings[0]` = location. Replace it with a real intent from `GET /engine/v1/intents` and build `params` from that intent's `onchain.request`, or the call reverts `not a canonical intent`:
+Example, with the `WEATHER_CHECK_TEMPERATURE` layout from step 2 (`strings[0]` = location). For another intent, build `params` from that intent's `onchain.request`. A name that is not a canonical intent reverts `not a canonical intent`:
 
 ```bash
 cast send $DIAMOND \
   "createJobCapped(bytes32,(address[],uint256[],string[],bool[]),address,uint256)(uint256)" \
-  "$(cast keccak 'WEATHER_FORECAST_LAHORE')" \
-  '([],[24],["Lahore"],[])' \
+  "$(cast keccak 'WEATHER_CHECK_TEMPERATURE')" \
+  '([],[],["Lahore"],[])' \
   "$CALLBACK" 1500000 \
   --rpc-url $RPC --private-key $KEY
 ```
+
+Pass `0x0000000000000000000000000000000000000000` as `$CALLBACK` if you have no callback contract. To check the call before you send it, run the same arguments with `cast call ... --from $YOUR_ADDRESS`: it returns the job id the transaction would get, or the revert reason.
 
 The job is created and `JobCreated` is emitted:
 
@@ -210,8 +216,8 @@ function subnetMessage(uint256 jobId, bool success, OnChainData calldata respons
         return;
     }
     // Read by the layout from step 2. A number is value x 10^decimals as an int256.
-    int256 tempX100 = int256(response.integers[0]);
-    results[jobId] = tempX100;
+    int256 tempE6 = int256(response.integers[0]);   // temp_c x 10^6
+    results[jobId] = tempE6;
 }
 ```
 
@@ -249,7 +255,7 @@ curl https://devnode.telegraphprotocol.com/engine/v1/job/42/result
 
 ## When a job fails
 
-If no miner can answer, the job is **failed, never resolved with a made-up answer**. The validator quorum signs `failJob(jobId, reason, ...)`. Your agent is refunded **at once** (not after the cancel delay). No miner is paid. `JobFailed(jobId, reason)` is emitted and your callback is called with `success = false`.
+If no miner can answer, the job is **failed, never resolved with a made-up answer**. The validator quorum signs `failJob(jobId, reason, ...)`. Your agent is refunded **at once** (not after the cancel delay), into its escrow: the job price minus the 2% protocol fee, which goes to the Treasury, as on a cancel. No miner is paid. `JobFailed(jobId, reason)` is emitted and your callback is called with `success = false`.
 
 | Reason | When it happens |
 |---|---|
@@ -270,11 +276,11 @@ You no longer need to guess whether a job "is still in progress". A job that has
 JobFacet.cancelJob(jobId)
 ```
 
-Only the original `agent` can cancel, and only after `protocolParams().jobCancelDelay` (genesis 1 hour) has passed since funding. Before that it reverts `job cancel lock`; after the job resolved or failed it reverts `job not fundable`. A cancelled job returns the budget to the agent's escrow, repaying any delivery debt first.
+Only the original `agent` can cancel, and only after `protocolParams().jobCancelDelay` (genesis 1 hour) has passed since funding. Before that it reverts `job cancel lock`; after the job resolved or failed it reverts `not fundable`. A cancelled job returns the budget minus the 2% protocol fee to the agent's escrow, repaying any delivery debt first.
 
 ## A complete run
 
-The intent below is a placeholder, as in step 3. Substitute a real one.
+This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3.
 
 ```bash
 # 1. fund escrow
@@ -282,14 +288,18 @@ cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --pri
 cast send $DIAMOND "depositUSDC(uint256)" 2000000 --rpc-url $RPC --private-key $KEY
 
 # 2. read the layout and the price
-curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_FORECAST_LAHORE | jq .onchain
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK_TEMPERATURE | jq .onchain
 cast call $DIAMOND "getJobBasePrice()(uint256)" --rpc-url $RPC
 
 # 3. create the job, capped
-cast send $DIAMOND \
+TX=$(cast send $DIAMOND \
   "createJobCapped(bytes32,(address[],uint256[],string[],bool[]),address,uint256)(uint256)" \
-  "$(cast keccak 'WEATHER_FORECAST_LAHORE')" '([],[24],["Lahore"],[])' "$CALLBACK" 2000000 \
-  --rpc-url $RPC --private-key $KEY
+  "$(cast keccak 'WEATHER_CHECK_TEMPERATURE')" '([],[],["Lahore"],[])' "$CALLBACK" 2000000 \
+  --rpc-url $RPC --private-key $KEY --json | jq -r .transactionHash)
+
+# the job id is the first indexed topic of JobCreated
+JOB_ID=$(cast receipt $TX --json --rpc-url $RPC | jq -r '.logs[] | select(.topics[0]=="'$(cast sig-event "JobCreated(uint256,address,bytes32,address,uint256,(address[],uint256[],string[],bool[]))")'") | .topics[1]' | xargs cast to-dec)
+echo $JOB_ID
 
 # 4. watch it: state 1 = resolved, 2 = cancelled or failed
 cast call $DIAMOND \
@@ -310,5 +320,6 @@ The repository includes a sample consumer (`contracts/evm/examples/AllSubnetsCal
 | `USDC payment failed` or a token error | `createJobAndPay` without enough balance or allowance |
 | `callback has no code` | The callback address is not a contract |
 | `job cancel lock` | `cancelJob` before the cancel delay |
-| `job not fundable` | `cancelJob` or `failJob` on a job that is already resolved, failed or cancelled |
+| `not fundable` | `cancelJob` on a job that is already resolved, failed or cancelled |
+| `job not fundable` | `failJob` on a job that is already resolved, failed or cancelled |
 | `not enough gas for the callback` | A resolution sent by hand with too little gas. The node sizes this itself. |

@@ -13,7 +13,7 @@ This page covers payment. For request and result shapes, see [Make a Request](en
 ## What You Need
 
 - A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
-- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses.
+- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses. Install them with `npm install @x402/fetch @x402/evm viem`.
 - **Node.js 20 or newer** if you're using those packages. They sign with the WebCrypto API, which Node 18 doesn't expose — on Node 18 payments fail with `Failed to create payment payload: Crypto API not available`.
 - The URL of a Telegraph node.
 
@@ -37,18 +37,15 @@ You can also browse the live miner set and their output on the [Intelligence Ter
 
 ## Step 2: Make a Request — Receive the 402
 
-Call a miner through the Engine. Without a payment header you get an HTTP 402 back:
+Send a request to the Engine. Without a payment header you get an HTTP 402 back:
 
+```bash
+curl -i -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}'
 ```
-POST /engine/v1/ask/18
-Content-Type: application/json
 
-{
-  "method": "GET",
-  "endpoint": "/predict",
-  "payload": { "lat": 25.2, "lon": 55.3, "variable": "hourly" }
-}
-```
+The same flow applies to a direct request, `POST /engine/v1/ask/{minerId}`.
 
 **Response (402 Payment Required):**
 ```
@@ -64,8 +61,8 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
   "x402Version": 2,
   "error": "Payment required",
   "resource": {
-    "url": "http://devnode.telegraphprotocol.com/v1/ask/18",
-    "description": "Payment required for direct subnet inference.",
+    "url": "https://devnode.telegraphprotocol.com/engine/v1/ask",
+    "description": "Payment required for LLM-routed inference.",
     "mimeType": "application/json"
   },
   "accepts": [
@@ -75,15 +72,26 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
       "asset": "0xcc194e1a843B658526D0D5C431f670028582Ae17",
       "amount": "10000",
       "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b",
-      "maxTimeoutSeconds": 60
-    }
+      "maxTimeoutSeconds": 60,
+      "extra": { "name": "USD Coin", "version": "2" }
+    },
+    { "scheme": "escrow", "...": "see Pay from Escrow" }
   ]
 }
 ```
 
+To decode it from a terminal:
+
+```bash
+curl -s -D - -o /dev/null -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}' \
+  | grep -i '^payment-required' | cut -d' ' -f2 | tr -d '\r' | base64 -d | jq .
+```
+
 The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts.
 
-Each entry also carries an `extra` object holding what the signature needs — `{"name": "USD Coin", "version": "2"}` for the USDC above. The SDK reads it for you.
+The `exact` entry's `extra` object holds what the signature needs — `{"name": "USD Coin", "version": "2"}` for the USDC above. The SDK reads it for you. The second entry, `escrow`, is the other way to pay; see [Pay from Escrow](escrow-inference.md).
 
 The response **body** carries a shorter summary of the same options, meant for humans reading a failed call:
 
@@ -96,7 +104,8 @@ The response **body** carries a shorter summary of the same options, meant for h
       "price": "$0.01",
       "network": "eip155:11155111",
       "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b"
-    }
+    },
+    { "scheme": "escrow", "...": "..." }
   ]
 }
 ```
@@ -105,68 +114,80 @@ It quotes `price` as a dollar string and omits `asset`, `amount` and `maxTimeout
 
 Always read `payTo` from the challenge you received. Never hardcode a receiving address — it is set per node and changes.
 
-> Note that `resource.url` reports the path *inside* the engine (`/v1/ask/18`), without the `/engine` prefix you called. Keep using the URL you requested; don't rebuild it from this field.
+> Keep using the URL you requested. `resource.url` names the same URL, but don't rebuild requests from it.
 
 ## Step 3: Complete the Payment
 
 Hand the decoded challenge and your wallet to an x402 client. It picks a network from `accepts[]`, signs a transfer of `amount` of the `asset` token to `payTo`, and returns the base64 payload for the retry header.
 
-```js
-import { wrapFetchWithPayment } from "@x402/fetch";
-import { createSigner } from "@x402/evm";
+Save this as `ask.mjs` and run it with `EVM_PRIVATE_KEY=0x... node ask.mjs`:
 
-const signer = createSigner(process.env.EVM_PRIVATE_KEY);
-const fetchWithPayment = wrapFetchWithPayment(fetch, signer);
+```js
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.EVM_PRIVATE_KEY);
+
+const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:11155111", client: new ExactEvmScheme(account) }],
+  // The testnet USDC is not one of the library's built-in tokens, so allow it.
+  // maxAmountPerPayment caps each payment (100000 = $0.10).
+  spendControls: {
+    allowedAssets: [{
+      network: "eip155:11155111",
+      asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17",
+      maxAmountPerPayment: "100000",
+    }],
+  },
+});
 
 // Handles the 402, signs, and retries — you just make the call.
 const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ query: "What is the current price of Bitcoin?" }),
+  body: JSON.stringify({ intent: "CRYPTO_PRICE_USD", params: { symbol: "BTC" } }),
 });
+console.log(res.status, await res.json());
 ```
 
-Use a library rather than hand-rolling the payload. The signature is EIP-712 typed data over the token's own domain, not a plain `transfer` call, and the node rejects a malformed payload with a bare `402` — indistinguishable from having sent no payment at all. The quickest working setup is the [MCP server](mcp-server.md), which bundles this client and pays for you.
+You should see `200` and the answer (see [Step 5](#step-5-receive-the-response)). Without the `spendControls` block, recent versions of `@x402/fetch` refuse to pay with `All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed`. Nothing is paid in that case.
+
+Use a library rather than hand-rolling the payload. The signature is EIP-712 typed data over the token's own domain, not a plain `transfer` call. A payload that is not valid base64 JSON gets `400 {"error":"Invalid payment"}`; a payload that does not verify gets a bare `402`, indistinguishable from having sent no payment at all. The quickest working setup is the [MCP server](mcp-server.md), which bundles this client and pays for you.
 
 ## Step 4: Retry with Payment Header
 
 Retry the exact same request with the `PAYMENT-SIGNATURE` header containing the base64-encoded payment proof:
 
 ```
-POST /engine/v1/ask/18
+POST /engine/v1/ask
 Content-Type: application/json
 PAYMENT-SIGNATURE: <base64-encoded-payment-payload>
 
-{
-  "method": "GET",
-  "endpoint": "/predict",
-  "payload": { "lat": 25.2, "lon": 55.3, "variable": "hourly" }
-}
+{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}
 ```
 
 The node forwards the payment proof to its x402 facilitator (`https://facilitator.x402.rs` on the testnet) for verification. On success, the miner is called.
 
 ## Step 5: Receive the Response
 
-On the direct path the miner's raw output comes back inside `result` (with `result_shape: "raw"`), alongside the routing and cost metadata. On the auto-routed `POST /engine/v1/ask`, `result` is instead read into the Intent's shape; see [Make a Request](engine-ask.md#the-answers-shape).
+On `POST /engine/v1/ask`, `result` is read into the Intent's shape; see [Make a Request](engine-ask.md#the-answers-shape). On the direct path with a native body, the miner's raw output comes back inside `result` (with `result_shape: "raw"`).
 
 ```json
 {
-  "miner_id": "18",
-  "miner_name": "zeus",
-  "result": {
-    "hourly": {
-      "time": ["2026-06-26T00:00", "2026-06-26T01:00"],
-      "temperature_2m": [38.2, 37.9],
-      "wind_speed_10m": [12.1, 11.8]
-    },
-    "latitude": 25.2,
-    "longitude": 55.3
-  },
-  "result_shape": "raw",
+  "miner_id": "190069",
+  "miner_name": "Cp Coinbase",
+  "endpoint": "/query",
+  "result": { "price_usd": 77648.845 },
+  "result_shape": "intent",
+  "format_version": 1,
+  "field_status": { "price_usd": "ok" },
+  "input": { "symbol": "BTC" },
+  "input_schema_version": 3,
   "cost_usd": 0.01,
-  "duration_ms": 412,
-  "signal_hash": "0x7a44569d..."
+  "duration_ms": 376,
+  "intent": "CRYPTO_PRICE_USD",
+  "signal_hash": "0x43b4fed353eb4f1726102ec7f440cb17d02ea90e4999994e11e555b667d07455"
 }
 ```
 
@@ -180,9 +201,21 @@ X-TELEGRAPH-RECEIPT: <base64 JSON — see below>
 
 Keep this if you need to audit or dispute the payment later.
 
-## You Only Pay for Answers
+## When a Paid Request Fails
 
-Payment settles only when the miner actually answers. If the request fails — a bad payload, an unregistered miner, an upstream error — the node returns an error status and **no payment is taken**. You are never charged for a failed call.
+Requests that fail the input checks (`400 invalid_params`, `400 invalid request body` before payment, `404 miner_not_found` on the canonical direct form) are refused before you pay.
+
+Once you send a valid payment, it settles on chain **before** the miner is called. If the request then fails (the miner is down, times out or answers an error status), the node returns an error status and your $0.01 is **not lost**: it is credited to your escrow balance on the Diamond, and since nothing was delivered, it is never charged. You can spend it on later calls with the [escrow scheme](escrow-inference.md), or [withdraw it](escrow-inference.md#withdrawing). Check it with:
+
+```bash
+cast call 0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b "effectiveBalance(address)(uint256)" $YOUR_ADDRESS \
+  --rpc-url https://ethereum-sepolia-rpc.publicnode.com
+# in 6-decimal units: 10000 = $0.01
+```
+
+The credit shows up a few minutes after the payment. Calls you made successfully are charged against it at the next epoch close, so what stays is the amount of the calls that failed.
+
+One case is billed: a miner that answers `200` with an error message inside its answer counts as delivered. Read `result` and `field_status` before you trust an answer.
 
 ## Verifying a call
 
@@ -203,19 +236,21 @@ that payment bought.
 
 ```json
 {
-  "receipt_hash": "0x3f1c…",
+  "receipt_hash": "0xfbb435e634fc2b7ca11494536b6a8e5d41cda8a06eca8682544714c957f38d54",
   "rail": "x402",
   "payer": "0xyourwallet…",
-  "miner": "377",
-  "intent": "STOCK_PRICE_US_EQUITY",
+  "miner": "4664",
+  "intent": "CRYPTO_PRICE_USD",
   "amount_uusdc": "10000",
-  "epoch_id": 314,
+  "epoch_id": 1954,
   "settlement": "onchain",
   "chain": "eip155:11155111",
-  "tx_hash": "0x6bb27730…",
-  "timestamp": 1789466181
+  "tx_hash": "0xd85136a9…",
+  "timestamp": 1793504275
 }
 ```
+
+`miner` is the miner's on-chain **registration id**, not the `miner_id` in the response body (that one is the id you put in `/engine/v1/ask/{minerId}`).
 
 `receipt_hash` identifies **your specific call**, permanently. `tx_hash` does
 not, and the difference matters more here than on any other rail: the facilitator
@@ -229,8 +264,8 @@ It is the same object, field for field, that the
 so you can handle all three identically.
 
 Only a delivered `200` carries one. A payment that settled but whose request then
-failed is recorded as a payment but bills you no consumption, so there is nothing
-to receipt.
+failed bills you no consumption, so there is nothing to receipt; the amount is in
+your escrow balance (see [When a Paid Request Fails](#when-a-paid-request-fails)).
 
 ## Payment Networks
 

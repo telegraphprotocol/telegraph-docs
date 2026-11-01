@@ -55,6 +55,8 @@ EscrowFacet(DIAMOND).agentDebt(you);          // unpaid deliveries, if any
 
 `effectiveBalance` is the one the node checks against: your deposit, minus anything pending withdrawal, minus any gas reserve.
 
+> An x402 payment whose request failed after the payment settled is credited to this same balance, so you can spend it here. See [When a Paid Request Fails](x402-inference.md#when-a-paid-request-fails).
+
 > If a settlement ever finds your escrow short, the shortfall is recorded on-chain as **debt** and delivery is suspended until you top up. The next deposit clears the debt first, before anything reaches spendable balance. An x402 payment is treated the same way: its credit repays your debt first, and only the rest becomes escrow.
 
 ### Funding somebody else
@@ -163,11 +165,11 @@ The whole rail is three fetches and a signature, with no SDK, no facilitator, an
 ```ts
 import { createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { baseSepolia } from 'viem/chains';
+import { sepolia } from 'viem/chains';
 
 const NODE = 'https://devnode.telegraphprotocol.com';
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
-const wallet = createWalletClient({ account, chain: baseSepolia, transport: http() });
+const wallet = createWalletClient({ account, chain: sepolia, transport: http() });
 
 export async function ask(question: string) {
   const body = JSON.stringify({ query: question });   // or { intent, params }
@@ -215,7 +217,7 @@ export async function ask(question: string) {
 }
 ```
 
-To smoke-test a wallet from a terminal before wiring any of that up:
+To smoke-test a wallet from a terminal before wiring any of that up (it needs `cast`, `jq` and a funded escrow; it spends $0.01):
 
 ```bash
 NODE=https://devnode.telegraphprotocol.com
@@ -244,6 +246,8 @@ PAYMENT=$(jq -cn --arg s "$SIG" --arg f "$ADDR" --arg t "$PAYTO" --arg v "$VALUE
 curl -sS -D - -X POST "$NODE/engine/v1/ask" -H 'Content-Type: application/json' \
   -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
+
+You should see `HTTP/2 200`, an `x-payment-response` header and the answer in the body. Decode the header with `base64 -d` to read your receipt (see [Step 4](#step-4-read-the-receipt)).
 
 The body is a `query`, or an `intent` with `params`. See [Make a Request](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
 
@@ -279,7 +283,7 @@ EscrowFacet(DIAMOND).executeWithdraw();         // once unlocked
 EscrowFacet(DIAMOND).cancelWithdraw();          // changed your mind
 ```
 
-**A withdrawal unlocks once two more blocks settle after you request it, or 7 days after, whichever comes first.** Blocks are 24 hours, so the usual wait is up to about two days. It waits for blocks rather than a clock so the blocks that charge what you already used settle before the money leaves. (This replaced an older fixed 4-hour timelock.)
+**A withdrawal unlocks once two more blocks settle after you request it, or 7 days after, whichever comes first.** On the testnet a block is 1 hour, so the usual wait is about two hours. On mainnet a block is 24 hours, so the wait is up to about two days. It waits for blocks rather than a clock so the blocks that charge what you already used settle before the money leaves.
 
 - `withdrawalUnlock(you).unlocked` tells you whether you can execute. `unlockSequence` is the `stateSequence()` value of the diamond that unlocks it, and `unlockTime` is the 7-day fallback.
 - Calling `executeWithdraw` early reverts `Withdrawal locked: 2 blocks must settle first`. Gate your button on `unlocked` instead of letting the user find out from a failed transaction.
