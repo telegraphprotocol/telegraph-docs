@@ -499,7 +499,7 @@ semantics:
 
 Registration is on-chain and cannot be edited, so validate your YAML first.
 
-Use **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass or fail for each. It then pins the YAML and registers it for you.
+Use **[anjoman.ai/dashboard/earn](https://anjoman.ai/dashboard/earn)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass or fail for each. It then pins the YAML and registers it for you.
 
 The HTTP form of the same check is described in [Validation API](validation-api.md); its public endpoint answers `404`, so use the web interface, or register and read the node's verdict with `GET /api/miners/{registrationId}`.
 

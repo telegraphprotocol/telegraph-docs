@@ -36,7 +36,7 @@ This returns a JSON array of every registered miner with its endpoints, input/ou
 
 Filter server-side instead of fetching the whole catalog: `GET /api/miners?intent=WEATHER_CHECK_TEMPERATURE` returns only miners that support that Intent. `status` and `limit` are also supported query params.
 
-You can also browse the live miner set and their output on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/).
+You can also browse the live miner set and their output on [Anjoman](https://anjoman.ai/).
 
 > Each miner has a numeric `id` — that's the value you put in the request path. The `bittensor-` prefix on some slugs is historical — every provider is a **miner**, whether it's a Bittensor subnet, a hosted model, or a private API.
 

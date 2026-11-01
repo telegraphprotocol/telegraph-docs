@@ -4,7 +4,7 @@ description: The Daemon autonomously generates intelligence signals on a schedul
 
 # Read the Daemon Feed
 
-The Daemon is a background service that produces intelligence on its own — without anyone asking. On a fixed cycle it scrapes real-world data sources, turns what it finds into scored questions, has the Engine answer them, and stores the results. Those stored results are what you see on the [Intelligence Terminal](https://alexandria.telegraphprotocol.com/), and you can read them directly through the Daemon's HTTP API.
+The Daemon is a background service that produces intelligence on its own — without anyone asking. On a fixed cycle it scrapes real-world data sources, turns what it finds into scored questions, has the Engine answer them, and stores the results. Those stored results are what you see on [Anjoman](https://anjoman.ai/), and you can read them directly through the Daemon's HTTP API.
 
 > The Daemon is separate from the Engine. The **Engine** answers *your* questions on demand and charges per call (see [Make a Request](engine-ask.md)). The **Daemon** generates *its own* questions on a schedule and exposes the results read-only. This page is about reading published intelligence—it does not make a request for you.
 

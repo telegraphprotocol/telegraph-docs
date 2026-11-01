@@ -9,7 +9,7 @@ validation, or whose endpoints don't answer, is rejected **after** you have paid
 gas — and the fix is another transaction. The validation API is how you find
 that out first, for free.
 
-This is the same check [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)
+This is the same check [anjoman.ai/dashboard/earn](https://anjoman.ai/dashboard/earn)
 runs when you paste a YAML into it. The web interface is the easier path if you
 have a browser; this page is the API behind it, for scripts and agents.
 
