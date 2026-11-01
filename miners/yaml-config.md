@@ -481,7 +481,7 @@ Registration is on-chain and cannot be edited, so validate your YAML first.
 
 Use **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass or fail for each. It then pins the YAML and registers it for you.
 
-The same check is available over HTTP: `POST https://integrate.telegraphprotocol.com/api/validate`, no auth, no wallet. Full contract: [Validation API](validation-api.md).
+The HTTP form of the same check is described in [Validation API](validation-api.md); its public endpoint answers `404`, so use the web interface, or register and read the node's verdict with `GET /api/miners/{registrationId}`.
 
 Validation catches the mistakes that are expensive to fix later: a schema violation, an endpoint that doesn't respond, or an auth setup that doesn't actually authenticate. It also applies the **request-contract checks** (at least one endpoint with `intents`, a `description` on every endpoint, a non-empty `supported_intents`) using exactly the rules registration uses.
 

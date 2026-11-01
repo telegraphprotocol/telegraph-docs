@@ -12,9 +12,9 @@ The Daemon is a background service that produces intelligence on its own — wit
 
 ## What the Daemon Does
 
-Every cycle (3 hours in production), the Daemon:
+Every cycle (every hour on the testnet node; the node operator sets it), the Daemon:
 
-1. Runs its **Collectors** — scrapers pointed at sources like Polymarket, GDELT, Reddit, Hacker News, and Open-Meteo.
+1. Runs its **Collectors** — scrapers pointed at sources like Polymarket, Hacker News, ClinicalTrials.gov and openFDA.
 2. Scores the raw material into **questions**, each with a category and an interest score.
 3. Calls the Engine's `POST /engine/v1/ask` to answer each question (tagged as internal traffic, so these calls fund themselves through the node operator — they are not billed to you).
 4. Writes the answered, scored results to its database (Postgres).
@@ -42,7 +42,7 @@ Returns a paginated list of signals. Each item is a stored result:
     {
       "id": "ffe6880d-92f1-4d06-b6e0-e5216daf4d18",
       "type": "daemon",
-      "source": "reddit",
+      "source": "collector-hackernews:popular_tech_story",
       "status": "success",
       "created_at": "2026-06-26T18:42:11Z",
       "signal_hash": "0x403644cc0dc53d5cc2ea097075c4a74445de8147a6368952200e8025fabb6525",
@@ -76,7 +76,7 @@ Returns a paginated list of signals. Each item is a stored result:
 | Parameter | Notes |
 |---|---|
 | `category` | One of `POLITICS`, `ECONOMICS`, `GEOPOLITICS`, `TECHNOLOGY`, `CLIMATE`, `HEALTH`, `FINANCE`, `CRYPTO`, `SPORTS`, `SCIENCE`, `SOCIAL`, `AI`, `PHARMA`, `LAW`, `OTHER` (case-insensitive). |
-| `source` | Collector name (`reddit`, `gdelt`, `polymarket`, `hackernews`, `openmeteo`, …), or `user` for rows persisted from direct Engine traffic. |
+| `source` | The exact `source` value of a row, for example `collector-hackernews:popular_tech_story` or `collector-polymarket:high_volume_market`, or `user` for rows from direct Engine traffic. A partial name such as `hackernews` matches nothing. |
 | `sort` | `recent` (default), `interest`, `affected`, or `audience`. |
 | `order` | `desc` (default) or `asc`. |
 | `since` / `until` | RFC3339 timestamps filtering on `created_at`. |
@@ -91,7 +91,7 @@ Returns a paginated list of signals. Each item is a stored result:
 GET /daemon/api/questions/top?since_hours=1&limit=10
 ```
 
-Convenience endpoint that hard-sorts by interest score descending. Supports `category`, `since_hours`, and `limit` (1–50, default 10). This is the right endpoint for an "alerts" or "what's hot" view.
+Convenience endpoint that hard-sorts by interest score descending. Supports `category`, `since_hours`, and `limit` (1–50, default 10). Other filters, such as `min_interest`, are ignored here. This is the right endpoint for an "alerts" or "what's hot" view.
 
 ### Categories
 
@@ -112,7 +112,7 @@ Returns `{"status":"ok","time":"..."}` when the Daemon is running.
 ## Building on the Feed
 
 - **Browser dashboards:** the Daemon allows GET from any origin (`Access-Control-Allow-Origin: *`), so a frontend can read it directly. This is exactly how the Intelligence Terminal renders its feed.
-- **Polling for alerts:** poll `/daemon/api/questions/top?since_hours=1&min_interest=8` on an interval to surface high-interest signals as they appear.
+- **Polling for alerts:** poll `/daemon/api/questions?sort=interest&since_hours=1&min_interest=8` on an interval to surface high-interest signals as they appear.
 - **Live push instead of polling:** subscribe over WebSocket to receive new signals as the Daemon produces them — see [Stream over WebSocket](websocket-signals.md).
 
 ## What This Is Not

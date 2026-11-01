@@ -199,8 +199,8 @@ python -m float_runtime.export_adapter \
 - `--max-tokens N` if you trained shorter than 512 tokens.
 - `--adapter <dir>` instead of `--run`, for a PEFT adapter trained elsewhere.
 
-It writes `runs/CODE_REVIEW/CODE_REVIEW.safetensors` (6.8 MB at rank 8) in seconds on a
-CPU. It refuses a run trained on another base model or tokenizer.
+It writes `runs/CODE_REVIEW/CODE_REVIEW.safetensors` (6.8 MB at rank 8, 13.5 MB at rank
+16) in seconds on a CPU. It refuses a run trained on another base model or tokenizer.
 
 ## Step 4: Check and package
 
@@ -241,6 +241,7 @@ competition still decide.
    [The runnable endpoint](build-a-scoring-module.md#the-runnable-endpoint). Its scores must
    be the exact bits the validators compute, so run the same foundation, engine and package.
    The kit's [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec) is the reference executor.
+   Serve it at a public `https://` URL and give it at least 5 GB of RAM.
 
 ## Step 6: Register and compete
 
@@ -259,11 +260,12 @@ competition still decide.
    4. **Competition** on the intent's hidden evaluation pool. Your adapter replaces the
       current one only if it wins by at least 2 points and scores at least 70%. See
       [Stage 2 for model adapters](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).
-3. **Expect minutes.** On a laptop CPU one 512-token text takes about 13-14 seconds on the
+3. **Expect one to two hours on the testnet.** The node sees your transaction about 10 to
+   15 minutes after it is mined, then waits for the next confirmed epoch (1 hour on the
+   testnet). On a laptop CPU one 512-token text takes about 13-14 seconds on the
    Foundation Model: the remote check is several minutes on your executor, the
-   confirmation the same again on the validator, and the hidden round (60 texts) about 14
-   minutes, on top of the wait for the epoch. A local end-to-end run took about 21 minutes
-   from registration to Active.
+   confirmation the same again on the validator, and the hidden round (60 texts) about
+   twice as long. On the testnet the checks after the epoch take about 30 to 60 minutes.
 
 Follow it with
 [Checking your module's status](build-a-scoring-module.md#checking-your-modules-status);

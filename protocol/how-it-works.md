@@ -90,7 +90,7 @@ Once a request is answered:
 
 ## The Autonomous Daemon Loop
 
-The protocol doesn't wait for agents to ask questions. The **Daemon**, a service separate from the on-demand Engine, runs on a configurable cycle (every 3 hours in production) and proactively:
+The protocol doesn't wait for agents to ask questions. The **Daemon**, a service separate from the on-demand Engine, runs on a configurable cycle (every hour on the testnet node) and proactively:
 
 1. Runs registered **Collectors**: YAML-configured scrapers that pull data from off-chain sources (for example weather APIs, market feeds, news and social feeds).
 2. Uses an LLM router to classify collected data into Intents and formulate inference questions.

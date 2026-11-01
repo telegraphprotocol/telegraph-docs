@@ -29,7 +29,7 @@ Your Agent (Claude / Cursor / ElizaOS / LangChain / etc.)
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │  Dynamic miner tools (auto-discovered, x402)    │   │
-│  │  Zeus 18 · ItsAI 32 · BitMind 34 · OpenAI 102  │   │
+│  │  one tool per endpoint: tg_<miner>_<endpoint>   │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
 │  x402 payment layer (transparent):                      │
@@ -160,7 +160,7 @@ npm run inspect
 | Parameter | Type | Description |
 |---|---|---|
 | `category` | string | Filter by category (e.g., `CRYPTO`, `PHARMA`, `TECHNOLOGY`) |
-| `source` | string | Filter by data source (e.g., `reddit`, `polymarket`, `gdelt`) |
+| `source` | string | Filter by the exact source of a row (e.g., `collector-hackernews:popular_tech_story`, `collector-polymarket:high_volume_market`, `user`) |
 | `sort` | `recent` \| `interest` \| `affected` \| `audience` | Sort order (default: `recent`) |
 | `since_hours` | number | Only results from the last N hours |
 | `min_interest` | number | Minimum interest score |
@@ -180,15 +180,16 @@ One tool is generated per miner endpoint, so the live set is far larger than the
 3. In both, replace `/` and `-` with `_`, collapse any run of underscores, and lowercase.
 4. Join them: `tg_` + miner + `_` + endpoint.
 
-So `coingecko` + `/price` is `tg_coingecko_price`, and `bittensor-sn34-bitmind` + `/detect-image` is `tg_bitmind_detect_image`. Applying the rule to any entry in `GET /api/miners` tells you the tool name before you connect.
+So `crypto-coingecko` + `/query` is `tg_crypto_coingecko_query`, and `bittensor-sn32-itsai` + `/detect` is `tg_itsai_detect`. Applying the rule to any entry in `GET /api/miners` tells you the tool name before you connect.
 
-| Miner | Auto-generated tools |
+Examples from the testnet node:
+
+| Miner (`id`, `slug`) | Auto-generated tools |
 |---|---|
-| **Zeus (18)** — Weather forecasting | `tg_zeus_predict` |
-| **ItsAI (32)** — AI text detection | `tg_itsai_detect` |
-| **BitMind (34)** — Deepfake detection | `tg_bitmind_detect_image`, `tg_bitmind_detect_video`, `tg_bitmind_preprocess_video`, `tg_bitmind_get_video_upload_url` |
-| **Gemini (109)** — Chat | `tg_gemini_chat` |
-| **CoinGecko (207)** — Crypto prices | `tg_coingecko_price` |
+| **32**, `bittensor-sn32-itsai` — AI text detection | `tg_itsai_detect` |
+| **910**, `onlookout-weather` — Weather forecast | `tg_onlookout_weather_forecast` |
+| **32001**, `crypto-coingecko` — Crypto prices | `tg_crypto_coingecko_query` |
+| **20260826**, `isobar-weather` — Current weather and forecast | `tg_isobar_weather_weather`, `tg_isobar_weather_forecast` |
 
 Each tool's description carries the miner's name, the HTTP method and path, its signal mapping, and its subnet ID, so you can confirm you have the right one from the tool list itself.
 

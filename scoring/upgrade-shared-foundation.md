@@ -15,13 +15,13 @@ is rejected with `legacy_full_model`, and an adapter already Active in that form
 serving as soon as a validator starts the new release. There is no conversion: the
 adapter has to be exported again as a delta and registered again.
 
-Deploy date: **&lt;DEPLOY DATE&gt;** (to be announced).
+The testnet node runs the shared Foundation Model `modernbert-base-lora16-v1`. Full-model adapters registered there earlier no longer serve.
 
 | Who | Must do | By when |
 |---|---|---|
-| [Adapter authors](#adapter-authors) | Export the delta from your training run, register it again | At deploy: your old adapter stops serving then |
+| [Adapter authors](#adapter-authors) | Export the delta from your training run, register it again | Now: your old adapter no longer serves |
 | [Runnable-URL executor operators](#runnable-url-executor-operators) | Run the Foundation Model with the delta, echo the score identity | Before the new registration |
-| [Validators and node operators](#validators-and-node-operators) | Install the foundation files, set the environment, apply migrations, size RAM | Before starting the new binary |
+| [Validators and node operators](#validators-and-node-operators) | Run the shared Foundation Model files | Before scoring adapters |
 | [Evaluation-data contributors](#evaluation-data-contributors) | Nothing | — |
 | [Miners](#miners) | Nothing (ranking of model intents pauses until a new adapter is Active) | — |
 | [App and API users](#app-and-api-users) | Nothing | — |
@@ -69,18 +69,19 @@ structural validation failed: legacy_full_model: full-model float adapters are n
    ($5 in MACHINA). The old registration keeps its bond until you deregister it
    (`deregisterEntity(registrationId, 2)`), which releases it in full.
 
-**By when.** As close to the deploy as you can. Until a delta adapter is Active, the
-intent is not ranked. Registering before validators run the new release gets the
-registration rejected by an old node, so register at or after the deploy.
+**By when.** Now. Until a delta adapter is Active, the intent is not ranked by a model.
+The testnet node already runs the Foundation Model, so a delta registered there is
+checked as described below.
 
 **How to check it worked.** `GET /api/wasm/<registrationId>` moves from `pending` to
-`active` (`stage: "canonical"`). Expect minutes, not seconds: the registration first
-waits for the next confirmed epoch, then the remote check scores up to 30 texts at your
-executor (about 10-15 s each on a laptop CPU), the validator downloads the package and
-re-scores the same texts, and then the competition round on the hidden split scores 60
-more texts. A local end-to-end run took about 21 minutes from registration to Active, on
-top of the epoch wait. With no incumbent, the first adapter that reaches 70% becomes the
-first canonical one (`decision: "first_canonical"`).
+`active` (`stage: "canonical"`). It takes a while: the node sees your transaction about
+10 to 15 minutes after it is mined, the registration then waits for the next confirmed
+epoch (1 hour on the testnet), the remote check scores up to 30 texts at your executor
+(about 10-15 s each on a laptop CPU), the validator downloads the package and re-scores
+the same texts, and then the competition round on the hidden split scores 60 more texts.
+On the testnet, plan for one to two hours from your transaction to Active. With no
+incumbent, the first adapter that reaches 70% becomes the first canonical one
+(`decision: "first_canonical"`).
 
 **What you see if you don't.** Your old registration reads `superseded`; the intent has no
 canonical adapter and is not ranked. See
@@ -119,7 +120,9 @@ executor that does this with the node's own runtime is the adapter kit's
 [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec). The examples repository's
 [`evaluator-adapter`](https://github.com/telegraphprotocol/telegraph-examples/tree/master/evaluator-adapter)
 folder has a script that sends your endpoint the request a validator sends and checks the
-reply.
+reply. Serve it at a public `https://` URL (validators refuse private and loopback
+addresses and do not follow redirects), and give it at least 5 GB of RAM: with the
+Foundation Model loaded it uses about 4.2 GB.
 
 **By when.** Before you register the new package: the check runs as soon as the next
 epoch is confirmed.
@@ -139,83 +142,32 @@ epoch is confirmed.
 
 ## Validators and node operators
 
-**What changes.** The node loads the Foundation Model once at startup and scores every
-adapter on it. A node without it scores no judgment or hybrid intent and rejects every
-delta registration with `no_foundation`. All validators must run **the same foundation
-hash**: an adapter is built for one hash and is rejected elsewhere
-(`foundation_mismatch`).
+**What changes.** Every validator loads the shared Foundation Model once and scores every
+adapter on it. All validators run **the same files**: an adapter is built for one
+foundation hash and is rejected elsewhere (`foundation_mismatch`). A node without the
+Foundation Model scores no judgment or hybrid intent and rejects every delta
+registration with `no_foundation`.
 
-**What to do, before starting the new binary.**
+**The files every validator runs.** All are assets of the
+[`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1);
+its [README](https://github.com/telegraphprotocol/telegraph-foundation#readme) has the
+download and verification commands. Check every file with `sha256sum -c SHA256SUMS`.
 
-1. **Apply migrations `0029_foundation_models` and `0030_score_input_identity`.** The new
-   binary reads their tables and columns; without them it cannot record the foundation and
-   publishes no model ranking. Both are idempotent.
-2. **Install the foundation files**: the ONNX graph (`foundation_lora_fp32.onnx`, about
-   599 MB), the engine module (`foundation_engine.wasm`, about 2.6 MB), and ModernBERT-base's
-   `tokenizer.json`. All three, with `foundation.json` and `SHA256SUMS`, are assets of the
-   [`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1); its
-   [README](https://github.com/telegraphprotocol/telegraph-foundation#readme) has the
-   download and verification commands. Check every file with `sha256sum -c SHA256SUMS`
-   before you start the node. The hashes every validator must run:
-   `FOUNDATION_MODEL_HASH=0a49b325304bb4cf292e683929689d0457966be264f60bfc94d0072b614bf8e6`,
-   `FOUNDATION_ENGINE_WASM_HASH=77643d6e1176ab8744801cef93ccb844d0136ed32b8daa865d541f37d13292de`,
-   `FOUNDATION_MODEL_VERSION=modernbert-base-lora16-v1`.
-3. **Set the environment:**
+| File | sha256 |
+|---|---|
+| `foundation_lora_fp32.onnx` (about 599 MB) | `0a49b325304bb4cf292e683929689d0457966be264f60bfc94d0072b614bf8e6` |
+| `foundation_engine.wasm` (about 2.7 MB) | `77643d6e1176ab8744801cef93ccb844d0136ed32b8daa865d541f37d13292de` |
+| `tokenizer.json` (ModernBERT-base) | `67bc76f8b9386efba1a761c1c8e5ad439fd0eaf1c2826e9dd1a205c7af4dc456` |
 
-   | Variable | Default | Meaning |
-   |---|---|---|
-   | `FOUNDATION_MODEL_PATH` | unset: no foundation | The ONNX graph. Needs `TOKENIZER_JSON`. |
-   | `FOUNDATION_MODEL_HASH` | required with the path | sha256 of the graph. A mismatch refuses to start. |
-   | `FOUNDATION_MODEL_VERSION` | `""` | A label, e.g. `modernbert-base-lora16-v1`. A change counts as a foundation update. |
-   | `FOUNDATION_ENGINE_WASM_PATH` | required with the path | The engine module. |
-   | `FOUNDATION_ENGINE_WASM_HASH` | required with the engine | sha256 of the engine. A mismatch refuses to start. |
-   | `FOUNDATION_POOL_SIZE` | `clamp(min(cpus/4, (memory - 2 GiB) / 2 GiB), 1, 8)`; `1` when memory cannot be read | Workers, each a full copy of the foundation. 1 to 8. |
-   | `FOUNDATION_INTERRUPT` | `watchdog` | How the score deadline is enforced (`loop` is about 4x slower; same bits). |
-   | `FOUNDATION_DELTA_CACHE_MAX` | `16` | Adapters one worker keeps loaded. |
-   | `FOUNDATION_DELTA_CACHE_BYTES` | `536870912` (512 MiB) | The same bound in bytes. |
-   | `TOKENIZER_JSON` | `<HYBRID_WASM_DIR or JUDGMENT_WASM_DIR>/tokenizer.json` | Pinned by sha256 (`67bc76f8…dc456`). |
-   | `ADAPTER_LORA_MAX_BYTES` | `67108864` (64 MiB; hard limit 1 GiB) | Largest delta package a registration may download. |
-   | `ADAPTER_RAM_BUDGET_BYTES` | half of the machine's memory; `4GiB` when it cannot be read | RAM for adapters: the foundation counts once, each delta about 3x its package. |
-   | `ADAPTER_SCORE_TIMEOUT` | `5m` | Longest one score may take. |
-   | `WASM_REMOTE_EVAL_BUDGET` | `30m` | Time for an adapter's remote check. Keep it the same on every validator. |
+The version label is `modernbert-base-lora16-v1`. Plan about 1.8 GB of RAM per
+foundation worker, plus about three times the package size per adapter loaded (about
+20 MB for a 6.8 MB rank-8 delta). The release README lists the node settings.
 
-4. **Size the RAM.** About **1.8 GB per foundation worker**, plus about three times the
-   package per adapter loaded (about 20 MB for a 6.8 MB rank-8 delta). RAM grows with
-   `FOUNDATION_POOL_SIZE`, not with the number of adapters. On a laptop CPU one 512-token
-   score takes 13-14 s with one worker.
-
-**How to check it worked.** At startup the log shows
-
-```
-Foundation Model loaded once for the process; every Evaluator adapter and every model score runs on it
-```
-
-with `foundation_hash`, `version`, `engine_hash`, `tokenizer_hash`, `instances`,
-`r_max=16` and `layers=22`, followed by `hydrateWasms: Foundation Model recorded (first run
-with one); it takes effect at the next epoch rollover`. The new foundation scores from the
-first epoch rollover after the start. Compare `foundation_hash` with the other validators.
-
-**What you see if you don't.**
-
-- No foundation configured: `no Foundation Model configured (FOUNDATION_MODEL_PATH unset):
-  no Evaluator adapter can score and no model ranking is published; delta-package
-  registrations are rejected at Stage 1 (no_foundation)`. Adapters already Active are not
-  restored on that node.
-- A wrong hash, or a path without its hash: the node refuses to start (`Foundation Model
-  refused to load`, `foundation file hash mismatch`, or `Foundation Model configuration is
-  incomplete`).
-- Migrations missing: `could not record the active Foundation Model (foundation_models)`,
-  and no model ranking.
-- Legacy adapters on the first start: `hydrateWasms: legacy full-model float adapters are
-  no longer served; repackage them as safetensors deltas and re-register`. Expected: those
-  intents are unranked until their authors register deltas.
-
-**A later foundation update.** Restarting with a different `FOUNDATION_MODEL_HASH`,
-`FOUNDATION_MODEL_VERSION` or tokenizer is a foundation update. Adapters built for the old
-hash are marked `superseded` with `foundation_updated: …` and never score again; adapters
-built for the new hash go back to `pending` and must pass the remote check and the gate
-again. The epoch the change lands in publishes no model ranking. Every validator must
-switch together.
+**A later foundation update.** A different foundation hash, version or tokenizer is a
+foundation update. Adapters built for the old hash are marked `superseded` with
+`foundation_updated: …` and never score again; adapters built for the new hash go back to
+`pending` and must pass the remote check and the gate again. The epoch the change lands
+in publishes no model ranking. Every validator must switch together.
 
 ## Evaluation-data contributors
 

@@ -391,7 +391,8 @@ cast call $DIAMOND "getIntentProposal(string)" "FX_NOW_JPY" --rpc-url $RPC
 | Withdrawn | You call `withdrawProposal(intent)`. |
 
 Nodes pick up an approved intent from the chain's events and
-apply it from the **next epoch**.
+apply it from the **next epoch**. A node reads the chain at Sepolia's `safe`
+block, so it sees the approval about 10 to 15 minutes after the transaction.
 
 ### What can go wrong
 

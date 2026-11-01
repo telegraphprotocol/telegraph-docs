@@ -19,14 +19,7 @@ Note the order: the key is stored **after** registration, because it is bound to
 
 This is the recommended path, and the only one that lets you supply an API key yourself.
 
-**Scripting it, or driving it from an agent?** The validation half of that interface is a plain HTTP API you can call directly, with the same checks and the same error strings, and no browser or wallet:
-
-```
-POST https://integrate.telegraphprotocol.com/api/validate
-{"yaml": "<raw YAML text>", "api_key": "...", "miner_address": "0xYourWallet"}
-```
-
-See [Validation API](validation-api.md) for the full contract. Run it until it comes back clean, then send the registration transaction below yourself.
+**Scripting it, or driving it from an agent?** The [Validation API](validation-api.md) page describes the HTTP form of the same checks. Its public endpoint, `https://integrate.telegraphprotocol.com/api/validate`, answers `404` (see the note on that page), so check your YAML against [YAML Configuration](yaml-config.md), send the registration transaction below yourself, and read the node's verdict with `GET /api/miners/{registrationId}` ([Step 6](#step-6-wait-for-nodes-to-activate-you)).
 
 The rest of this page covers doing the same thing by hand with `cast`.
 
@@ -48,8 +41,10 @@ Your `supportedIntents` must each be a **canonical intent**. Two mistakes revert
 |---|---|
 | `MinerRegistryFacet: unsupported intent` | The name is not a canonical intent (a typo, wrong case, or one that was never approved) |
 | `MinerRegistryFacet: a prefix is not an intent` | You listed a family name such as `FX_NOW`. List the intent, for example `FX_NOW_EUR` |
-| `duplicate intent` | You listed the same intent twice. Each counts once |
-| `supportedIntents` empty | Declare at least one |
+| `MinerRegistryFacet: duplicate intent` | You listed the same intent twice |
+| `MinerRegistryFacet: no intents` | `supportedIntents` is empty. Declare at least one |
+
+A `minPriceUsdc` below `10000` reverts `MinerRegistryFacet: below min floor`.
 
 Matching is exact and case-sensitive. Check before you send:
 
@@ -163,7 +158,7 @@ Read the record back with `getMiner(registrationId)`.
 
 ## Step 6: Wait for nodes to activate you
 
-Activation follows your registration event, not any schedule. Each node activates you as it processes the event, usually within a minute. Each node will:
+Activation follows your registration event, not any schedule. A node reads the chain at Sepolia's `safe` block, which trails the newest block by about 10 to 15 minutes, so expect your miner to appear **about 10 to 15 minutes after the transaction**. Each node will:
 1. Fetch your YAML from the declared URL.
 2. Verify the SHA-256 hash matches the on-chain commitment.
 3. Validate the YAML against the schema, including your `intent_mapping` if you declared one.
@@ -354,7 +349,8 @@ cast send "$DIAMOND" "withdrawMinerBond()" --rpc-url "$RPC" --private-key "$MINE
 | Miner stuck in pending | YAML unreachable, or hash or schema check failed. Activation is not epoch-gated | `curl -s <node>/api/miners/<registrationId>` names the cause |
 | "Hash mismatch" in node logs | The bytes served differ from what you hashed (often a trailing newline) | Recompute from `curl -s <url>`, then `updateMiner` |
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) |
-| Not in `/api/miners` | Registration rejected, or the node hasn't seen the event | `curl -s <node>/api/miners/<registrationId>`. A `rejected` status means the YAML failed |
+| Not in `/api/miners` | Registration rejected, or the node hasn't seen the event yet (it trails the chain by about 10 to 15 minutes) | `curl -s <node>/api/miners/<registrationId>`. `miner registration not found` means the node has not seen it yet; a `rejected` status means the YAML failed |
+| `MinerRegistryFacet: below min floor` | `minPriceUsdc` is below `10000` ($0.01) | Use `10000` or more |
 | Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |
 | Upstream returns 401, or requests fail naming a credential | No API key installed for the slug | See [API keys](#installing-or-rotating-your-api-key). Register first |
 | Registration rejected over slug or `id` | Another wallet holds that identity | See [Identity rejections](#identity-rejections) |

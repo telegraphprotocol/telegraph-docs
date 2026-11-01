@@ -27,6 +27,8 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 Every address above is readable from the Diamond itself, which is the source of truth if this table ever drifts:
 
 ```bash
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
 cast call $DIAMOND "usdcToken()(address)"    --rpc-url $RPC   # escrow, jobs and settlement token
 cast call $DIAMOND "machinaToken()(address)" --rpc-url $RPC   # what miners are actually paid in
 cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
@@ -44,7 +46,7 @@ export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
 cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
 ```
 
-**MACHINA.** Swap test USDC for it on the MACHINA/USDC pool (0.3% fee tier) through Uniswap's SwapRouter02 on Sepolia, `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`. 2 USDC buys about 2.6 MACHINA, enough for a miner bond or an intent proposal; an adapter bond ($5) needs about 7 MACHINA.
+**MACHINA.** Swap test USDC for it on the MACHINA/USDC pool (0.3% fee tier) through Uniswap's SwapRouter02 on Sepolia, `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`. The price moves, so these figures are rough: 2 USDC buys about 2 MACHINA, enough for a miner bond or an intent proposal ($1 each). An adapter bond ($5) is about 5.3 MACHINA, so swap 6 USDC (`6000000`) for it.
 
 ```bash
 export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
@@ -57,7 +59,18 @@ cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint
 cast call $MACHINA "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
 ```
 
-Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.
+Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. For example, the adapter bond in MACHINA wei is the third value of:
+
+```bash
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+cast call $DIAMOND "entityBonds()(uint64,uint64,uint256,uint256)" --rpc-url $RPC
+# 5000000 [5e6]                      adapter bond in USD (6 decimals)
+# 1000000 [1e6]                      contributor bond in USD
+# 5294308675628276852 [5.294e18]     adapter bond in MACHINA wei (about 5.3 MACHINA)
+# 1058861735125655371 [1.058e18]     contributor bond in MACHINA wei
+```
+
+A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.
 
 ### Network Configuration
 
@@ -124,7 +137,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Reduced consensus threshold (τ_reduced) | 33 / 64 (activates after 3 failed rounds) |
 | Minimum Validator stake | Set in USD, paid in MACHINA at the pool price (`protocolParams()`) |
 | Unbonding period | 21 days |
-| Epoch duration | 24 hours on mainnet; 5 minutes on the testnet |
+| Epoch duration | 24 hours on mainnet; 1 hour on the testnet |
 | Commit phase timeout | 45 seconds |
 | Reveal phase timeout | 45 seconds |
 | Leader failover timeout | 90 seconds |
@@ -138,6 +151,9 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Scoring module minimum win rate | 70% overall; 60% on each family child with ≥ 10 scored pairs |
 | Minimum scored pairs per competition | 10 |
 | Competition sample size | 30 hidden pairs per round |
+| Shared Foundation Model | `modernbert-base-lora16-v1`, sha256 `0a49b325304bb4cf292e683929689d0457966be264f60bfc94d0072b614bf8e6` ([release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1)) |
+| Evaluator adapter package | A safetensors LoRA delta, LoRA rank at most 16, at most 64 MiB (6.8 MB at rank 8) |
+| Adapter remote check | 15 public pairs (up to 30 texts) at your runnable URL, at least 70% in the right order, within 30 minutes |
 | Evaluation Pool minimum contributors | 5 per Intent |
 | Testing Cohort size | 10% of active Validators |
 | Internal Audit Fee | 2% of epoch Validator emission pool |
@@ -190,7 +206,7 @@ For **x402 pay-per-call inference**, the charged price is `min_price_usdc × mul
 |---|---|
 | Gas escrow multiplier (floor) | 2.0× estimated gas |
 | Gas escrow multiplier (ceiling) | 5.0× |
-| Escrow withdrawal timelock | 4 hours |
+| Escrow withdrawal wait | Two more settled blocks or 7 days, whichever comes first (`protocolParams()`) |
 | WebSocket minimum escrow | 1.00 USDC |
 | Discovery Tier participation minimum | 95% of assigned rounds |
 
