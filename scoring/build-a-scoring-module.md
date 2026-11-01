@@ -431,7 +431,7 @@ calling the contract yourself.
 Build your module (a comparator `.wasm`, or an Evaluator adapter's
 `.safetensors` package), host it somewhere it can be downloaded from a public URL
 (IPFS or any file host), then submit it at
-[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com/).
+[anjoman.ai/dashboard/eval](https://anjoman.ai/dashboard/eval).
 The platform hashes the file and sends the transaction for you.
 
 ### Registering directly

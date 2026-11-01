@@ -479,7 +479,7 @@ semantics:
 
 Registration is on-chain and cannot be edited, so validate your YAML first.
 
-Use **[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass or fail for each. It then pins the YAML and registers it for you.
+Use **[anjoman.ai/dashboard/earn](https://anjoman.ai/dashboard/earn)**. Paste your YAML, supply your API key if your endpoints need one, and it sandbox-tests every declared endpoint against your real upstream API and reports pass or fail for each. It then pins the YAML and registers it for you.
 
 The same check is available over HTTP: `POST https://integrate.telegraphprotocol.com/api/validate`, no auth, no wallet. Full contract: [Validation API](validation-api.md).
 
