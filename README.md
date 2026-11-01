@@ -44,7 +44,7 @@ Two extras are supported:
 
 When a pull request is merged to `main`, a workflow first checks that every page listed in `SUMMARY.md` exists and is a `.md` file, and then publishes the docs to the site. A pull request that lists a missing page will break that check, so test your links before you merge.
 
-The old address `docs.telegraphprotocol.com` redirects to [anjoman.ai/docs](https://anjoman.ai/docs).
+The published docs live at [anjoman.ai/docs](https://anjoman.ai/docs).
 
 ## Related repositories
 
