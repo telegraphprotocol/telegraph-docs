@@ -26,4 +26,4 @@ Ask a focused question in the Issue before claiming it. Do not guess the missing
 
 ## What if I find a security problem?
 
-Use Telegraph’s private security-reporting channel. Do not post an exploitable detail on the bounty board.
+Use Telegraph’s private security-reporting channel, described in the bounty repository's [SECURITY.md](https://github.com/telegraphprotocol/bounties/blob/main/SECURITY.md). Do not post an exploitable detail on the bounty board.

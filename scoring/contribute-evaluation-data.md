@@ -113,7 +113,8 @@ The whole flow from the command line with [Foundry](https://getfoundry.sh):
 NODE=https://devnode.telegraphprotocol.com
 INTENT=CODE_REVIEW_GENERAL
 FILE=items.jsonl
-ADDR=0xYourContributorAddress
+CONTRIBUTOR_PRIVATE_KEY=0x...   # the key your rows are credited to
+ADDR=$(cast wallet address --private-key "$CONTRIBUTOR_PRIVATE_KEY")
 
 BODY_SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
 NONCE=$(openssl rand -hex 16)
@@ -131,6 +132,12 @@ curl -s -X POST "$NODE/api/evalpool/submissions?intent_id=$INTENT&submitter=$ADD
 
 Use `--data-binary`, not `-d`. `curl -d` strips the newlines, so the node hashes
 different bytes than you signed and the upload fails with `signer_mismatch`.
+
+Uploads change the live pool, so check your file before you send it. The adapter
+kit's data check ([`--check-data`](train-a-scoring-adapter.md#step-2-train)) reads
+the same rows and runs in seconds. Before you upload, look at the intent's pool
+with `GET /api/evalpool/status?intent_id=<INTENT>` (see
+[Checking your rows](#checking-your-rows)).
 
 There is no fee or bond for uploading.
 

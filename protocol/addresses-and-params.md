@@ -36,11 +36,17 @@ cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
 
 ### Getting test tokens
 
-You need three things on the testnet: Sepolia ETH for gas (from any public Sepolia faucet), test USDC, and MACHINA for bonds.
+You need three things on the testnet: Sepolia ETH for gas, test USDC, and MACHINA for bonds.
+
+**Sepolia ETH.** Use a public Sepolia faucet. Most ask you to sign in, solve a
+captcha or hold a little mainnet ETH. One transaction here costs well under
+0.001 ETH, so 0.01 ETH is enough for everything on these pages.
 
 **Test USDC.** Anyone can mint it:
 
 ```bash
+export KEY=0xYOUR_TESTNET_PRIVATE_KEY
+export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
 cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
@@ -59,6 +65,9 @@ cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint
 cast call $MACHINA "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
 ```
 
+Both `cast send` lines should print `status 1 (success)`, and your balance grows
+by about 2 MACHINA (`2000000000000000000` is 2 MACHINA, 18 decimals).
+
 Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. For example, the adapter bond in MACHINA wei is the third value of:
 
 ```bash
@@ -68,6 +77,17 @@ cast call $DIAMOND "entityBonds()(uint64,uint64,uint256,uint256)" --rpc-url $RPC
 # 1000000 [1e6]                      contributor bond in USD
 # 5294308675628276852 [5.294e18]     adapter bond in MACHINA wei (about 5.3 MACHINA)
 # 1058861735125655371 [1.058e18]     contributor bond in MACHINA wei
+```
+
+The miner bond, in USD with 6 decimals:
+
+```bash
+cast call $DIAMOND "minerBondParams()(uint256,uint256,uint256,uint256,uint256)" --rpc-url $RPC
+# 1000000 [1e6]      first intent ($1)
+# 100000 [1e5]       each further intent, up to the count below ($0.10)
+# 70000 [7e4]        each intent after that ($0.07)
+# 9                  the count where the $0.10 rate ends
+# 172800 [1.728e5]   withdrawal delay in seconds (2 days)
 ```
 
 A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.

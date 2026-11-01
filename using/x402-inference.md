@@ -13,7 +13,12 @@ This page covers payment. For request and result shapes, see [Make a Request](en
 ## What You Need
 
 - A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
-- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses. Install them with `npm install @x402/fetch @x402/evm viem`.
+- An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses. Install them in a new folder:
+  ```bash
+  mkdir telegraph-x402 && cd telegraph-x402
+  npm init -y
+  npm install @x402/fetch @x402/evm viem
+  ```
 - **Node.js 20 or newer** if you're using those packages. They sign with the WebCrypto API, which Node 18 doesn't expose — on Node 18 payments fail with `Failed to create payment payload: Crypto API not available`.
 - The URL of a Telegraph node.
 
@@ -149,9 +154,13 @@ const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine
   body: JSON.stringify({ intent: "CRYPTO_PRICE_USD", params: { symbol: "BTC" } }),
 });
 console.log(res.status, await res.json());
+
+// Your receipt for this call (see "Your receipt" below).
+const receipt = res.headers.get("x-telegraph-receipt");
+if (receipt) console.log(JSON.parse(Buffer.from(receipt, "base64").toString()));
 ```
 
-You should see `200` and the answer (see [Step 5](#step-5-receive-the-response)). Without the `spendControls` block, recent versions of `@x402/fetch` refuse to pay with `All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed`. Nothing is paid in that case.
+You should see `200` and the answer (see [Step 5](#step-5-receive-the-response)), then the receipt. Each run spends $0.01 of your USDC. Without the `spendControls` block, recent versions of `@x402/fetch` refuse to pay with `All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed`. Nothing is paid in that case.
 
 Use a library rather than hand-rolling the payload. The signature is EIP-712 typed data over the token's own domain, not a plain `transfer` call. A payload that is not valid base64 JSON gets `400 {"error":"Invalid payment"}`; a payload that does not verify gets a bare `402`, indistinguishable from having sent no payment at all. The quickest working setup is the [MCP server](mcp-server.md), which bundles this client and pays for you.
 
@@ -226,6 +235,22 @@ GET /engine/v1/signal/{signal_hash}
 ```
 
 The response includes the signal, the result behind it, and the payload the hash was computed over, so you can re-derive the hash yourself rather than taking the node's word for it.
+
+The hash is the `keccak256` of `payload` written as compact JSON with its keys
+sorted, `wallet_address` in lower case, and `<`, `>` and `&` escaped as
+`<`, `>` and `&`. With `jq` 1.7 or newer and `cast`:
+
+```bash
+H=0xYOUR_SIGNAL_HASH
+curl -s "https://devnode.telegraphprotocol.com/engine/v1/signal/$H" > signal.json
+jq -cjS '.payload | if .wallet_address then .wallet_address |= ascii_downcase else . end' signal.json \
+  | sed -e 's/</\\u003c/g' -e 's/>/\\u003e/g' -e 's/&/\\u0026/g' \
+  | cast keccak
+```
+
+It prints the same hash. The payload shows `wallet_address` in mixed case, but
+the hash covers it in lower case. `verification.verified` is the node's own
+check; it is `false` for some failed requests, and those do not re-derive.
 
 ### Your receipt
 

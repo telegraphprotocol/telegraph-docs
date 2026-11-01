@@ -15,7 +15,19 @@ cd bounties
 ./tb search weather
 ```
 
-These catalogue commands need Python 3. Commands that interact with GitHub require the GitHub CLI and an authenticated account:
+These catalogue commands need Python 3.
+
+Catalogue names such as `SANCTIONS_SCREENING_MATCH` are families. On the network
+they are prefixes, not intents: a miner, a request or a job uses an intent under
+them, often `<NAME>_GENERAL` (here `SANCTIONS_SCREENING_MATCH_GENERAL`). Find the
+live name with:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents \
+  | jq -r '.intents[].intent_name | select(startswith("SANCTIONS_SCREENING_MATCH"))'
+```
+
+Commands that interact with GitHub require the GitHub CLI and an authenticated account:
 
 ```bash
 gh auth login

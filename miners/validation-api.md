@@ -18,7 +18,10 @@ have a browser; this page is the API behind it, for scripts and agents.
 > the calls on this page do not work. Use the web interface, or register and
 > read the node's verdict with `GET /api/miners/{registrationId}` (see
 > [If it isn't there](miner-registration.md#if-it-isnt-there)). The rules and
-> error strings below are still the ones a node applies at registration.
+> error strings below are still the ones a node applies at registration. From a
+> terminal, run the free checks in
+> [Check it yourself](yaml-config.md#check-it-yourself) and dry-run
+> `registerMiner` with `cast call` first.
 
 ```
 POST https://integrate.telegraphprotocol.com/api/validate

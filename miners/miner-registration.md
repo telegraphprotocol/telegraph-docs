@@ -55,7 +55,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"   # fami
 ```
 
 If your service does not fit any listed intent, you have two options:
-- **Serve a `_GENERAL` intent.** 21 judgment families ship with one, for example `CONTENT_EXTRACTION_GENERAL` for OCR and speech-to-text miners, or `FRAUD_DETECTION_GENERAL` for breach checks. The list is in [Intents](../using/intents.md#general-intents).
+- **Serve a `_GENERAL` intent.** Judgment families ship with one, for example `CONTENT_EXTRACTION_GENERAL` for OCR and speech-to-text miners, or `FRAUD_DETECTION_GENERAL` for breach checks. The list is in [Intents](../using/intents.md#general-intents).
 - **Propose a new intent** under the right prefix. See [Proposing a new intent](../using/intents.md#proposing-a-new-intent). This is never part of a bounty: bounties use only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist).
 
 Every intent you list also needs to appear in your YAML. See [YAML Configuration](yaml-config.md#intents-must-be-intents-not-prefixes).
@@ -95,7 +95,15 @@ export MINER_PRIVATE_KEY="0x..."
 cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 10000000000000000000 \
   --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
 
-# 2. Register.
+# 2. Dry run (free): the same call with `cast call` returns the registrationId
+#    you would get, or the exact revert reason. Nothing is sent.
+cast call "$DIAMOND" \
+  "registerMiner(string,bytes32,address,uint256,string[])(uint256)" \
+  "$YAML_URL" "$YAML_HASH" "$FEE_ADDRESS" "$MIN_PRICE" \
+  '["FX_NOW_EUR","FX_NOW_CAD"]' \
+  --from "$(cast wallet address --private-key "$MINER_PRIVATE_KEY")" --rpc-url "$RPC"
+
+# 3. Register.
 cast send "$DIAMOND" \
   "registerMiner(string,bytes32,address,uint256,string[])" \
   "$YAML_URL" "$YAML_HASH" "$FEE_ADDRESS" "$MIN_PRICE" \
@@ -343,6 +351,7 @@ cast send "$DIAMOND" "withdrawMinerBond()" --rpc-url "$RPC" --private-key "$MINE
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `ERC20InsufficientAllowance` or `ERC20InsufficientBalance` | The Diamond could not take the MACHINA bond | Hold enough MACHINA and `approve` the Diamond first (Step 4) |
+| A bare `execution reverted` whose `data` starts `0xfb8f41b2` (or `0xe450d38c`) | The same two errors, which `cast` does not name | `cast decode-error <data>` prints `ERC20InsufficientAllowance` (or `ERC20InsufficientBalance`). Approve or top up MACHINA |
 | `MinerRegistryFacet: unsupported intent` | One of your intents isn't canonical | Check each with `isCanonicalIntent(string)` |
 | `MinerRegistryFacet: a prefix is not an intent` | You listed a family such as `FX_NOW` | List the intent, for example `FX_NOW_EUR` |
 | `registration opens when the migration closes` | The network is mid-migration | Existing miners were imported. New registrations open when the admin closes the migration |

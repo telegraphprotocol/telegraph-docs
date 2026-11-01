@@ -92,7 +92,7 @@ These are answered before any payment is taken, and nothing is charged:
 |---|---|---|
 | `400` | `{"error": "invalid request body"}` | The body is not one JSON object with a non-empty `query`, or an `intent` with `params`. A `message` field says which. |
 | `400` | `{"error": "invalid_params", ...}` | `params` do not pass the Intent's input schema. See [Canonical ask](#canonical-ask-intent-params). |
-| `400` | `{"error": "no_input_schema", ...}` | You sent `params` for an Intent that has no input schema. Send a free-form `query`. |
+| `400` | `{"error": "no_input_schema", ...}` | You sent `params` for an Intent that has no input schema. Send a free-form `query`. A misspelled or unknown intent name gets this same error, so check the name in `GET /engine/v1/intents` first. |
 | `429` | `{"error": "too many requests, slow down"}` | One client asked about too many **new** questions in a minute (default 60). A question quoted in the last 3 minutes is never refused this way. Wait and retry. |
 | `503` | `{"error": "extraction_unavailable", ...}` | The node needed its parser model to read or complete your params and it is off, down or slow. Retry, or send `intent` + `params`. |
 | `503` | `{"error": "no_compatible_miner", ...}` | No live miner can take the params, or the Intent you named is served by no live miner right now. It is never served by another Intent's miner. |
@@ -209,7 +209,7 @@ Validation is deterministic. Coercion is only ever safe: `"3"` is read as the in
 
 ### How the node completes your request
 
-1. **`intent` + `params` that cover every required param:** validated in code. **No model is called.**
+1. **`intent` + `params` that cover every required param:** validated in code. **No model is called.** A `query` sent next to complete `params` is not checked against them, so a `conflict` (rule 4) is only found when the node has to read the `query`.
 2. **A free-form `query` only:** the parser model reads exactly the schema's params out of the question. It never guesses; anything the question does not state is `null`, and a free-text value that is not in the question is discarded. Then the same validation runs.
 3. **`params` that are valid but incomplete, plus a `query`:** your supplied values are validated first (a wrong type or range is refused before any model is called), then the model is asked once for the missing params with your values as known facts. Your values are kept.
 4. **A value in the `query` that differs from a supplied param** is refused as a `conflict`, naming both values. The node never overrides what you sent silently.

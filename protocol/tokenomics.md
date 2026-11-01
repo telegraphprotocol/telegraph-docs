@@ -46,7 +46,7 @@ Below the minimum batch size, miner pay waits and is swapped together with later
 
 ## Signal Pricing: Floor + Demand Multiplier
 
-Every miner sets a minimum signal price (`min_price_usdc`) when they register — the lowest amount an agent can pay per request. This floor is immutable after registration.
+Every miner sets a minimum signal price (`min_price_usdc`) when they register — the lowest amount an agent can pay per request. A miner changes it with `updateMiner` (see [Updating your miner](../miners/miner-registration.md#updating-your-miner)).
 
 The actual price an agent pays can be higher, depending on demand for that Intent:
 
