@@ -41,7 +41,7 @@ States: `Funded (0)`, then `Terminal (1)` when resolved, or `Cancelled (2)` when
 
 You can pay a job two ways.
 
-**Pay from escrow.** Deposit USDC to the Diamond's escrow first, then call `createJob` or `createJobCapped`. The price is debited from escrow.
+**Pay from escrow.** Deposit USDC to the Diamond's escrow first, then call `createJob` or `createJobCapped`. The price is debited from escrow. The commands on this page use the variables set in step 0 of [A complete run](#a-complete-run).
 
 ```bash
 # approve the Diamond to move your USDC, then deposit into escrow
@@ -94,6 +94,10 @@ curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK_TE
 ```
 
 Other intents have other fields, and some list `off_chain` fields. Read the layout of the intent you use.
+
+Take the on-chain names and positions from `onchain`, not from `response.fields`.
+The two can differ: for `WEATHER_CHECK_TEMPERATURE` the HTTP answer calls the
+field `temperature_c`, while `onchain.response` calls it `temp_c`.
 
 ### How values are laid out
 
@@ -177,7 +181,13 @@ cast call $DIAMOND \
 
 ## Step 4: Implement the callback
 
-A callback is optional. Pass the zero address if you do not want one, and read the outcome yourself with `getJob` and `getJobOutput`. If you pass an address it must be a contract with code, or `createJob` reverts with `callback has no code`.
+A callback is optional. Pass the zero address if you do not want one, and read the outcome yourself with `getJob` (the state) and `getJobOutput`. If you pass an address it must be a contract with code, or `createJob` reverts with `callback has no code`.
+
+> [!NOTE]
+> Without a callback, the processed values do not reach any contract.
+> `getJobOutput` returns only a `bytes32` hash, not the answer. To read the
+> values on-chain, use a callback. Off-chain, `GET /engine/v1/job/{id}/result`
+> shows the miner's raw answer (`raw_response`) and its `signal_hash`.
 
 The callback keeps the same function name it always had:
 
@@ -221,6 +231,41 @@ function subnetMessage(uint256 jobId, bool success, OnChainData calldata respons
 }
 ```
 
+A complete contract around it, which compiles with Foundry as is:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+struct OnChainData {
+    address[] addresses;
+    uint256[] integers;
+    string[] strings;
+    bool[] bools;
+}
+
+contract JobConsumer {
+    address public constant DIAMOND = 0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b;
+
+    mapping(uint256 => int256) public tempE6;    // WEATHER_CHECK_TEMPERATURE: temp_c x 10^6
+    mapping(uint256 => string) public failed;    // the reason, when a job failed
+
+    function subnetMessage(uint256 jobId, bool success, OnChainData calldata response, string calldata errorMessage) external {
+        require(msg.sender == DIAMOND, "only protocol");
+        if (!success) {
+            failed[jobId] = errorMessage;
+            return;
+        }
+        tempE6[jobId] = int256(response.integers[0]);
+    }
+}
+```
+
+Save it as `src/JobConsumer.sol` in a Foundry project (`forge init`), deploy it
+with `forge create src/JobConsumer.sol:JobConsumer --rpc-url $RPC --private-key $KEY --broadcast`,
+and pass the `Deployed to:` address as `$CALLBACK`. After the job resolves, read
+the value with `cast call $CALLBACK "tempE6(uint256)(int256)" $JOB_ID --rpc-url $RPC`.
+
 Things that are true of how you are called:
 
 - **Your revert is swallowed.** The protocol calls you inside `try ... catch`. If your callback reverts or runs out of gas, the job **still** settles (resolved or failed) and there is no retry.
@@ -231,7 +276,7 @@ A dapp that pays for its user: because the **dapp** is the agent, a refund lands
 
 ## Step 5: Wait for the outcome
 
-Each job is resolved on its own as soon as a miner has answered. It is **not** batched into the epoch. Expect seconds to a few minutes, not an epoch boundary.
+Each job is resolved on its own as soon as a miner has answered. It is **not** batched into the epoch. The node reads the chain at Sepolia's `safe` block, so it first sees your `JobCreated` about 10 to 15 minutes after the transaction. After that, expect seconds to a few minutes, not an epoch boundary. Until the node has seen the job, `GET /engine/v1/job/{id}` shows `"state_name": "Funded"` and `/result` answers `404 {"error":"job result not found"}`; that is normal.
 
 What the node does after `JobCreated`:
 
@@ -280,9 +325,17 @@ Only the original `agent` can cancel, and only after `protocolParams().jobCancel
 
 ## A complete run
 
-This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3.
+This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3. It spends 1 USDC of the
+2 it deposits.
 
 ```bash
+# 0. set up (KEY is your testnet private key)
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
+export CALLBACK=0x0000000000000000000000000000000000000000   # or your consumer contract
+
 # 1. fund escrow
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
 cast send $DIAMOND "depositUSDC(uint256)" 2000000 --rpc-url $RPC --private-key $KEY
@@ -306,9 +359,16 @@ cast call $DIAMOND \
   "getJob(uint256)((address,bytes32,address,uint256,uint256,uint256,uint8,uint256))" \
   $JOB_ID --rpc-url $RPC
 cast call $DIAMOND "getJobOutput(uint256)(bytes32)" $JOB_ID --rpc-url $RPC
+curl -s https://devnode.telegraphprotocol.com/engine/v1/job/$JOB_ID/result | jq '{miner_slug, raw_response, tx_hash}'
 ```
 
-The repository includes a sample consumer (`contracts/evm/examples/AllSubnetsCallbackContract.sol`) and a script that steps real jobs through a node (`scripts/mainnet/node-demo.sh`).
+At first `getJob` shows state `0` (Funded). About 10 to 15 minutes later it
+shows `1`, `getJobOutput` returns a non-zero hash, and the node's record shows
+which miner answered and what it said. With a callback contract, read the value
+from your contract instead.
+
+For a contract that receives the answer, use the `JobConsumer` in
+[Step 4](#step-4-implement-the-callback).
 
 ## Reverts you may hit
 

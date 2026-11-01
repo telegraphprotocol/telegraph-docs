@@ -20,7 +20,8 @@ curl -s "$NODE/engine/v1/intents" | jq '.intents[] | {
 }'
 ```
 
-Pick a canonical intent with a `miner_count` above zero.
+Pick a canonical intent with a `miner_count` above zero. Copy its
+`intent_name` exactly: names are case-sensitive.
 
 ## Read one intent's schema
 
@@ -41,8 +42,32 @@ Where published, the response exposes these schemas:
 | Smart-contract inputs | `onchain.request` |
 | Callback values | `onchain.response` |
 
-If the intent you need has no published schema, ask the team in Discord with its
-exact name before building a typed or on-chain integration.
+A `{key}` in a description or unit is the intent's question key, the value the
+intent is about. For `FX_NOW_EUR` it is `EUR`, and that intent still takes it
+as a param: send `{"currency": "EUR"}`.
+
+> [!WARNING]
+> This endpoint answers `200` for any name. A misspelled name, or a prefix such
+> as `FX_NOW`, comes back with `miner_count: 0` (and often `request: null`), not
+> with an error. Take names from the list above, where `canonical` is `true`.
+
+If the intent you need has no published schema, ask the team in
+[Discord](https://discord.gg/telegraphprotocol) with its exact name before
+building a typed or on-chain integration.
+
+## See who ranks where
+
+```bash
+curl -s "$NODE/engine/v1/intents/$INTENT/miners" | jq '.miners[] | {id, slug, name}'
+curl -s "$NODE/leaderboard/miners" | jq '.intents.CRYPTO_PRICE_USD[:3]'
+```
+
+The first lists every miner that serves the intent; use an `id` with
+[`POST /engine/v1/ask/{minerId}`](engine-ask.md#direct-ask). The second is the
+leaderboard from the last scored epoch: `rank`, `score` (0 to 1) and `miner_slug`
+for each scored intent. Intents that were not scored that epoch are not listed.
+The price is `min_price_usdc` in `GET /api/miners`; ignore `cost_per_call` on
+the first list.
 
 ## Next
 

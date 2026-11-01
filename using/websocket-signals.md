@@ -70,7 +70,50 @@ After upgrading, the server does NOT immediately send a `connected` message. Ins
 }
 ```
 
-Then the `connected` confirmation arrives. If escrow is insufficient, the connection is closed with an error message listing what to deposit.
+Then the `connected` confirmation arrives. If escrow is insufficient, you still get `wallet_verified`, then an `error` message and the connection closes:
+
+```json
+{"type": "error", "data": {"message": "insufficient escrow balance: have 0 μUSDC, need 1000000 μUSDC ($1) — call depositUSDC() first"}}
+```
+
+Fund it as in [Funding your escrow](#funding-your-escrow) and connect again.
+
+### A minimal client
+
+This Node.js client does the whole handshake and subscribes. In a new folder run
+`npm init -y && npm install ws viem`, save this as `ws.mjs`, and run it with
+`EVM_PRIVATE_KEY=0x... node ws.mjs`. It needs Node.js 20 or newer and at least
+$1.00 in escrow.
+
+```js
+import WebSocket from "ws";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.EVM_PRIVATE_KEY);
+const ws = new WebSocket(
+  `wss://devnode.telegraphprotocol.com/engine/ws?wallet_address=${account.address}`);
+const send = (msg) => ws.send(JSON.stringify(msg));
+
+ws.on("open", () => send({ action: "auth_wallet" }));
+ws.on("message", async (buf) => {
+  const msg = JSON.parse(buf.toString());
+  console.log(msg.type, JSON.stringify(msg.data ?? {}).slice(0, 300));
+  if (msg.type === "wallet_challenge") {
+    const signature = await account.signMessage({ message: msg.data.message });
+    send({ action: "wallet_verify", signature });
+  } else if (msg.type === "connected") {
+    send({ action: "subscribe", intents: ["NEWS_HEADLINES_GENERAL"], spend_limit_usdc: 50000 });
+    setInterval(() => send({ action: "ping" }), 240000);
+  }
+});
+ws.on("close", (code, reason) => { console.log("closed", code, reason.toString()); process.exit(0); });
+```
+
+You should see `wallet_challenge`, `wallet_verified`, `connected` and
+`subscribed`, then nothing until the Daemon's next cycle pushes a `result` (see
+[Understanding the Daemon Cycle](#understanding-the-daemon-cycle)). With `cast`
+instead of viem, `cast wallet sign --private-key $KEY "$MESSAGE"` makes the same
+signature.
 
 ## Step 2: Subscribe to Intents
 
@@ -107,17 +150,40 @@ The server immediately confirms with a `subscribed` message:
 
 **A wallet has at most one subscription.** Sending `subscribe` again replaces your existing intents, filters, and spend limit — it does not create a second, parallel subscription.
 
+**Subscribe to intents the Daemon actually produces.** A subscription only pushes
+the Daemon's own results, and the Daemon picks its intents from what its
+collectors find. An intent it rarely produces, such as `WEATHER_CHECK_TEMPERATURE`,
+may push nothing for hours. See which intents it produced recently:
+
+```bash
+curl -s "https://devnode.telegraphprotocol.com/daemon/api/questions?since_hours=12&limit=100" \
+  | jq -r '[.results[] | select(.source != "user" and .status == "success") | .routing.intent]
+           | group_by(.) | map({n: length, intent: .[0]}) | sort_by(-.n) | .[] | "\(.n) \(.intent)"'
+```
+
+You can list many intents in one `subscribe`, up to every name in
+`GET /engine/v1/intents`.
+
+**To stop**, send the `subscription_id` from `subscribed`. A subscription stays
+listed after your connection drops, so unsubscribe when you are done:
+
+```json
+{"action": "unsubscribe", "subscription_id": "6ee741a1-5c5b-4c82-a29f-956d9e529fd9"}
+```
+
+The reply is `{"type": "unsubscribed", "data": {"message": "unsubscribed", "subscription_id": "…"}}`. Without the id you get `{"type": "error", "data": {"message": "subscription_id is required"}}`. `list_subscriptions` answers `{"type": "result", "data": {"count": 1, "subscriptions": [{"id": "…", "intents": […], "active": true, …}]}}`, so you can read the id from there too.
+
 Available actions on the WebSocket connection:
 
 | Action | Requires wallet auth? | Purpose |
 |---|---|---|
 | `subscribe` | Yes | Start receiving Daemon signals for the given intents (replaces any existing subscription) |
-| `unsubscribe` | Yes | Stop receiving signals for a subscription |
+| `unsubscribe` | Yes | Stop receiving signals. Requires `subscription_id` |
 | `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
 | `ask` | Yes | Request live intelligence (routed automatically), from a `query` or from `intent` + `params`. Billed $0.01 to escrow per call |
 | `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed $0.01 to escrow per call |
-| `ping` | No | Keep the connection alive |
+| `ping` | No | Keep the connection alive. The reply is `{"type": "pong"}` |
 
 `list_subnets` responds with the catalog under a `subnets` key:
 
@@ -139,6 +205,12 @@ For an Intent with an [input schema](engine-ask.md#canonical-ask-intent-params) 
 A request refused for its input gets an `error` message carrying the HTTP body (`invalid_params`, `no_input_schema`, `intent_required`, `no_compatible_miner`, ...) plus a `message`, before any routing and before the escrow check. Nothing is charged. Mixing native and canonical fields in one `ask_direct` is refused.
 
 The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). A native `ask_direct` result is the miner's raw output and carries `result_shape: "raw"`; a canonical `ask_direct` result is shaped like `ask`'s. Subscription pushes are raw and carry no `result_shape`.
+
+An `ask` streams these messages, in this order: `received`, `routing`, `routed`
+(the chosen miner as `subnet_id`, its `fallback_miner` and `reasoning`),
+`executing`, `result`, then `receipt`. Routing can take 10 seconds or more. The
+`result` message has no `signal_hash`; keep the `receipt_hash` from the
+`receipt` instead.
 
 **They are not free.** No x402 payment is charged at the WebSocket layer — instead each call is billed against your on-chain escrow. See [How `ask` and `ask_direct` are billed](#how-ask-and-askdirect-are-billed).
 
@@ -181,7 +253,7 @@ When the Daemon produces a result matching your subscribed Intents, it's pushed 
   "type": "result",
   "data": {
     "subscription_id": "8f2c1a4e-3b6d-4a1f-9c7e-2d5b8a9f0e1c",
-    "intent": "WEATHER_FORECAST",
+    "intent": "WEATHER_FORECAST_GENERAL",
     "category": "CLIMATE",
     "question": "Will Riyadh experience temperatures above 40°C?",
     "routing": {
@@ -189,7 +261,7 @@ When the Daemon produces a result matching your subscribed Intents, it's pushed 
       "subnet_name": "bittensor-sn18-zeus",
       "miner_slug": "zeus",
       "reasoning": "Routed to SN18 Zeus for weather forecasting",
-      "intent": "WEATHER_FORECAST"
+      "intent": "WEATHER_FORECAST_GENERAL"
     },
     "execution": {
       "result": {
@@ -210,6 +282,11 @@ When the Daemon produces a result matching your subscribed Intents, it's pushed 
   "timestamp": "2026-06-26T19:24:42Z"
 }
 ```
+
+`execution.result` is the miner's raw answer, so its shape depends on the miner;
+it can be large. `category` can be empty. The `receipt` for the delivery
+follows right after (see the `receipt` message below).
+Pushes arrive in a burst once per Daemon cycle, so expect long quiet gaps.
 
 ## Understanding the Daemon Cycle
 

@@ -17,17 +17,35 @@ contract.
 
 Every request is paid, so you need a wallet with test funds on Ethereum Sepolia:
 
-- **Sepolia ETH** for gas, from any public Sepolia faucet.
+- **A throwaway wallet** and [`cast`](https://getfoundry.sh) (Foundry). Never use a
+  key that holds real funds. The commands on these pages read two variables:
+  ```bash
+  export KEY=0xYOUR_TESTNET_PRIVATE_KEY
+  export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
+  ```
+- **Sepolia ETH** for gas, from a public Sepolia faucet. Most faucets ask you to
+  sign in, solve a captcha or hold a little mainnet ETH. A transaction here costs
+  well under 0.001 ETH, so 0.01 ETH lasts a long time.
 - **Test USDC.** Anyone can mint it, 10 USDC is plenty:
   ```bash
   cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" $YOUR_ADDRESS 10000000 \
     --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key $KEY
   ```
+  You should see `status 1 (success)`. Check it with
+  `cast call 0xcc194e1a843B658526D0D5C431f670028582Ae17 "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url https://ethereum-sepolia-rpc.publicnode.com`
+  (`10000000` is 10 USDC). The public RPC can show the old balance for a few
+  seconds after a transaction; wait and read it again.
 
 A request costs $0.01 and is paid per call with [x402](x402-inference.md), or
 from a balance you deposit once with [escrow](escrow-inference.md). Without a
 payment, every request answers `402 Payment Required` with the price; that is
 expected. More detail: [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
+
+> [!NOTE]
+> Requests are public. The question you ask appears in the public
+> [Daemon feed](daemon-signals.md) as a row with `source: user`, and
+> `GET /engine/v1/signal/{hash}` shows the wallet that paid for it. Do not put
+> private data in a question.
 
 ## What an intent can publish
 
@@ -41,7 +59,7 @@ Where published, the node exposes these schemas:
 | Callback values | `onchain.response` |
 
 The node response shows which schemas are available for an intent. If the intent you
-need has no published schema, ask the team in Discord with its exact name
+need has no published schema, ask the team in [Discord](https://discord.gg/telegraphprotocol) with its exact name
 before building a typed or on-chain integration.
 
 Build against the selected intent's live schema, not against one miner's raw

@@ -64,6 +64,18 @@ cd Telegraph-MCP
 npm install && npm run build
 ```
 
+The server is then at `Telegraph-MCP/dist/index.js`; that is the path the client
+configs below call `/path/to/Telegraph-MCP/dist/index.js`.
+
+The same server is also published on npm. To skip the build, run
+`npm install @telegraphprotocol/telegraph-protocol-mcp` in any folder and use the
+full path to `node_modules/@telegraphprotocol/telegraph-protocol-mcp/dist/index.js`
+in that folder instead.
+
+On startup it logs `Found <N> integrations`, then `stdio transport ready`. A
+few `Failed to register tool … is already registered` lines are harmless: two
+miners produced the same tool name and the second is skipped.
+
 ### 2. Configure
 
 ```bash
@@ -171,7 +183,7 @@ npm run inspect
 
 These tools are not hardcoded. On startup and every 5 minutes, the MCP server fetches the live integration registry from the Telegraph node, diffs against registered tools, and adds or removes tools as miners change on-chain. Connected clients receive a `notifications/tools/list_changed` notification automatically.
 
-One tool is generated per miner endpoint, so the live set is far larger than the examples below — every miner in the catalogue with at least one endpoint contributes.
+One tool is generated per miner endpoint, so the live set is far larger than the examples below — every miner in the catalogue with at least one endpoint contributes. On the testnet that is about 2,000 tools. Some agent runtimes limit how many tools they load, or slow down with that many. If yours does, point your agent at `tg_engine_ask`, which reaches every miner through routing.
 
 **The naming rule.** A tool name is `tg_<miner>_<endpoint>`, built like this:
 

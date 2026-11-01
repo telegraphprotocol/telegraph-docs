@@ -10,7 +10,7 @@ description: Public contribution rules and the reward terms that govern a Telegr
 2. Claim only work you can actively deliver and keep updated.
 3. Submit authentic, reproducible evidence. Do not invent demand, usage, results, or approval.
 4. Keep private customer data, credentials, hidden evaluation material, private diagnostics, and security-sensitive details out of public work.
-5. Use the private security channel for exploitable vulnerabilities.
+5. Use the private security channel for exploitable vulnerabilities (see the bounty repository's [SECURITY.md](https://github.com/telegraphprotocol/bounties/blob/main/SECURITY.md)).
 6. Do not treat a GitHub status, merge, or comment as a protocol or production action.
 
 ### Only intents that already exist

@@ -485,6 +485,7 @@ The whole call from the command line:
 export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+export AUTHOR_PRIVATE_KEY=0x...   # the wallet that will own the registration
 export WASM_URL="ipfs://bafkrei..."
 
 # keccak256 of the file's raw bytes. The 0x prefix is required — it is what
@@ -504,11 +505,22 @@ export WASM_RUNNABLE_URL="https://your-host.example/runnable"
 cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 20000000000000000000 \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 
+# Dry run (free): returns the registrationId you would get, or the revert reason.
+cast call "$DIAMOND" \
+  "registerWasm(bytes32,string,string,address,string)(uint256)" \
+  "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" "$WASM_RUNNABLE_URL" \
+  --from "$(cast wallet address --private-key "$AUTHOR_PRIVATE_KEY")" --rpc-url "$RPC"
+
 cast send "$DIAMOND" \
   "registerWasm(bytes32,string,string,address,string)(uint256)" \
   "$WASM_HASH" "$WASM_URL" "CODE_REVIEW" "$WASM_FEE_ADDRESS" "$WASM_RUNNABLE_URL" \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 ```
+
+Approve before the dry run. Without the allowance it stops at the bond, as a
+bare `execution reverted` whose data starts `0xfb8f41b2`
+(`ERC20InsufficientAllowance`; `cast decode-error <data>` names it), and it
+hides any other mistake, such as a name that is not a prefix.
 
 The `xxd` one-liner suits a comparator module. An Evaluator adapter (6.8 MB at
 rank 8) is too large to pass as a shell argument: take the `keccak256` that the

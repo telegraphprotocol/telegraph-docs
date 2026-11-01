@@ -210,4 +210,5 @@ curl https://devnode.telegraphprotocol.com/engine/v1/signal/0x7a44569d...
 
 The response carries the signal, the result behind it, and the payload the hash
 was computed over. Keep the hash — it is the only handle you have on a call
-after the fact.
+after the fact. The command that re-derives it is in
+[Verifying a call](x402-inference.md#verifying-a-call).

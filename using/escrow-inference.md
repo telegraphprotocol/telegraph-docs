@@ -43,6 +43,18 @@ IERC20(USDC).approve(DIAMOND, amount);
 EscrowFacet(DIAMOND).depositUSDC(amount);   // amount in 6-decimal uUSDC
 ```
 
+From a terminal with `cast` (2000000 = 2.00 USDC):
+
+```bash
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
+cast send $DIAMOND "depositUSDC(uint256)" 2000000 --rpc-url $RPC --private-key $KEY
+cast call $DIAMOND "effectiveBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
+# 2000000 or a little more: x402 payments you made earlier are credited here until the epoch closes
+```
+
 There is no minimum deposit for HTTP calls: your balance only has to cover the call itself plus whatever has already been billed to you and not yet charged on-chain. (The **1.00 USDC** floor is a WebSocket rule, enforced when the connection opens.) Deposit more than one call's worth anyway, because a call refused for balance is a call you have to sign and send again.
 
 Read your balance back at any time:
@@ -150,7 +162,7 @@ A served request returns `X-PAYMENT-RESPONSE` (base64 JSON) carrying the standar
 }
 ```
 
-`receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch, so it identifies your call, and nothing else, permanently. You can later prove the call was billed in a specific epoch block: see the block and delivery proof routes (`GET /v1/blocks/{epochId}/deliveries/{receiptHash}`).
+`receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch, so it identifies your call, and nothing else, permanently. You can later prove the call was billed in a specific epoch block with `GET /v1/blocks/{epochId}/deliveries/{receiptHash}`. It is at the node root, not under `/engine`: `https://devnode.telegraphprotocol.com/v1/blocks/{epochId}/deliveries/{receiptHash}`. Until that epoch's block is recorded it answers `404 {"error":"no block recorded for this epoch"}`; on the testnet that is up to about an hour. Then it returns your `delivery` (payer, miner, intent, `usdc`), a Merkle `proof` and the block's `deliveries_root`. `GET /v1/blocks/{epochId}` returns the whole block.
 
 There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the `submitEpoch` transaction your charge will ride.
 
@@ -217,9 +229,21 @@ export async function ask(question: string) {
 }
 ```
 
+To run it, save it as `escrow.mts` in a folder with `viem` and `tsx` installed
+(`npm init -y && npm install viem tsx`), add this line at the end of the file,
+and run `PRIVATE_KEY=0x... npx tsx escrow.mts`:
+
+```ts
+console.log(await ask('What is the current price of Bitcoin?'));
+```
+
+An unfunded wallet throws `insufficient escrow for delivery: …`, which proves the
+signature is right and only the deposit is missing.
+
 To smoke-test a wallet from a terminal before wiring any of that up (it needs `cast`, `jq` and a funded escrow; it spends $0.01):
 
 ```bash
+PRIVATE_KEY=$KEY   # your testnet key
 NODE=https://devnode.telegraphprotocol.com
 ADDR=$(cast wallet address --private-key "$PRIVATE_KEY" | tr 'A-Z' 'a-z')
 NOW=$(date +%s)
@@ -241,13 +265,19 @@ PAYMENT=$(jq -cn --arg s "$SIG" --arg f "$ADDR" --arg t "$PAYTO" --arg v "$VALUE
   --arg a "$((NOW-5))" --arg b "$((NOW+100))" --arg n "$NONCE" \
   '{x402Version:2,scheme:"escrow",network:"eip155:11155111",
     payload:{signature:$s,authorization:{from:$f,to:$t,value:$v,validAfter:$a,validBefore:$b,nonce:$n}}}' \
-  | base64 -w0)
+  | base64 | tr -d '\n')
 
 curl -sS -D - -X POST "$NODE/engine/v1/ask" -H 'Content-Type: application/json' \
   -H "X-PAYMENT: $PAYMENT" -d '{"query":"What is the current price of Bitcoin?"}'
 ```
 
 You should see `HTTP/2 200`, an `x-payment-response` header and the answer in the body. Decode the header with `base64 -d` to read your receipt (see [Step 4](#step-4-read-the-receipt)).
+
+The same script pays a direct ask: change both URLs to
+`$NODE/engine/v1/ask/{minerId}`. The template you sign then reads
+`Resource: /v1/ask/{minerId}`, and since you sign the template as given, nothing
+else changes. Sending the same `X-PAYMENT` twice is refused with
+`authorization.nonce has already been used`.
 
 The body is a `query`, or an `intent` with `params`. See [Make a Request](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
 

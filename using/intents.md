@@ -41,6 +41,9 @@ YAML), registration is refused with `a prefix is not an intent`.
 ### Reading the catalog
 
 ```bash
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+
 # Every prefix and its kind (1 deterministic, 2 hybrid, 3 judgment)
 cast call $DIAMOND "getPrefixes()(string[],uint8[])" --rpc-url $RPC
 
@@ -48,6 +51,8 @@ cast call $DIAMOND "getPrefixes()(string[],uint8[])" --rpc-url $RPC
 cast call $DIAMOND "isCanonicalIntent(string)(bool)" "FX_NOW_EUR" --rpc-url $RPC
 cast call $DIAMOND "intentKind(string)(uint8)" "FX_NOW_EUR" --rpc-url $RPC
 ```
+
+`intentKind` answers `0` for a name that is not an intent, such as a prefix.
 
 Or over HTTP, with miner counts and each intent's request and answer schema:
 
@@ -257,21 +262,21 @@ version of this page said, because the contract is authoritative.
 
 ### `_GENERAL` intents
 
-So that a miner without a checkable core has something to serve, 21 judgment
-prefixes ship with a `<PREFIX>_GENERAL` child: `ACADEMIC_SEARCH`, `AGENT_TASK`,
-`CHAT_COMPLETION`, `CONTENT_EXTRACTION`, `CONTENT_MODERATION`,
-`CONTENT_VERIFICATION`, `DEEPFAKE_DETECTION`, `FRAUD_DETECTION`,
-`IMAGE_VERIFICATION`, `LANGUAGE_GENERATION`, `LANGUAGE_TRANSLATION`,
-`MEDIA_AUTHENTICITY_CHECK`, `NEWS_HEADLINES`, `NEWS_SEARCH`, `RESEARCH_QUERY`,
-`SENTIMENT_ANALYSIS`, `TASK_COMPLETION`, `TELEGRAPH_KNOWLEDGE`,
-`TEXT_CLASSIFICATION`, `VIDEO_VERIFICATION` and `WEB_SEARCH`. For example OCR and
-speech-to-text miners serve `CONTENT_EXTRACTION_GENERAL`, and breach checks use
-`FRAUD_DETECTION_GENERAL`.
+So that a miner without a checkable core has something to serve, judgment
+prefixes ship with a `<PREFIX>_GENERAL` child, for example
+`CHAT_COMPLETION_GENERAL`, `WEATHER_FORECAST_GENERAL` and
+`FACT_CHECK_GENERAL`. OCR and speech-to-text miners serve
+`CONTENT_EXTRACTION_GENERAL`, and breach checks use `FRAUD_DETECTION_GENERAL`.
+List the live ones:
+
+```bash
+curl -s https://devnode.telegraphprotocol.com/engine/v1/intents \
+  | jq -r '.intents[].intent_name | select(endswith("_GENERAL"))'
+```
 
 A deterministic or hybrid prefix has no `_GENERAL` child, because every intent
-under it needs a spec. Prefixes with no intent yet (for example `STORM_ALERT`,
-`WEATHER_FORECAST`, `IP_GEOLOCATION`, `FACT_CHECK`) have no miner until someone
-proposes an intent under them.
+under it needs a spec. A prefix with no intent has no miner until someone
+proposes an intent under it.
 
 ## The spec of an intent
 

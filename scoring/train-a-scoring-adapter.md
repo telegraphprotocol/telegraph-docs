@@ -61,11 +61,25 @@ this: deterministic intents use a comparator module instead. See
   curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/foundation.json
   curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/SHA256SUMS
   sha256sum -c --ignore-missing SHA256SUMS
+  cd ..
   ```
+
+  You should see `foundation.json: OK`.
 
   Use the released files, not a foundation you export yourself with `export_foundation.py`:
   a local export is not guaranteed to have the same hash, and a package built against a
   different hash is rejected (`foundation_mismatch`).
+- **A public `https://` server with at least 5 GB of RAM** for your runnable-URL
+  executor ([Step 5](#step-5-host-the-file-and-run-the-executor)). It must stay up
+  until your registration is decided. A laptop behind a home router is not enough on
+  its own: the node refuses private and loopback addresses.
+- **About 5.3 MACHINA** for the $5 adapter bond, and a little Sepolia ETH. See
+  [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
+- **Evaluation material from at least 5 contributors** for your intent, or your
+  registration waits. Check `GET /api/evalpool/status?intent_id=<INTENT>`
+  (`eligible_submitters`); see [Contribute Evaluation Data](contribute-evaluation-data.md).
+- **Time.** Plan for up to about an hour and a half from your transaction to a
+  decision (see [Step 6](#step-6-register-and-compete)).
 
 Run every command from the root of the kit.
 
@@ -139,7 +153,18 @@ python -m float_runtime.train_adapter \
   --intent CODE_REVIEW --data pairs.jsonl --out runs/CODE_REVIEW
 ```
 
-To check your data without training (fast, no GPU needed), add `--check-data`.
+To check your data without training (fast, no GPU needed), add `--check-data`. It
+needs only `numpy`, so you can run it before you install `torch`:
+
+```bash
+python -m pip install numpy
+python -m float_runtime.train_adapter --intent CODE_REVIEW --data pairs.jsonl \
+  --out runs/CODE_REVIEW --check-data
+```
+
+It prints `dataset gate: PASS` or `dataset gate: FAIL`, each check from the table
+above with its value, and a line starting `x` for every check that failed, with
+what to change.
 
 The script:
 

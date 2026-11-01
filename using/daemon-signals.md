@@ -85,6 +85,11 @@ Returns a paginated list of signals. Each item is a stored result:
 | `limit` | 1–100, default 20. |
 | `offset` | ≥ 0, default 0. |
 
+Rows with `source: user` are requests people paid for through the Engine,
+including yours. The feed shows their question text, and
+`GET /engine/v1/signal/{hash}` shows the paying wallet. Filter them out with
+`select(.source != "user")` when you only want the Daemon's own signals.
+
 ### Top signals by interest
 
 ```

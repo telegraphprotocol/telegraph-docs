@@ -8,7 +8,12 @@ The Telegraph Miner Standard is declarative: instead of writing code, you write 
 
 Every YAML you register is public. Agents and validators can read it to understand your capabilities. Make it accurate and complete.
 
-> **Start from a working file.** [`example-miner.yaml`](https://github.com/telegraphprotocol/telegraph-examples/blob/master/frontend/yaml/example-miner.yaml) covers every block on this page, with a comment on each explaining what it does and whether it's required. It wraps a free weather API that needs no key, so you can register it as-is, watch the flow work end to end, then swap in your own API.
+> **An annotated example.** [`example-miner.yaml`](https://github.com/telegraphprotocol/telegraph-examples/blob/master/frontend/yaml/example-miner.yaml) has a comment on each block explaining what it does. It wraps a free weather API that needs no key. It predates V2, so it is **refused if you register it as-is**. Before you use it:
+>
+> - Replace `WEATHER_CHECK` and `WEATHER_FORECAST` (prefixes) with intents, for example `WEATHER_CHECK_TEMPERATURE` and `WEATHER_FORECAST_GENERAL`, in `semantics.supported_intents` and in each endpoint's `intents`.
+> - Pick your own `id` and `slug`. Its `id: 901` is already taken (see [Pick an unused `id` and `slug`](#pick-an-unused-id-and-slug)).
+> - Drop the `env_var` lines (they are not read) and the `on_chain.request` block (jobs do not use it).
+> - Ignore its `telegraph integration validate` and `npm run` comments: they need tools from that repository, and a `127.0.0.1` URL cannot be reached by a node. Check your file as in [Check it yourself](#check-it-yourself).
 
 ## What changed in V2 (read this if you have an older YAML)
 
@@ -92,6 +97,21 @@ The schema requires exactly six top-level fields: `version`, `kind`, `id`, `slug
 | `rate_limit_per_sec` | No | Client-side rate cap the node applies to your upstream |
 | `circuit_threshold` | No | Consecutive failures before the node trips the circuit breaker |
 | `circuit_cooldown_seconds` | No | How long the breaker stays open |
+
+### Pick an unused `id` and `slug`
+
+The `id` and `slug` in the examples on this page belong to real miners. Choose
+your own: any number for `id`, and a kebab-case name for `slug`. Then check no
+live miner uses either:
+
+```bash
+NODE=https://devnode.telegraphprotocol.com
+MY_ID=7310042
+MY_SLUG=my-weather-miner
+curl -s "$NODE/api/miners" | jq --arg id "$MY_ID" --arg slug "$MY_SLUG" \
+  '[.[] | select(.id == $id or .slug == $slug)] | length'
+# 0 means both are free
+```
 
 ### Docs (Optional)
 
@@ -343,7 +363,7 @@ cast call "$DIAMOND" "getPrefixes()(string[],uint8[])" --rpc-url "$RPC"       # 
 curl https://devnode.telegraphprotocol.com/engine/v1/intents                  # with miner counts
 ```
 
-If no intent fits, use a `_GENERAL` child (21 judgment families ship with one, listed in [Intents](../using/intents.md#general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a bounty, which uses only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist)).
+If no intent fits, use a `_GENERAL` child (judgment families ship with one, listed in [Intents](../using/intents.md#general-intents)), or [propose a new intent](../using/intents.md#proposing-a-new-intent) (never as part of a bounty, which uses only [Intents that already exist](../bounties/rules-and-rewards.md#only-intents-that-already-exist)).
 
 ### Intent mapping (optional)
 
@@ -489,6 +509,34 @@ Two results are worth reading rather than skimming:
 
 - **`warnings`** never blocks registration, but it is where "this endpoint declares no `params`" appears.
 - **`auth_applied`**, on each endpoint result, is the exact credential the sandbox sent, with the secret masked. If your upstream returns `401` while the same key works from your own machine, compare it against what your API expects. It is the fastest way to spot a missing or doubled `Bearer ` prefix.
+
+### Check it yourself
+
+Without a browser, or before you use the web interface, run these checks from a
+terminal. They cost nothing. The node's schema check only runs after you
+register, so also compare every key against the field reference above.
+
+```bash
+export NODE=https://devnode.telegraphprotocol.com
+export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export RPC=https://ethereum-sepolia-rpc.publicnode.com
+
+# 1. The file is valid YAML (prints "YAML parses", or the line that is wrong)
+npx --yes js-yaml my-miner.yaml > /dev/null && echo "YAML parses"
+
+# 2. Every intent is canonical (each line must end in "true")
+for i in $(npx --yes js-yaml my-miner.yaml | jq -r '.semantics.supported_intents[]'); do
+  echo "$i $(cast call $DIAMOND 'isCanonicalIntent(string)(bool)' $i --rpc-url $RPC)"
+done
+
+# 3. Your id and slug are free: see "Pick an unused id and slug" above
+
+# 4. Your upstream answers: call base_url + external_path yourself, with the params you declared
+curl -s 'https://api.coinbase.com/v2/exchange-rates?currency=ETH' | jq .data.rates.USD
+```
+
+Then dry-run the registration itself, as in
+[Registering as a Miner](miner-registration.md#step-4-register-on-chain).
 
 ## Common Validation Failures
 
