@@ -8,7 +8,7 @@ Registration is permissionless: anyone can register a miner. Once registered, Te
 
 ## The easy way: the registration interface
 
-**[integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com)** does the whole flow for you. Connect your wallet, paste your YAML, and it will:
+**[anjoman.ai/dashboard/earn](https://anjoman.ai/dashboard/earn)** does the whole flow for you. Connect your wallet, paste your YAML, and it will:
 
 - validate the YAML and sandbox-test your endpoints against your real API,
 - pin the YAML to IPFS,
@@ -214,7 +214,7 @@ This lists every registration, including superseded and deregistered ones. Each 
 | `superseded` | A newer registration took your slug | Use the newer `registrationId` |
 | `deregistered` | Withdrawn on-chain | Re-register if this wasn't intentional |
 
-A rejection is **not** something you re-register from scratch. Call `updateMiner` with the corrected URL and hash, see [Updating your miner](#updating-your-miner). Validate the fix at [integrate.telegraphprotocol.com](https://integrate.telegraphprotocol.com) before spending gas.
+A rejection is **not** something you re-register from scratch. Call `updateMiner` with the corrected URL and hash, see [Updating your miner](#updating-your-miner). Validate the fix at [anjoman.ai/dashboard/earn](https://anjoman.ai/dashboard/earn) before spending gas.
 
 Always look your registration up **by `registrationId`**, not by slug. The by-slug lookup returns whoever currently serves that slug, which, if you were rejected for a slug clash, is someone else.
 
