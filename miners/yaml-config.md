@@ -132,11 +132,23 @@ Declare known constraints the integration enforces. Machine-enforced codes: `MAX
 | `code` | Yes | Machine-readable code (UPPER_SNAKE_CASE) |
 | `message` | Yes | Human-readable description |
 | `param` | No | Request body key this applies to |
-| `property` | No | `size_bytes`, `value`, `length`, `count`, or `rate` |
+| `property` | No | `size_bytes` (JSON bytes), `value` (a number), `length` or `count` (characters of a string, items of a list, keys of an object), or `rate` |
 | `value_bytes` | No | Byte threshold |
 | `value_num` | No | Numeric threshold |
-| `operator` | No | `lte`, `gte`, `lt`, `gt`, or `eq` |
+| `operator` | No | When the request **breaks** the limit: `gt`, `gte`, `lt`, `lte`, or `eq` (default `gt`). A maximum is `gt`, a minimum is `lt`. `lte` on a maximum flags every request under it |
 | `window_seconds` | No | For `property: rate` only: the window `value_num` applies over, for example 5 per `1s`, or 100 per `2592000s` (30 days) |
+
+```yaml
+limitations:
+  - code: MAX_PARAM_LENGTH
+    message: target must be at most 32768 characters
+    param: target
+    property: length
+    value_num: 32768
+    operator: gt          # flag a target longer than 32768 characters
+```
+
+The node checks each request against your limits before calling your API. A direct call paid from escrow that breaks one is refused with `422 request is predicted to fail` and not charged (the caller can resend with `"acknowledge_warnings": true`). Other calls still run and return the warning.
 
 #### Declaring a rate limit
 
