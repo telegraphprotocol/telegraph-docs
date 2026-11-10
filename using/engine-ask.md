@@ -18,7 +18,7 @@ All of them are paid per call, via x402 or from your [escrow](escrow-inference.m
 
 **Engine base URL (testnet):** `https://devnode.telegraphprotocol.com/engine`
 
-> **A note on naming:** parts of the Telegraph API still use `subnet` in field names (`subnet_id`, `subnet_name` on the [Daemon](daemon-signals.md) and [WebSocket](websocket-signals.md) signal feeds) and tool names (the `tg_engine_*_subnet` [MCP tools](mcp-server.md)). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner**. Read `subnet` as "miner" wherever you see it.
+> **A note on naming:** parts of the Telegraph API still use `subnet` in field names (`subnet_id`, `subnet_name` on the [Daemon](daemon-signals.md) and [WebSocket](websocket-signals.md) signal feeds). This is legacy naming from when every provider was a Bittensor subnet. Today any provider integrated via YAML is a **miner**. Read `subnet` as "miner" wherever you see it.
 
 ## Auto-Routed Ask
 

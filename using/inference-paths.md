@@ -108,28 +108,22 @@ will fail — a `422` you are not charged for. See
 
 ### MCP server
 
-The zero-crypto-code path. A local Node process holds the key, pays, and exposes
-every miner as a tool to your agent runtime.
+The zero-crypto-code path. A local Node process holds the key, pays from your
+escrow, and gives your agent runtime Telegraph's tools. Run `npx -y
+@telegraphprotocol/telegraph-protocol-mcp setup` once, then add:
 
 ```json
 {
   "mcpServers": {
     "telegraph": {
-      "command": "node",
-      "args": ["/path/to/Telegraph-MCP/dist/index.js"],
-      "env": {
-        "TELEGRAPH_NODE_URL": "https://devnode.telegraphprotocol.com",
-        "TELEGRAPH_ENGINE_URL": "https://devnode.telegraphprotocol.com/engine",
-        "TELEGRAPH_DAEMON_URL": "https://devnode.telegraphprotocol.com/daemon",
-        "TELEGRAPH_EVM_PRIVATE_KEY": "0xyour_burner_key"
-      }
+      "command": "npx",
+      "args": ["-y", "@telegraphprotocol/telegraph-protocol-mcp"]
     }
   }
 }
 ```
 
-Node.js 20+ is required — on Node 18 every paid call fails with
-`Crypto API not available`.
+Node.js 20 or later is required.
 
 → [AI Agents (MCP)](mcp-server.md)
 
