@@ -152,7 +152,7 @@ Every guide assumes you've run `setup`. No key goes in any of these configs: the
 
 ### Claude Desktop
 
-Choose `claude-desktop` when `setup` offers to add Telegraph, or run `install claude-desktop`. To do it by hand, edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+**Quit Claude Desktop first** (Cmd+Q on a Mac, not just closing the window). The app can write its old settings back when it closes and undo your change. Then choose `claude-desktop` when `setup` offers to add Telegraph, or run `install claude-desktop`. To do it by hand, edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -165,7 +165,7 @@ Choose `claude-desktop` when `setup` offers to add Telegraph, or run `install cl
 }
 ```
 
-Quit Claude Desktop completely (Cmd+Q on a Mac, not just closing the window) and open it again, then start a new chat.
+Open Claude Desktop and start a new chat. If Telegraph isn't there, open the config file again and check that the `telegraph` entry above is still in it.
 
 ### Cursor
 
