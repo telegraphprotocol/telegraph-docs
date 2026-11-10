@@ -36,29 +36,57 @@ There's nothing to host and no port to open. Your agent starts the server when i
 
 ## Setup
 
-### 1. Set up once
+You do this once. It takes about ten minutes, most of it waiting for test funds.
 
-You need Node.js 20 or later. Check with `node -v`. In a terminal, run:
+**What you need**
+
+- A terminal. On a Mac that's the Terminal app; on Windows, PowerShell.
+- Node.js 20 or later. Check with `node -v`. If the command isn't found or the number is lower, install the LTS version from [nodejs.org](https://nodejs.org).
+
+### 1. Make your Telegraph wallet
 
 ```bash
 npx -y @telegraphprotocol/telegraph-protocol-mcp setup
 ```
 
-It checks the network and creates a wallet just for Telegraph, or imports one you already have. The wallet is saved to `~/.telegraph/wallet.json`, readable only by you. Back that file up: it's the only copy of the key, and the escrow balance goes with it.
+Press Enter to create a new wallet, then Enter again to save it. Setup prints the wallet's **address** (it starts with `0x`). Copy it: you need it in the next step.
 
-Setup then moves the USDC you choose into escrow, after you confirm, and offers to add Telegraph to Claude Desktop, Cursor or Claude Code.
+The wallet is saved to `~/.telegraph/wallet.json`, readable only by you. Back that file up: it's the only copy of the key, and the escrow balance goes with it.
+
+A new wallet is empty, so setup stops here and tells you to add funds. That's expected. Press Enter at any other question.
 
 ### 2. Get test funds
 
-The testnet runs on Ethereum Sepolia, so there's no real money. Claim its test USDC at [anjoman.ai/dashboard/faucet](https://anjoman.ai/dashboard/faucet) and send it to your Telegraph wallet. The two deposit transactions also need a little Sepolia ETH, which public Sepolia faucets give out. Then move the USDC into escrow:
+The testnet runs on Ethereum Sepolia, so there's no real money. The wallet needs two things:
+
+1. **Test USDC**, which pays for your questions. Sign in at [anjoman.ai/dashboard/faucet](https://anjoman.ai/dashboard/faucet) and send it to the address from step 1. One claim per account every 24 hours.
+2. **A little Sepolia ETH**, which pays the network fee for the deposit. Any public Sepolia faucet works, for example [Google's](https://cloud.google.com/application/web3/faucet/ethereum/sepolia). Paste the same address.
+
+Check that both arrived:
 
 ```bash
-npx -y @telegraphprotocol/telegraph-protocol-mcp fund
+npx -y @telegraphprotocol/telegraph-protocol-mcp status
 ```
 
-### 3. Add it to your agent
+`wallet_usdc` and `wallet_eth` should both be above zero.
 
-Follow your agent's guide [below](#integration-guides), restart the agent, and ask: "What is the BTC price? Use Telegraph."
+### 3. Move the USDC into escrow
+
+```bash
+npx -y @telegraphprotocol/telegraph-protocol-mcp fund 1
+```
+
+It shows the balances and asks before it sends anything. Type `y`. An ask costs about $0.01, so 1 USDC covers about 100 of them.
+
+### 4. Add Telegraph to your agent
+
+Follow your agent's guide [below](#integration-guides).
+
+### 5. Ask something
+
+In your agent, type: "What is the BTC price? Use Telegraph." You should get a price and the name of the miner that answered.
+
+To confirm it was paid, run `status` again: `spent_today_usd` goes up by the cost of the ask.
 
 ### Commands
 
@@ -66,7 +94,7 @@ Run these in a terminal, each after `npx -y @telegraphprotocol/telegraph-protoco
 
 | Command | What it does |
 |---|---|
-| `setup` | Make a wallet, fund it and add Telegraph to your agent |
+| `setup` | Make a wallet, and fund it and add Telegraph to your agent if the wallet already has funds |
 | `fund [usd]` | Move USDC into escrow, after you confirm |
 | `withdraw [usd]` | Request USDC back out of escrow. Run it again to collect once the network has settled it |
 | `status` | Balances, limits and what today's asks have cost |
@@ -137,11 +165,11 @@ Choose `claude-desktop` when `setup` offers to add Telegraph, or run `install cl
 }
 ```
 
-Restart Claude Desktop.
+Quit Claude Desktop completely (Cmd+Q on a Mac, not just closing the window) and open it again, then start a new chat.
 
 ### Cursor
 
-Choose `cursor` when `setup` offers to add Telegraph, or run `install cursor`. To do it by hand, add the same `mcpServers` block as Claude Desktop to `~/.cursor/mcp.json`, then restart Cursor.
+Choose `cursor` when `setup` offers to add Telegraph, or run `install cursor`. To do it by hand, add the same `mcpServers` block as Claude Desktop to `~/.cursor/mcp.json`. Cursor picks it up in a few seconds, with no restart. Check that `telegraph` is listed in Cursor's MCP settings, then ask in Agent mode.
 
 ### Claude Code
 
@@ -153,7 +181,7 @@ Check it with `claude mcp list`.
 
 ### VS Code / Continue
 
-Save this as `.continue/mcpServers/telegraph.yaml` at the top of your workspace:
+Install the Continue extension in VS Code. Then, in the top folder of the project you have open, create the folder `.continue/mcpServers/` and save this in it as `telegraph.yaml`:
 
 ```yaml
 name: Telegraph
@@ -172,7 +200,7 @@ Continue only uses MCP tools in **Agent** mode.
 
 ### Goose
 
-Add this under `extensions:` in `~/.config/goose/config.yaml`, keeping what's already there:
+If you've never used Goose, run `goose configure` once to choose your AI model. Then add this under `extensions:` in `~/.config/goose/config.yaml`, keeping what's already there:
 
 ```yaml
 extensions:
@@ -187,7 +215,7 @@ extensions:
     timeout: 300
 ```
 
-Start a new Goose session.
+Start a new Goose session. `goose info` shows where your config file is.
 
 ### OpenClaw
 
@@ -196,7 +224,7 @@ openclaw mcp add telegraph --command npx --arg=-y --arg @telegraphprotocol/teleg
 openclaw mcp doctor telegraph --probe
 ```
 
-This writes the entry under `mcp.servers` in `~/.openclaw/openclaw.json`.
+The second command should print `telegraph: ok`. The entry is saved under `mcp.servers` in `~/.openclaw/openclaw.json`.
 
 ### LangChain / LangGraph (Python)
 
@@ -204,18 +232,27 @@ This writes the entry under `mcp.servers` in `~/.openclaw/openclaw.json`.
 pip install langchain-mcp-adapters
 ```
 
+Save this as `agent.py` and run `python agent.py`:
+
 ```python
+import asyncio
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-client = MultiServerMCPClient({
-    "telegraph": {
-        "transport": "stdio",
-        "command": "npx",
-        "args": ["-y", "@telegraphprotocol/telegraph-protocol-mcp"],
-    }
-})
+async def main():
+    client = MultiServerMCPClient({
+        "telegraph": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": ["-y", "@telegraphprotocol/telegraph-protocol-mcp"],
+        }
+    })
+    tools = await client.get_tools()
 
-tools = await client.get_tools()
+    # Pass `tools` to your agent, or call one directly:
+    ask = next(t for t in tools if t.name == "telegraph_ask")
+    print(await ask.ainvoke({"question": "What is the BTC price in USD?"}))
+
+asyncio.run(main())
 ```
 
 Full Python example in [examples/langchain](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples/langchain).
@@ -225,6 +262,8 @@ Full Python example in [examples/langchain](https://github.com/telegraphprotocol
 ```bash
 npm install @langchain/mcp-adapters @langchain/core
 ```
+
+Save this as `agent.mjs` and run `node agent.mjs`:
 
 ```typescript
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
@@ -238,15 +277,24 @@ const client = new MultiServerMCPClient({
 });
 
 const tools = await client.getTools();
+
+// Pass `tools` to your agent, or call one directly.
+// This adapter puts the server name in front: telegraph_telegraph_ask.
+const ask = tools.find((t) => t.name.endsWith("telegraph_ask"));
+console.log(await ask.invoke({ question: "What is the BTC price in USD?" }));
+
+await client.close();
 ```
 
 ### ElizaOS
 
+In your ElizaOS project, add the MCP plugin. Use the version that matches your ElizaOS: on ElizaOS 1.7 that's 1.7.1, and the newest plugin doesn't load there.
+
 ```bash
-npm install @elizaos/plugin-mcp
+bun add @elizaos/plugin-mcp@1.7.1
 ```
 
-In your character file:
+Add the plugin and the server to your character (`src/character.ts` in a new project, or your character JSON file):
 
 ```json
 {
@@ -265,7 +313,7 @@ In your character file:
 }
 ```
 
-A working example is in [examples/elizaos-telegraph](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples/elizaos-telegraph).
+Start the agent with `elizaos start`. Its log shows a line starting `[MCP] Connected 1/1` when Telegraph is loaded. A working example is in [examples/elizaos-telegraph](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples/elizaos-telegraph).
 
 ### Any MCP client
 
@@ -281,6 +329,20 @@ Any client that can start a local stdio MCP server works. Most take this block:
   }
 }
 ```
+
+---
+
+## Problems
+
+| What you see | What to do |
+|---|---|
+| "No wallet yet" | Run `setup` first |
+| "The wallet needs a little ETH" | Send Sepolia ETH to your wallet address ([step 2](#2-get-test-funds)), then run `fund` |
+| "The wallet holds 0 USDC" | Claim test USDC from the faucet to your wallet address, then run `fund` |
+| The agent says escrow is too low | Run `fund` again. Nothing was charged |
+| `npx` or `node` isn't found by your agent | Install Node.js 20 or later, then restart the agent |
+| The agent writes out a tool call as text and no answer comes back | The AI model is too small to use tools reliably. Pick a larger one in your agent |
+| The agent doesn't use Telegraph | Say "Use Telegraph" in your question, and check the server is listed in the agent's MCP or tools settings |
 
 ---
 
