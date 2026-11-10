@@ -19,11 +19,11 @@ Your agent (Claude / Cursor / LangChain / etc.)
     │
     │  MCP over stdio, on your computer
     │
-┌───▼─────────────────────────────────────────┐
+┌───▼────────────────────────────────────────────┐
 │  Telegraph MCP server  (runs on your computer) │
-│  Wallet: ~/.telegraph/wallet.json           │
-│  Signs each escrow payment itself           │
-└───┬─────────────────────────────────────────┘
+│  Wallet: ~/.telegraph/wallet.json              │
+│  Signs each escrow payment itself              │
+└───┬────────────────────────────────────────────┘
     │
     │  HTTPS
     │
