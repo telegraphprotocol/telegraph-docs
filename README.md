@@ -52,5 +52,5 @@ The published docs live at [anjoman.ai/docs](https://anjoman.ai/docs).
 |---|---|
 | [telegraphprotocol/Telegraph](https://github.com/telegraphprotocol/Telegraph) | Protocol node source code (private; request access) |
 | [telegraphprotocol/Telegraph-api-docs](https://github.com/telegraphprotocol/Telegraph-api-docs) | OpenAPI specs and API reference |
-| [telegraphprotocol/Telegraph-MCP](https://github.com/telegraphprotocol/Telegraph-MCP) | MCP server for AI agents |
+| [telegraphprotocol/telegraph-mcp](https://github.com/telegraphprotocol/telegraph-mcp) | MCP server for AI agents |
 | [telegraphprotocol/bounties](https://github.com/telegraphprotocol/bounties) | Public bounty board, intent catalogue and mission map |
