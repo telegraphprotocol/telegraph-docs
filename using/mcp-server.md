@@ -148,6 +148,8 @@ All optional. Set them as environment variables for the server, in your agent's 
 
 ## Integration guides
 
+On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code and Goose in one click. The guides below are the same setup by hand.
+
 Every guide assumes you've run `setup`. No key goes in any of these configs: the server uses the wallet `setup` saved. Ready-made files are in the repository's [examples](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples) folder.
 
 ### Claude Desktop
@@ -170,6 +172,16 @@ Open Claude Desktop and start a new chat. If Telegraph isn't there, open the con
 ### Cursor
 
 Choose `cursor` when `setup` offers to add Telegraph, or run `install cursor`. To do it by hand, add the same `mcpServers` block as Claude Desktop to `~/.cursor/mcp.json`. Cursor picks it up in a few seconds, with no restart. Check that `telegraph` is listed in Cursor's MCP settings, then ask in Agent mode.
+
+### VS Code
+
+For VS Code's built-in chat, run:
+
+```bash
+code --add-mcp '{"name":"telegraph","command":"npx","args":["-y","@telegraphprotocol/telegraph-protocol-mcp"]}'
+```
+
+This adds `telegraph` to VS Code's MCP servers. Ask in the Chat view in Agent mode.
 
 ### Claude Code
 
