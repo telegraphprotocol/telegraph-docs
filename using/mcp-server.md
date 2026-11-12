@@ -148,7 +148,7 @@ All optional. Set them as environment variables for the server, in your agent's 
 
 ## Integration guides
 
-On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code and Goose in one click. That click only adds the server to your app — it doesn't make or fund a wallet, so your first question still needs [Setup](#setup) above. The guides below are the same setup by hand.
+On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code, Goose and Hermes in one click. That click only adds the server to your app — it doesn't make or fund a wallet, so your first question still needs [Setup](#setup) above. The guides below are the same setup by hand.
 
 The first time you ask something, your app may ask you to approve the `telegraph_ask` tool. That's normal: approve it once and it won't ask again for that question.
 
@@ -230,6 +230,14 @@ extensions:
 ```
 
 Start a new Goose session. `goose info` shows where your config file is.
+
+### Hermes
+
+```bash
+hermes mcp add telegraph --command npx --args -y @telegraphprotocol/telegraph-protocol-mcp
+```
+
+It connects, lists 8 tools and asks to enable them: press Enter. The entry is saved under `mcp_servers` in `~/.hermes/config.yaml`. Restart Hermes Desktop, or run `/reload-mcp` in a session, to use it.
 
 ### OpenClaw
 
@@ -358,6 +366,7 @@ Any client that can start a local stdio MCP server works. Most take this block:
 | The agent writes out a tool call as text and no answer comes back | The AI model is too small to use tools reliably. Pick a larger one in your agent |
 | The agent doesn't use Telegraph | Say "Use Telegraph" in your question, and check the server is listed in the agent's MCP or tools settings |
 | Your app asks to approve a Telegraph tool | Normal the first time you use it. Approve it |
+| The server stops with "At least one private key is required" | Your computer has an old copy of the server saved. Run `rm -rf ~/.npm/_npx`, then restart the agent |
 | You used **Add Telegraph** on the Integrations page but asking fails | That click only adds the server; it doesn't make or fund a wallet. Do [Setup](#setup) above, then ask again |
 
 ---
