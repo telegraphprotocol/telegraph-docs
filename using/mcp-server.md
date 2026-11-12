@@ -148,9 +148,9 @@ All optional. Set them as environment variables for the server, in your agent's 
 
 ## Integration guides
 
-On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code, Goose and Hermes in one click. That click only adds the server to your app — it doesn't make or fund a wallet, so your first question still needs [Setup](#setup) above. The guides below are the same setup by hand.
+On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code, Goose and Hermes in one click. That click only adds the server to your app. It doesn't make or fund a wallet, so your first question still needs [Setup](#setup) above. The guides below are the same setup by hand.
 
-The first time you ask something, your app may ask you to approve the `telegraph_ask` tool. That's normal: approve it once and it won't ask again for that question.
+The first time you ask something, your app may ask you to approve the `telegraph_ask` tool. That's normal: approve it once and it won't ask again.
 
 Every guide assumes you've run `setup`. No key goes in any of these configs: the server uses the wallet `setup` saved. Ready-made files are in the repository's [examples](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples) folder.
 
