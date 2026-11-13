@@ -9,7 +9,7 @@ An evaluator bounty asks for a scoring artifact or supporting evaluation work. T
 ## Use the public build guides
 
 - For an evaluator adapter, start with [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md) and [Train an Evaluator Adapter](../scoring/train-a-scoring-adapter.md).
-- For deterministic comparison logic, follow the comparator section of the build guide.
+- For deterministic comparison logic, follow the comparator section of the build guide — and read its warning first: most deterministic Intents are compared by the node itself and take no module from anyone.
 
 Use only public inputs you are entitled to use. Do not request or attempt to infer hidden qualification cases, private evaluator files, private model assets, source credentials, or current ranking diagnostics.
 
