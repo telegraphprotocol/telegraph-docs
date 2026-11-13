@@ -148,6 +148,10 @@ All optional. Set them as environment variables for the server, in your agent's 
 
 ## Integration guides
 
+On the [Integrations page](https://anjoman.ai/dashboard/integrations), **Add Telegraph** sets up Claude Desktop, Cursor, VS Code, Goose and Hermes in one click. That click only adds the server to your app. It doesn't make or fund a wallet, so your first question still needs [Setup](#setup) above. The guides below are the same setup by hand.
+
+The first time you ask something, your app may ask you to approve the `telegraph_ask` tool. That's normal: approve it once and it won't ask again.
+
 Every guide assumes you've run `setup`. No key goes in any of these configs: the server uses the wallet `setup` saved. Ready-made files are in the repository's [examples](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/examples) folder.
 
 ### Claude Desktop
@@ -170,6 +174,16 @@ Open Claude Desktop and start a new chat. If Telegraph isn't there, open the con
 ### Cursor
 
 Choose `cursor` when `setup` offers to add Telegraph, or run `install cursor`. To do it by hand, add the same `mcpServers` block as Claude Desktop to `~/.cursor/mcp.json`. Cursor picks it up in a few seconds, with no restart. Check that `telegraph` is listed in Cursor's MCP settings, then ask in Agent mode.
+
+### VS Code
+
+For VS Code's built-in chat, run:
+
+```bash
+code --add-mcp '{"name":"telegraph","command":"npx","args":["-y","@telegraphprotocol/telegraph-protocol-mcp"]}'
+```
+
+This adds `telegraph` to VS Code's MCP servers. Ask in the Chat view in Agent mode.
 
 ### Claude Code
 
@@ -216,6 +230,14 @@ extensions:
 ```
 
 Start a new Goose session. `goose info` shows where your config file is.
+
+### Hermes
+
+```bash
+hermes mcp add telegraph --command npx --args -y @telegraphprotocol/telegraph-protocol-mcp
+```
+
+It connects, lists 8 tools and asks to enable them: press Enter. The entry is saved under `mcp_servers` in `~/.hermes/config.yaml`. Restart Hermes Desktop, or run `/reload-mcp` in a session, to use it.
 
 ### OpenClaw
 
@@ -343,6 +365,9 @@ Any client that can start a local stdio MCP server works. Most take this block:
 | `npx` or `node` isn't found by your agent | Install Node.js 20 or later, then restart the agent |
 | The agent writes out a tool call as text and no answer comes back | The AI model is too small to use tools reliably. Pick a larger one in your agent |
 | The agent doesn't use Telegraph | Say "Use Telegraph" in your question, and check the server is listed in the agent's MCP or tools settings |
+| Your app asks to approve a Telegraph tool | Normal the first time you use it. Approve it |
+| The server stops with "At least one private key is required" | Your computer has an old copy of the server saved. Run `rm -rf ~/.npm/_npx`, then restart the agent |
+| You used **Add Telegraph** on the Integrations page but asking fails | That click only adds the server; it doesn't make or fund a wallet. Do [Setup](#setup) above, then ask again |
 
 ---
 
