@@ -33,6 +33,22 @@ or hybrid intent with no module of its own can use its family's (see
 [Families](#families-one-module-for-many-intents)). An intent that nothing
 serves is not scored, and its miners keep their previous ranking.
 
+> [!IMPORTANT]
+> **Check the family's class before you build a comparator.** A module belongs to a
+> family, and it only scores the intents that share the family's class. Most
+> deterministic intents sit under a judgment family: `GAS_PRICE_GENERAL` sits under
+> `GAS_PRICE`, which is judgment. For those, no module you register can ever score
+> them — the node compares their answers with its own comparator. A comparator sent to
+> such a family is never rejected and never goes live; it waits at `pending` for ever.
+> What those intents need is
+> [truth sources](contribute-evaluation-data.md#truth-sources-deterministic-intents).
+>
+> ```bash
+> curl -s "https://devnode.telegraphprotocol.com/api/wasm?intent=GAS_PRICE&resolve=GAS_PRICE"
+> ```
+>
+> Build a comparator only if the family's own `class` is `deterministic`.
+
 > **`rank_answer` modules are retired.** Earlier versions of this guide
 > described a module exporting `rank_answer`, `alloc` and `dealloc` that
 > compared a miner's answer with a reference answer. The node no longer runs
