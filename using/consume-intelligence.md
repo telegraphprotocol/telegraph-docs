@@ -13,6 +13,11 @@ contract.
 4. Send a request through the [Engine API](engine-ask.md), or from a smart
    contract with an [on-chain job](erc8183-jobs.md).
 
+**No wallet?** Create an Anjoman account, deposit from the website and call
+Telegraph with an [API key](api-keys.md) instead. You send a plain-language
+question and Anjoman picks the miners and pays for them. The rest of this page
+is for paying from your own wallet.
+
 ## Before you start
 
 Every request is paid, so you need a wallet with test funds on Ethereum Sepolia:
