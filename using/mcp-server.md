@@ -129,6 +129,34 @@ The free tools work with no wallet. Agents only get a tool that moves funds, `te
 
 ---
 
+## API key mode
+
+If you have an Anjoman account, you can skip the wallet. Create an [API key](api-keys.md), deposit into your account on the website, and set the key in your agent's settings. This needs version 2.1.0 or later of the server.
+
+```json
+{
+  "mcpServers": {
+    "telegraph": {
+      "command": "npx",
+      "args": ["-y", "@telegraphprotocol/telegraph-protocol-mcp"],
+      "env": { "TELEGRAPH_API_KEY": "tgk_your_key_here" }
+    }
+  }
+}
+```
+
+No `setup` is needed. With a key set, the wallet is not used, and:
+
+- **`telegraph_ask`** goes through your Anjoman account. It picks the sources, can combine several for one question and writes the answer, paid from your account's escrow balance. A question can take up to a minute.
+- **`telegraph_account`** shows the account's escrow balance and what its last jobs cost. Top up on the website: the server cannot deposit.
+- **`telegraph_ask_miner` and `telegraph_deposit` are not offered.** A key cannot call one miner directly or move funds.
+- **The free tools** work as before.
+- **The spending limits above do not apply.** Your account's balance does, and so do the key's own limits: 30 requests a minute and an optional expiry date. Revoke the key on the [API keys page](https://anjoman.ai/dashboard/api-keys) to cut an agent off at once.
+
+Treat the key like a password: it can spend your balance. Keep it in an agent's settings, not in a repository.
+
+---
+
 ## Settings
 
 All optional. Set them as environment variables for the server, in your agent's config.
@@ -139,6 +167,8 @@ All optional. Set them as environment variables for the server, in your agent's 
 | `TELEGRAPH_MAX_ASK_USD` | `0.5` | The most one ask may cost. `0` means no limit |
 | `TELEGRAPH_DAILY_LIMIT_USD` | `5` | The most all asks may cost in a UTC day. `0` means no limit |
 | `TELEGRAPH_HOME` | `~/.telegraph` | Where the wallet and the day's spending are kept |
+| `TELEGRAPH_API_KEY` | None | An Anjoman [API key](api-keys.md) (`tgk_…`). Switches to [key mode](#api-key-mode): no wallet is used |
+| `TELEGRAPH_API_URL` | `https://backend.telegraphprotocol.com` | Where the API key is used |
 | `TELEGRAPH_PRIVATE_KEY` | None | Use this key instead of the wallet file. For CI, not for agent configs |
 | `TELEGRAPH_ALLOW_AGENT_DEPOSIT` | Off | Also give the agent a `telegraph_deposit` tool |
 | `TELEGRAPH_URL` | `https://devnode.telegraphprotocol.com` | The node |
