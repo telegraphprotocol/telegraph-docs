@@ -41,7 +41,7 @@ YAML), registration is refused with `a prefix is not an intent`.
 ### Reading the catalog
 
 ```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 
 # Every prefix and its kind (1 deterministic, 2 hybrid, 3 judgment)

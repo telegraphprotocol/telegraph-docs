@@ -81,7 +81,7 @@ IPFS: `ipfs://bafkreig5nxc...`  HTTPS: `https://your-host.com/miner.yaml`
 ## Step 4: Register on-chain
 
 ```bash
-export DIAMOND="0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b"
+export DIAMOND="0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b"
 export RPC="https://ethereum-sepolia-rpc.publicnode.com"
 export MACHINA="0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4"
 export YAML_URL="ipfs://bafkreig5nxc..."

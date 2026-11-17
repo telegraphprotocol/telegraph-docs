@@ -32,27 +32,21 @@ Your contract → createJob*() → [JobCreated event, carries the request]
        transitionToTerminal()  or  failJob()   called on-chain
                                           ↓
    resolved: 98% USDC → TWAP → MACHINA → miner, 2% USDC → Treasury, callback gets the answer
-   failed:   agent refunded at once (less the 2% fee), callback gets ok = false
+   failed:   agent refunded at once into its escrow, callback gets ok = false
 ```
 
 States: `Funded (0)`, then `Terminal (1)` when resolved, or `Cancelled (2)` when cancelled or failed.
 
-## Step 1: Put USDC where the job can be paid from
+## Step 1: Approve the Diamond for the job's USDC
 
-You can pay a job two ways.
-
-**Pay from escrow.** Deposit USDC to the Diamond's escrow first, then call `createJob` or `createJobCapped`. The price is debited from escrow. The commands on this page use the variables set in step 0 of [A complete run](#a-complete-run).
+Every `createJob*` takes its budget from your wallet in the same call, with `transferFrom`, so approve the Diamond first. What it takes depends on the function (see [Step 3](#step-3-create-the-job)): the price for `createJob` and `createJobAndPay`, all of `maxBudget` for `createJobCapped` (and `createJobForMiner` without `payNow`). Whatever the job does not use, and every refund, goes into your Telegraph [escrow](escrow-inference.md) on the Diamond, not back to your wallet. The commands on this page use the variables set in step 0 of [A complete run](#a-complete-run).
 
 ```bash
-# approve the Diamond to move your USDC, then deposit into escrow
-cast send $USDC "approve(address,uint256)" $DIAMOND 1000000 --rpc-url $RPC --private-key $KEY
-cast send $DIAMOND "depositUSDC(uint256)" 1000000 --rpc-url $RPC --private-key $KEY
-cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
+# let the Diamond take up to 2 USDC for jobs
+cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
 ```
 
-**Pay in the same call.** `createJobAndPay` pulls the price from the caller's own USDC with `transferFrom`, so the caller only approves the Diamond. Escrow is not touched. This lets a dapp pull its user's USDC and pay in one transaction.
-
-> Escrow withdrawals unlock after two more blocks settle (1 hour each on the testnet, 24 hours on mainnet) or after 7 days, whichever comes first. See [Pay from Escrow](escrow-inference.md#withdrawing).
+> To take refunds or a job's unused budget out of escrow, see [Withdrawing](escrow-inference.md#withdrawing).
 
 ## Step 2: Find the intent id and its layout
 
@@ -124,10 +118,10 @@ Pick the function that fits.
 
 | Function | Pays from | Use it when |
 |---|---|---|
-| `createJob(intentId, params, callback)` | escrow | You do not need a price limit. |
-| `createJobCapped(intentId, params, callback, maxBudget)` | escrow | You want protection from a price that rose between your quote and inclusion. Reverts `job price above maxBudget`. |
-| `createJobAndPay(intentId, params, callback, maxBudget)` | your own USDC | A dapp pays for its user, or you hold no escrow. Approve the Diamond first. |
-| `createJobForMiner(intentId, miner, params, callback, maxBudget, payNow)` | escrow, or your USDC with `payNow` | You want one registered miner tried first. It is never refused or failed over that choice: a miner that does not serve the intent, or does not answer, gives way to the intent's ranked miners. |
+| `createJob(intentId, params, callback)` | your USDC: the price | You do not need a price limit. |
+| `createJobCapped(intentId, params, callback, maxBudget)` | your USDC: all of `maxBudget` | You want protection from a price that rose between your quote and inclusion (reverts `job price above maxBudget`), and want the job able to pay more than one miner. The unused part goes into your escrow when the job ends. |
+| `createJobAndPay(intentId, params, callback, maxBudget)` | your USDC: the price | A dapp pays for its user. `maxBudget` is only a price cap. |
+| `createJobForMiner(intentId, miner, params, callback, maxBudget, payNow)` | your USDC: `maxBudget`, or the price with `payNow` | You want one registered miner tried first. It is never refused or failed over that choice: a miner that does not serve the intent, or does not answer, gives way to the intent's ranked miners. |
 
 `params` is an `OnChainData`:
 
@@ -245,7 +239,7 @@ struct OnChainData {
 }
 
 contract JobConsumer {
-    address public constant DIAMOND = 0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b;
+    address public constant DIAMOND = 0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b;
 
     mapping(uint256 => int256) public tempE6;    // WEATHER_CHECK_TEMPERATURE: temp_c x 10^6
     mapping(uint256 => string) public failed;    // the reason, when a job failed
@@ -300,7 +294,7 @@ curl https://devnode.telegraphprotocol.com/engine/v1/job/42/result
 
 ## When a job fails
 
-If no miner can answer, the job is **failed, never resolved with a made-up answer**. The validator quorum signs `failJob(jobId, reason, ...)`. Your agent is refunded **at once** (not after the cancel delay), into its escrow: the job price minus the 2% protocol fee, which goes to the Treasury, as on a cancel. No miner is paid. `JobFailed(jobId, reason)` is emitted and your callback is called with `success = false`.
+If no miner can answer, the job is **failed, never resolved with a made-up answer**. The validator quorum signs `failJob(jobId, reason, ...)`. Your agent is refunded **at once** (not after the cancel delay), into its escrow on the Diamond: everything the job took, less 2% of one call for an invalid request (reason 2), which goes to the Treasury. No miner is paid. `JobFailed(jobId, reason)` is emitted and your callback is called with `success = false`.
 
 | Reason | When it happens |
 |---|---|
@@ -321,24 +315,23 @@ You no longer need to guess whether a job "is still in progress". A job that has
 JobFacet.cancelJob(jobId)
 ```
 
-Only the original `agent` can cancel, and only after `protocolParams().jobCancelDelay` (genesis 1 hour) has passed since funding. Before that it reverts `job cancel lock`; after the job resolved or failed it reverts `not fundable`. A cancelled job returns the budget minus the 2% protocol fee to the agent's escrow, repaying any delivery debt first.
+Only the original `agent` can cancel, and only after `protocolParams().jobCancelDelay` (genesis 1 hour) has passed since funding. Before that it reverts `job cancel lock`; after the job resolved or failed it reverts `not fundable`. A cancelled job returns everything it took to the agent's escrow on the Diamond.
 
 ## A complete run
 
-This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3. It spends 1 USDC of the
-2 it deposits.
+This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3. The capped job takes
+2 USDC from your wallet and spends 1 USDC; the other 1 USDC goes into your escrow.
 
 ```bash
 # 0. set up (KEY is your testnet private key)
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
-export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
+export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238   # Circle's Sepolia USDC: https://faucet.circle.com
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
 export CALLBACK=0x0000000000000000000000000000000000000000   # or your consumer contract
 
-# 1. fund escrow
+# 1. let the Diamond take the job's 2 USDC budget from your wallet
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
-cast send $DIAMOND "depositUSDC(uint256)" 2000000 --rpc-url $RPC --private-key $KEY
 
 # 2. read the layout and the price
 curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/WEATHER_CHECK_TEMPERATURE | jq .onchain
@@ -376,8 +369,8 @@ For a contract that receives the answer, use the `JobConsumer` in
 |---|---|
 | `not a canonical intent` | `intentId` is not the hash of a canonical intent name (a prefix, a registration id, a removed or misspelled name) |
 | `job price above maxBudget` | The price rose above your limit |
-| `insufficient escrow balance` | Escrow is short (for `createJob` and `createJobCapped`) |
-| `USDC payment failed` or a token error | `createJobAndPay` without enough balance or allowance |
+| A token error (insufficient balance or allowance) | Your wallet holds, or approved, less than the job takes: the price, or all of `maxBudget` for `createJobCapped` |
+| `USDC payment failed` | `createJobAndPay` without enough balance or allowance |
 | `callback has no code` | The callback address is not a contract |
 | `job cancel lock` | `cancelJob` before the cancel delay |
 | `not fundable` | `cancelJob` on a job that is already resolved, failed or cancelled |

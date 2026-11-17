@@ -530,7 +530,7 @@ register, so also compare every key against the field reference above.
 
 ```bash
 export NODE=https://devnode.telegraphprotocol.com
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 
 # 1. The file is valid YAML (prints "YAML parses", or the line that is wrong)

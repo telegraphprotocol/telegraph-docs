@@ -11,7 +11,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | Before | Now | Details |
 |---|---|---|
 | Base Sepolia (chain ID 84532). | **Ethereum Sepolia** (chain ID `11155111`), with new contract addresses. Every call still goes to one Diamond. | [Addresses & Parameters](protocol/addresses-and-params.md) |
-| Circle USDC on Base Sepolia; USDC on Solana Devnet. | A **test USDC on Ethereum Sepolia** that anyone can mint with `mint(address,uint256)`. x402 also takes Circle USDC on **Base Sepolia** and USDC on **Solana Devnet**, paid to a Telegraph wallet; see [Pay with x402](using/x402-inference.md#payment-networks). | [Addresses & Parameters](protocol/addresses-and-params.md) |
+| Circle USDC on Base Sepolia; USDC on Solana Devnet. | **Circle's USDC on Ethereum Sepolia** (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`), from the [Circle faucet](https://faucet.circle.com). x402 also takes Circle USDC on **Base Sepolia** and USDC on **Solana Devnet**, paid to a Telegraph wallet; see [Pay with x402](using/x402-inference.md#payment-networks). | [Addresses & Parameters](protocol/addresses-and-params.md) |
 | Emissions: 60% Validators, 20% script authors, 20% Treasury. | **25% Validators, 50% Evaluators, 25% Treasury.** Each intent's Evaluator share goes 30% to its adapter and 70% to the evaluation material it used. | [Tokenomics](protocol/tokenomics.md) |
 
 ## If you call the API
@@ -21,7 +21,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | `result` was the miner's raw JSON. A separate `parsed` object held extracted fields. | `result` is read into the **Intent's own shape**: the same keys, in the same order, whichever miner answered. `parsed` is gone. New fields: `result_shape`, `field_status`, `format_version`, `shape_error`. | [Make a Request](using/engine-ask.md#the-answers-shape) |
 | Only a `query` on `/ask`. Native `method`/`endpoint`/`payload` on `/ask/{id}`. | You can also send **`intent` + `params`** on both, validated against the Intent's request schema **before any payment**. A bad request returns `400 invalid_params` and costs nothing. | [Canonical ask](using/engine-ask.md#canonical-ask-intent-params) |
 | No way to see what an Intent expects or returns. | `GET /engine/v1/intents/{intent}` returns the request schema, the response format and the exact on-chain layout. | [Intents](using/intents.md#asking-with-an-intent) |
-| Escrow withdrawals unlocked after 4 hours. | They unlock after **two more blocks settle** (1 hour each on the testnet, 24 hours on mainnet) or **7 days**, whichever comes first. | [Withdrawing](using/escrow-inference.md#withdrawing) |
+| Escrow withdrawals unlocked after 4 hours. | Request, then collect once a **ledger root** built at least 30 minutes after the request is active, with the proof the node gives (`GET /v1/ledger/proof/<address>`), or after **7 days** without it. | [Withdrawing](using/escrow-inference.md#withdrawing) |
 | The escrow payment message had no chain in it. | It includes `Network: eip155:<chainId>`. Sign the template exactly as given. | [Escrow](using/escrow-inference.md#step-2-read-the-challenge) |
 | New errors: none. | `429` when a client asks too many new questions a minute. `503 extraction_unavailable` and `503 no_compatible_miner`. | — |
 

@@ -4,7 +4,7 @@ description: Fund once, then call as often as you like. No per-request settlemen
 
 # Pay from Escrow
 
-Escrow is the second way to pay a Telegraph node. You deposit USDC into the Port Contract once, and every call after that is authorized against that balance and settled in a single on-chain transaction at the end of the epoch.
+Escrow is the second way to pay a Telegraph node. You deposit USDC into the Port Contract once, and every call after that is authorized against that balance and charged in the epoch's ledger root: one Merkle-sum root for every account, carried in a single on-chain transaction at the end of the epoch.
 
 It is **not** a separate payment API. It is one more entry in the same x402 `accepts` array, sent in the same `X-PAYMENT` header, with the same base64 envelope and the same field names as the EVM `exact` scheme. Only `scheme` differs. A client that already speaks x402 changes one string.
 
@@ -24,11 +24,11 @@ x402 spends a facilitator round trip and an on-chain settlement **per request**.
 
 Both rails converge on exactly the same aggregator, the same merkle root and the same claim path. A miner cannot tell which one paid it.
 
-The trade-off is that escrow needs funding before the first call, and your balance is only as current as the last epoch settlement.
+The trade-off is that escrow needs funding before the first call.
 
 ## What You Need
 
-- A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
+- A USDC balance on **Ethereum Sepolia**: Circle's Sepolia USDC (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`), free from the [Circle faucet](https://faucet.circle.com) (choose Ethereum Sepolia).
 - A wallet that can sign an EIP-191 `personal_sign` message.
 - The Diamond address for the node you are calling. See [Addresses & Parameters](../protocol/addresses-and-params.md).
 
@@ -40,36 +40,47 @@ Approve the Diamond for the USDC you want to deposit, then deposit it:
 
 ```solidity
 IERC20(USDC).approve(DIAMOND, amount);
-EscrowFacet(DIAMOND).depositUSDC(amount);   // amount in 6-decimal uUSDC
+LedgerFacet(DIAMOND).depositUSDC(amount);   // amount in 6-decimal uUSDC
 ```
 
 From a terminal with `cast` (2000000 = 2.00 USDC):
 
 ```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
-export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
+export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
+export NODE=https://devnode.telegraphprotocol.com
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
 cast send $DIAMOND "depositUSDC(uint256)" 2000000 --rpc-url $RPC --private-key $KEY
-cast call $DIAMOND "effectiveBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
-# 2000000 or a little more: x402 payments you made earlier are credited here until the epoch closes
+curl -s $NODE/v1/ledger/account/$YOUR_ADDRESS | jq '{deposited, balance, available}'
+# "2000000" each on a fresh wallet; x402 leftovers are credited to the same balance
 ```
 
-There is no minimum deposit for HTTP calls: your balance only has to cover the call itself plus whatever has already been billed to you and not yet charged on-chain. (The **1.00 USDC** floor is a WebSocket rule, enforced when the connection opens.) Deposit more than one call's worth anyway, because a call refused for balance is a call you have to sign and send again.
+> Balances on the previous Diamond (`0x3624…b99b`) do not carry over. Deposit again on this one.
 
-Read your balance back at any time:
+There is no minimum deposit for HTTP calls: your balance only has to cover what the call may cost (one call, or the ask's whole [`max_budget_usdc`](engine-ask.md#multi-miner-asks-max_budget_usdc), which is held while it runs) plus whatever has already been billed to you and not yet charged in a root. (The **1.00 USDC** floor is a WebSocket rule, enforced when the connection opens.) Deposit more than one ask's worth anyway, because a call refused for balance is a call you have to sign and send again.
 
-```solidity
-EscrowFacet(DIAMOND).escrowBalance(you);      // raw deposited balance
-EscrowFacet(DIAMOND).effectiveBalance(you);   // what you can actually spend
-EscrowFacet(DIAMOND).agentDebt(you);          // unpaid deliveries, if any
+Read your balance back at any time. The chain holds what you deposited, withdrew and requested; the node's ledger roots hold what you were charged and credited, so the node joins the two:
+
+```bash
+curl -s $NODE/v1/ledger/account/$YOUR_ADDRESS
 ```
 
-`effectiveBalance` is the one the node checks against: your deposit, minus anything pending withdrawal, minus any gas reserve.
+| Field | Meaning |
+|---|---|
+| `deposited`, `withdrawn` | On chain |
+| `charged`, `credited` | In the node's newest ledger root: your asks, and x402 leftovers credited back |
+| `unbilled` | Usage billed but not in a root yet |
+| `balance` | `deposited + credited − charged − withdrawn` |
+| `available` | `balance − unbilled −` any withdrawal request: what asks may still spend. This is the number the node checks |
+| `request` | Your withdrawal request, if any, and its `status` (see [Withdrawing](#withdrawing)) |
+| `charge_limit`, `charged_this_block` | Your charge limit per block (`setMyChargeLimit`), and what this block has used of it |
 
-> An x402 payment whose request failed after the payment settled is credited to this same balance, so you can spend it here. See [When a Paid Request Fails](x402-inference.md#when-a-paid-request-fails).
+Amounts are μUSDC as decimal strings. On chain, `ledgerAccount(address)` returns `(deposited, withdrawn, requested, requestedAt)`.
 
-> If a settlement ever finds your escrow short, the shortfall is recorded on-chain as **debt** and delivery is suspended until you top up. The next deposit clears the debt first, before anything reaches spendable balance. An x402 payment is treated the same way: its credit repays your debt first, and only the rest becomes escrow.
+> An x402 payment whose request failed after the payment settled, or the unused part of a budgeted x402 ask, is credited to this same balance at the next epoch close (your `credited`), so you can spend it here. See [When a Paid Request Fails](x402-inference.md#when-a-paid-request-fails).
+
+> There is no on-chain debt. Usage a root could not charge yet stays `unbilled` and counts against `available` until a later root charges it.
 
 ### Funding somebody else
 
@@ -77,26 +88,31 @@ EscrowFacet(DIAMOND).agentDebt(you);          // unpaid deliveries, if any
 
 ```solidity
 IERC20(USDC).approve(DIAMOND, amount);
-EscrowFacet(DIAMOND).depositUSDCFor(userWallet, amount);
+LedgerFacet(DIAMOND).depositUSDCFor(userWallet, amount);
 ```
 
-Useful for sponsoring your users' intelligence requests, topping up a fleet of agent wallets, or funding a hot agent key from a cold one. Any outstanding debt is cleared against the beneficiary, not you.
+```bash
+cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
+cast send $DIAMOND "depositUSDCFor(address,uint256)" $USER_WALLET 2000000 --rpc-url $RPC --private-key $KEY
+```
+
+Useful for sponsoring your users' intelligence requests, topping up a fleet of agent wallets, or funding a hot agent key from a cold one.
 
 ## Step 2: Read the Challenge
 
-Escrow is priced on the same routes x402 is: `POST /engine/v1/ask` and `POST /engine/v1/ask/{minerId}`. Call one with no payment header and you get the usual 402, whose body lists the schemes it accepts. Look for the entry whose `scheme` is `escrow`:
+Escrow is priced on the same routes x402 is: `POST /engine/v1/ask` and `POST /engine/v1/ask/{minerId}`. Call one with no payment header and you get the usual 402, whose body lists the schemes it accepts. Look for the entry whose `scheme` is `escrow`. For an ask with [`max_budget_usdc`](engine-ask.md#multi-miner-asks-max_budget_usdc) it quotes the budget: you sign for the budget, it is held while the ask runs, only the calls whose answers are used are billed, and the rest of the hold is released.
 
 ```json
 {
   "scheme": "escrow",
   "network": "eip155:11155111",
   "price": "$0.01",
-  "payTo": "0x3624eb012b5e998bb57b6be6c9cfc9c4bc5eb99b",
+  "payTo": "0x72a70e949362670bf8bcead24efc5b8f950aa08b",
   "extra": {
-    "description": "Deduct from the caller's Telegraph escrow balance at the next epoch close. Fund it once with EscrowFacet.depositUSDC(amount); no per-request settlement.",
+    "description": "Charged to the caller's Telegraph escrow balance in the next ledger block. Fund it once with LedgerFacet.depositUSDC(amount); no per-request settlement.",
     "resource": "/v1/ask",
     "signWith": "personal_sign (EIP-191)",
-    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x3624eb01…\nNetwork: eip155:11155111\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
+    "message": "Telegraph Escrow Payment\n\nWallet: {from}\nPay To: 0x72a70e94…\nNetwork: eip155:11155111\nAmount: 10000 uUSDC\nResource: /v1/ask\nNonce: {nonce}\nValid After: {validAfter}\nValid Before: {validBefore}"
   }
 }
 ```
@@ -162,9 +178,11 @@ A served request returns `X-PAYMENT-RESPONSE` (base64 JSON) carrying the standar
 }
 ```
 
+An ask with `max_budget_usdc` that used several miners is billed one row per paid call. The header carries the first row's receipt; the reply's `fulfillment.payments` lists every row with its `receipt_hash`.
+
 `receipt_hash` is the auditable identifier for this one consumption. It is the key of the delivery's row in the node's ledger and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch, so it identifies your call, and nothing else, permanently. You can later prove the call was billed in a specific epoch block with `GET /v1/blocks/{epochId}/deliveries/{receiptHash}`. It is at the node root, not under `/engine`: `https://devnode.telegraphprotocol.com/v1/blocks/{epochId}/deliveries/{receiptHash}`. Until that epoch's block is recorded it answers `404 {"error":"no block recorded for this epoch"}`; on the testnet that is up to about an hour. Then it returns your `delivery` (payer, miner, intent, `usdc`), a Merkle `proof` and the block's `deliveries_root`. `GET /v1/blocks/{epochId}` returns the whole block.
 
-There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the `submitEpoch` transaction your charge will ride.
+There is **no `tx_hash`**, and that is not an omission. Escrow does not touch the chain per request, which is the entire point. `chain` says so positively: `telegraph` means the protocol settles this at the epoch boundary rather than an external chain settling it now. `epoch_id` names the epoch whose ledger root charges it (the root rides that epoch's `submitEpoch`).
 
 The same receipt object, field for field, is returned by the x402 rail (in `X-TELEGRAPH-RECEIPT`) and by the WebSocket rail (as a `receipt` message).
 
@@ -184,7 +202,8 @@ const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const wallet = createWalletClient({ account, chain: sepolia, transport: http() });
 
 export async function ask(question: string) {
-  const body = JSON.stringify({ query: question });   // or { intent, params }
+  // max_budget_usdc: a multi-miner ask that may cost up to $0.26, first call included (or { intent, params, ... })
+  const body = JSON.stringify({ query: question, max_budget_usdc: 260000 });
   const json = { 'Content-Type': 'application/json' };
 
   // 1: read the challenge
@@ -281,7 +300,7 @@ else changes. Sending the same `X-PAYMENT` twice is refused with
 
 The body is a `query`, or an `intent` with `params`. See [Make a Request](engine-ask.md). A body that is neither is refused *after* the payment is accepted, with `400 {"error":"invalid request body"}`, and the nonce is spent. (A request whose `params` do not fit the intent's schema is refused *before* payment and costs nothing.)
 
-An unfunded wallet gets `insufficient escrow for delivery: committed=0 μUSDC + price=10000 μUSDC > available=0 μUSDC`, which is a useful signal on its own: it means the signature verified and only the balance is missing.
+An unfunded wallet gets `insufficient escrow for delivery: unbilled=0 μUSDC + price=10000 μUSDC > balance=0 μUSDC`, which is a useful signal on its own: it means the signature verified and only the balance is missing.
 
 ## When a Payment Is Refused
 
@@ -297,29 +316,30 @@ Every refusal is a `402` whose body carries a `reason` and a fresh challenge, so
 | `escrow pays the diamond at …` | `to` is not the Diamond |
 | network or chain mismatch | The message names a different chain than the node's. Sign the template exactly as given |
 | `signature is from …, not authorization.from …` | Signer does not match the claimed payer |
-| `insufficient escrow for delivery: committed=… + price=… > available=…` | Balance too low. Deposit more. `committed` counts calls billed but not yet charged on-chain, this epoch and any still settling |
-| `delivery suspended: outstanding debt of …` | A past settlement found you short; deposit at least the debt to clear it |
+| `insufficient escrow for delivery: unbilled=… + price=… > balance=…` | Balance too low for this call (or this ask's budget). Deposit more. `unbilled` counts calls billed but not yet charged in a root; a pending withdrawal request is not spendable either |
+| `charge limit reached for this block …` | Your charge limit per block is used up. Wait for the next block, or raise it with `setMyChargeLimit` |
 
 **Whether a refusal burns your nonce depends on where it failed.** Everything checked before the signature (network, recipient, amount, timestamps, the signature itself) is rejected without recording the nonce, so it stays usable. Once the signature verifies the nonce is spent, and it stays spent even if the call is then refused for balance. The simple rule is to mint a fresh nonce for every attempt.
 
 ## Withdrawing
 
-Withdrawals wait for settlement, so an agent cannot drain its balance out from under deliveries already in flight:
+Withdrawals are two steps, with a wait between them, so an agent cannot drain its balance out from under deliveries already in flight:
 
-```solidity
-EscrowFacet(DIAMOND).requestWithdraw(amount);   // starts the wait
-EscrowFacet(DIAMOND).withdrawalUnlock(you);     // (unlockSequence, unlockTime, unlocked)
-EscrowFacet(DIAMOND).executeWithdraw();         // once unlocked
-EscrowFacet(DIAMOND).cancelWithdraw();          // changed your mind
+1. `requestWithdraw(amount)` on the Diamond. The amount stops paying for asks at once. A new request replaces the old one and restarts its clock; `cancelWithdraw()` drops it.
+2. Wait until `GET /v1/ledger/account/<address>` shows `request.status` `ready`: a ledger root built at least 30 minutes after your request has activated (its activation delay is 15 minutes on Sepolia), so it has charged what you used before asking.
+3. `GET /v1/ledger/proof/<address>` returns the ready-made `calldata`: `executeWithdraw(seq, proofs)`, the proof of your balance in the active root. Send it to the Diamond from the same wallet. It pays `min(requested, your balance under that root)`.
+
+```bash
+cast send $DIAMOND "requestWithdraw(uint256)" 1000000 --rpc-url $RPC --private-key $KEY
+curl -s $NODE/v1/ledger/account/$YOUR_ADDRESS | jq .request.status      # wait for "ready"
+cast send $DIAMOND "$(curl -s $NODE/v1/ledger/proof/$YOUR_ADDRESS | jq -r .calldata)" --rpc-url $RPC --private-key $KEY
 ```
 
-**A withdrawal unlocks once two more blocks settle after you request it, or 7 days after, whichever comes first.** On the testnet a block is 1 hour, so the usual wait is about two hours. On mainnet a block is 24 hours, so the wait is up to about two days. It waits for blocks rather than a clock so the blocks that charge what you already used settle before the money leaves.
-
-- `withdrawalUnlock(you).unlocked` tells you whether you can execute. `unlockSequence` is the `stateSequence()` value of the diamond that unlocks it, and `unlockTime` is the 7-day fallback.
-- Calling `executeWithdraw` early reverts `Withdrawal locked: 2 blocks must settle first`. Gate your button on `unlocked` instead of letting the user find out from a failed transaction.
-- While a withdrawal is pending, the requested amount is excluded from `effectiveBalance`, so it can no longer be spent on calls. A user who requests their whole balance cannot pay for anything while it waits.
-- Lowering the amount restarts the wait.
-- Calls you made before asking are still charged by the blocks that settle meanwhile, so you may receive less than you asked for. This is deliberate.
+- `request.status` is `none`, `waiting_root` (no root covers the request yet), `waiting_activation` (an accepted root covers it, its delay is not over), `ready`, or `fallback_open`.
+- If a new root activates between fetching the proof and sending it, the transaction reverts `ledger: stale proof, fetch a new one`: fetch the proof again.
+- **If the node is down or roots are stuck:** 7 days after the request (`fallback_at`), the same proof route returns fallback calldata (`executeWithdrawFallback`), which pays against the active root's credits and the highest charge over the active and every pending root. Anyone with the published leaf files can build it.
+- While a withdrawal is pending, the requested amount is excluded from `available`, so it can no longer be spent on calls. A user who requests their whole balance cannot pay for anything while it waits.
+- Calls you made before asking are still charged by the root that covers the request, so you may receive less than you asked for. This is deliberate.
 
 ## Related
 

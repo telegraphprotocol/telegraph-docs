@@ -498,7 +498,7 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
 The whole call from the command line:
 
 ```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
 export AUTHOR_PRIVATE_KEY=0x...   # the wallet that will own the registration
