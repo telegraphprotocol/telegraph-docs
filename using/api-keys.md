@@ -40,7 +40,7 @@ A request costs the price of the miner calls it makes, usually about $0.01 each.
 1. Open [anjoman.ai/dashboard/api-keys](https://anjoman.ai/dashboard/api-keys).
 2. Give the key a **name** so you can tell it from your others, for example `pricing script`.
 3. Optionally pick an **expiry date**. The key stops working at the end of that day. Leave it empty for a key that works until you revoke it.
-4. Choose **Create key**, then **copy it right away**. It starts with `tgk_` and is shown once. Anjoman keeps only a fingerprint of it, so a lost key cannot be recovered: revoke it and create another.
+4. Choose **Create key**, then **copy it right away**. It starts with `anjoman_` and is shown once. (Keys created before this change start with `tgk_` and keep working.) Anjoman keeps only a fingerprint of it, so a lost key cannot be recovered: revoke it and create another.
 
 Treat the key like a password. See [Keep a key safe](#keep-a-key-safe).
 
@@ -202,7 +202,7 @@ The [Telegraph MCP server](mcp-server.md) accepts an API key in place of a walle
     "telegraph": {
       "command": "npx",
       "args": ["-y", "@telegraphprotocol/telegraph-protocol-mcp"],
-      "env": { "TELEGRAPH_API_KEY": "tgk_your_key_here" }
+      "env": { "TELEGRAPH_API_KEY": "anjoman_your_key_here" }
     }
   }
 }
