@@ -386,14 +386,18 @@ reconnect.
 ### Funding your escrow
 
 Escrow lives on the Diamond, in the token the Diamond is configured to use — on
-the testnet that is Circle's Sepolia USDC, free from the [Circle faucet](https://faucet.circle.com)
-(choose Ethereum Sepolia). Two transactions, in this order. Skipping the approval fails with an
+the testnet that is a test USDC: claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet), or mint it
+(step 0 below). Then two transactions, in this order. Skipping the approval fails with an
 insufficient-allowance error:
 
 ```bash
 export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
-export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
+
+# 0 — testnet only: mint yourself 10 test USDC (anyone can)
+cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 \
+  --rpc-url $RPC --private-key $KEY
 
 # 1 — let the Diamond move your USDC (2000000 = 2.00 USDC, 6 decimals)
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 \

@@ -64,7 +64,7 @@ const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:11155111",
               client: new ExactEvmScheme(privateKeyToAccount(process.env.EVM_PRIVATE_KEY)) }],
   spendControls: { allowedAssets: [{ network: "eip155:11155111",
-    asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", maxAmountPerPayment: "260000" }] },
+    asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17", maxAmountPerPayment: "260000" }] },
 });
 
 const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
@@ -76,7 +76,7 @@ const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine
 ```
 
 The library handles the `402` challenge, signs, and retries. The `spendControls`
-block lets it pay with Sepolia USDC, up to the ask's budget. What the used
+block lets it pay with the testnet USDC, up to the ask's budget. What the used
 miners did not cost is credited to your escrow. See
 [Multi-miner asks](engine-ask.md#multi-miner-asks-max_budget_usdc). Doing it by hand is
 covered in [Pay per Request (x402)](x402-inference.md) — read it before you try,
