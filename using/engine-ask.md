@@ -148,7 +148,19 @@ Some miners declare an `intent_mapping` in their YAML. Then the node reads their
 
 An intent with a published request schema has one canonical set of params. It is
 the same whichever miner serves that intent, and the same off-chain and
-on-chain. Read the selected intent first:
+on-chain.
+
+Start with the exact `intent_id` from `GET /engine/v1/intents`. It may differ
+from a family name shown in the mission catalogue. For example, use
+`TASK_EXECUTION_QUALITY_GENERAL` in the request, not its family
+`TASK_EXECUTION_QUALITY`. Both can expose the same input schema, but
+`request.served_by` names the schema's family; it is not a routing alias.
+Before treating `no_compatible_miner` as an outage, check whether a specific
+intent in that family has miners. Use its published ID and params rather than
+appending a suffix by convention. A miner count is a discovery signal, not a
+guarantee that a particular request can be served.
+
+Read the selected intent's input schema:
 
 ```bash
 curl https://devnode.telegraphprotocol.com/engine/v1/intents/CRYPTO_PRICE_USD
