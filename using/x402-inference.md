@@ -13,7 +13,7 @@ This page covers payment. For request and result shapes, see [Make a Request](en
 ## What You Need
 
 - USDC on one of the networks the node accepts. Pick one:
-  - **Ethereum Sepolia**: Circle's test USDC (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`), free from the [Circle faucet](https://faucet.circle.com).
+  - **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet), or mint it directly with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
   - **Base Sepolia**: Circle's test USDC (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`), free from the [Circle faucet](https://faucet.circle.com).
   - **Solana Devnet**: Circle's devnet USDC (`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`), from the same faucet.
 
@@ -79,11 +79,11 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
     {
       "scheme": "exact",
       "network": "eip155:11155111",
-      "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "asset": "0xcc194e1a843B658526D0D5C431f670028582Ae17",
       "amount": "10000",
       "payTo": "0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b",
       "maxTimeoutSeconds": 60,
-      "extra": { "name": "USDC", "version": "2" }
+      "extra": { "name": "USD Coin", "version": "2" }
     },
     {
       "scheme": "exact",
@@ -119,7 +119,7 @@ curl -s -D - -o /dev/null -X POST https://devnode.telegraphprotocol.com/engine/v
 
 The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts. An ask with `max_budget_usdc` is quoted its budget instead (`260000` for the largest budget the testnet node takes).
 
-There is one `exact` entry per network; pay on whichever you hold USDC on. Each entry's `extra` object holds what the signature needs — `{"name": "USDC", "version": "2"}` for Circle's USDC on Ethereum Sepolia and on Base Sepolia. The SDK reads it for you. The second entry, `escrow`, is the other way to pay; see [Pay from Escrow](escrow-inference.md).
+There is one `exact` entry per network; pay on whichever you hold USDC on. Each entry's `extra` object holds what the signature needs — `{"name": "USD Coin", "version": "2"}` for the Ethereum Sepolia test USDC, `{"name": "USDC", "version": "2"}` for Circle's on Base Sepolia. The SDK reads it for you. The second entry, `escrow`, is the other way to pay; see [Pay from Escrow](escrow-inference.md).
 
 The response **body** carries a shorter summary of the same options, meant for humans reading a failed call:
 
@@ -159,12 +159,12 @@ const account = privateKeyToAccount(process.env.EVM_PRIVATE_KEY);
 
 const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:11155111", client: new ExactEvmScheme(account) }],
-  // Allow Sepolia USDC explicitly. maxAmountPerPayment caps each payment
+  // The testnet USDC is not one of the library's built-in tokens, so allow it. maxAmountPerPayment caps each payment
   // (260000 = $0.26, the budget of the ask below).
   spendControls: {
     allowedAssets: [{
       network: "eip155:11155111",
-      asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17",
       maxAmountPerPayment: "260000",
     }],
   },
@@ -323,7 +323,7 @@ your escrow balance (see [When a Paid Request Fails](#when-a-paid-request-fails)
 
 | Network | CAIP-2 Identifier | USDC Contract |
 |---|---|---|
-| Ethereum Sepolia (testnet) | `eip155:11155111` | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` (Circle) |
+| Ethereum Sepolia (testnet) | `eip155:11155111` | `0xcc194e1a843B658526D0D5C431f670028582Ae17` (test token) |
 | Base Sepolia (testnet) | `eip155:84532` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Circle) |
 | Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (Circle) |
 

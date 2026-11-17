@@ -12,7 +12,7 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 |---|---|
 | **Diamond (Port)** | `0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b` (deployed at block 12151179) |
 | **MACHINA Token** | `0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4` |
-| **USDC** | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`: Circle's USDC on Sepolia, from the [Circle faucet](https://faucet.circle.com) |
+| **USDC (test token)** | `0xcc194e1a843B658526D0D5C431f670028582Ae17`: anyone can mint it (`mint(address to, uint256 amount)`), or claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet) |
 | **MACHINA/USDC pool** | `0x3AF68f69b9c9Cb36bAc5dac6a9e2899eeB03B0f7` — prices every MACHINA bond |
 | **EmissionMinter** | `0x2bDfC23A1dBF414AcE9df5B7d17eA360A288e5D2` |
 | **Treasury** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e`, also the Diamond's owner |
@@ -20,7 +20,7 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 
 > **Every call goes to the Diamond.** Escrow, jobs, miner and adapter registration, intents and rewards are all functions on the one Diamond address above. If a call reverts with an unknown selector, you are pointing at an old address.
 
-> **New Diamond, 17 November 2026.** It replaces `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b`, which is kept only as a rollback, and the old test USDC (`0xcc194e…Ae17`) is gone. Balances on the old Diamond do not carry over: deposit again on the new one.
+> **New Diamond, 17 November 2026.** It replaces `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b`, which is kept only as a rollback. It uses the same test USDC. Balances on the old Diamond do not carry over: deposit again on the new one.
 
 > **MACHINA on this Diamond.** It has no MACHINA token set (`machinaToken()` returns the zero address) and its bonds are paid in USDC. The MACHINA token, pool and EmissionMinter rows above, and the MACHINA bond figures on other pages, are from the previous Diamond and are not updated yet.
 
@@ -46,13 +46,14 @@ You need two things on the testnet: Sepolia ETH for gas, and test USDC.
 captcha or hold a little mainnet ETH. One transaction here costs well under
 0.001 ETH, so 0.01 ETH is enough for everything on these pages.
 
-**Test USDC.** The Diamond takes Circle's USDC on Sepolia (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`). Get it from the [Circle faucet](https://faucet.circle.com): choose Ethereum Sepolia and paste your address. Check it arrived:
+**Test USDC.** The Diamond takes the test USDC `0xcc194e1a843B658526D0D5C431f670028582Ae17` (6 decimals). Claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet) (sign in), or mint it yourself, since anyone can:
 
 ```bash
 export KEY=0xYOUR_TESTNET_PRIVATE_KEY
 export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
-export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
 cast call $USDC "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC   # 10000000 is 10 USDC
 ```
 

@@ -325,7 +325,7 @@ This uses `WEATHER_CHECK_TEMPERATURE`, as in step 3. The capped job takes
 ```bash
 # 0. set up (KEY is your testnet private key)
 export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
-export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238   # Circle's Sepolia USDC: https://faucet.circle.com
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17   # test USDC: the Anjoman faucet, or mint(address,uint256)
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
 export CALLBACK=0x0000000000000000000000000000000000000000   # or your consumer contract

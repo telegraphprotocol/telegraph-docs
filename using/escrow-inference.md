@@ -28,7 +28,7 @@ The trade-off is that escrow needs funding before the first call.
 
 ## What You Need
 
-- A USDC balance on **Ethereum Sepolia**: Circle's Sepolia USDC (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`), free from the [Circle faucet](https://faucet.circle.com) (choose Ethereum Sepolia).
+- A USDC balance on **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet), or mint it directly with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
 - A wallet that can sign an EIP-191 `personal_sign` message.
 - The Diamond address for the node you are calling. See [Addresses & Parameters](../protocol/addresses-and-params.md).
 
@@ -47,7 +47,7 @@ From a terminal with `cast` (2000000 = 2.00 USDC):
 
 ```bash
 export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
-export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 export NODE=https://devnode.telegraphprotocol.com
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 --rpc-url $RPC --private-key $KEY
