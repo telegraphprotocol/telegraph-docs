@@ -19,7 +19,7 @@ An Agent is anything that consumes intelligence from the Telegraph network — a
 
 **How Agents pay:**
 - **x402**: An HTTP-native micropayment — the server returns a 402 with payment instructions, the agent signs and sends a USDC transaction, then retries. The whole flow happens without leaving the HTTP request cycle.
-- **Pre-funded escrow**: Deposit USDC into the Diamond contract's EscrowFacet. Subsequent requests deduct from that balance automatically — no per-request transaction needed.
+- **Pre-funded escrow**: Deposit USDC into the Diamond contract's escrow (`depositUSDC`). Subsequent requests deduct from that balance automatically — no per-request transaction needed.
 - **On-chain job**: For dApps, a smart contract creates a job on-chain by funding it with USDC. The result arrives via a callback.
 
 **Requirements:** A wallet with USDC on Ethereum (Ethereum Sepolia on the testnet). No staking, no registration, no approval.

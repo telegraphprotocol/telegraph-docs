@@ -10,15 +10,19 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 
 | Contract | Address |
 |---|---|
-| **Diamond (Port)** | `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b` |
+| **Diamond (Port)** | `0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b` (deployed at block 12151179) |
 | **MACHINA Token** | `0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4` |
-| **USDC (test token)** | `0xcc194e1a843B658526D0D5C431f670028582Ae17` — anyone can mint it: `mint(address to, uint256 amount)` |
+| **USDC** | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`: Circle's USDC on Sepolia, from the [Circle faucet](https://faucet.circle.com) |
 | **MACHINA/USDC pool** | `0x3AF68f69b9c9Cb36bAc5dac6a9e2899eeB03B0f7` — prices every MACHINA bond |
 | **EmissionMinter** | `0x2bDfC23A1dBF414AcE9df5B7d17eA360A288e5D2` |
-| **Treasury** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e` |
-| **x402 payment receiver (EVM)** | `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b` — the Diamond itself |
+| **Treasury** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e`, also the Diamond's owner |
+| **x402 payment receiver (EVM)** | `0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b`, the Diamond itself, for Ethereum Sepolia payments |
 
 > **Every call goes to the Diamond.** Escrow, jobs, miner and adapter registration, intents and rewards are all functions on the one Diamond address above. If a call reverts with an unknown selector, you are pointing at an old address.
+
+> **New Diamond, 17 November 2026.** It replaces `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b`, which is kept only as a rollback, and the old test USDC (`0xcc194e…Ae17`) is gone. Balances on the old Diamond do not carry over: deposit again on the new one.
+
+> **MACHINA on this Diamond.** It has no MACHINA token set (`machinaToken()` returns the zero address) and its bonds are paid in USDC. The MACHINA token, pool and EmissionMinter rows above, and the MACHINA bond figures on other pages, are from the previous Diamond and are not updated yet.
 
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
@@ -27,7 +31,7 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 Every address above is readable from the Diamond itself, which is the source of truth if this table ever drifts:
 
 ```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
 cast call $DIAMOND "usdcToken()(address)"    --rpc-url $RPC   # escrow, jobs and settlement token
 cast call $DIAMOND "machinaToken()(address)" --rpc-url $RPC   # what miners are actually paid in
@@ -36,57 +40,43 @@ cast call $DIAMOND "getTreasury()(address)"  --rpc-url $RPC
 
 ### Getting test tokens
 
-You need three things on the testnet: Sepolia ETH for gas, test USDC, and MACHINA for bonds.
+You need two things on the testnet: Sepolia ETH for gas, and test USDC.
 
 **Sepolia ETH.** Use a public Sepolia faucet. Most ask you to sign in, solve a
 captcha or hold a little mainnet ETH. One transaction here costs well under
 0.001 ETH, so 0.01 ETH is enough for everything on these pages.
 
-**Test USDC.** Anyone can mint it:
+**Test USDC.** The Diamond takes Circle's USDC on Sepolia (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`). Get it from the [Circle faucet](https://faucet.circle.com): choose Ethereum Sepolia and paste your address. Check it arrived:
 
 ```bash
 export KEY=0xYOUR_TESTNET_PRIVATE_KEY
 export YOUR_ADDRESS=$(cast wallet address --private-key $KEY)
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
-export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
-cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 --rpc-url $RPC --private-key $KEY   # 10 USDC
+export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+cast call $USDC "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC   # 10000000 is 10 USDC
 ```
 
-**MACHINA.** Swap test USDC for it on the MACHINA/USDC pool (0.3% fee tier) through Uniswap's SwapRouter02 on Sepolia, `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`. The price moves, so these figures are rough: 2 USDC buys about 2 MACHINA, enough for a miner bond or an intent proposal ($1 each). An adapter bond ($5) is about 5.3 MACHINA, so swap 6 USDC (`6000000`) for it.
+**MACHINA.** Not needed on this Diamond: bonds are paid in USDC.
+
+Read the current bond amounts from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming them. For example, the adapter bond in USDC base units is the third value of:
 
 ```bash
-export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
-export ROUTER=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
-# 1. let the router take 2 USDC
-cast send $USDC "approve(address,uint256)" $ROUTER 2000000 --rpc-url $RPC --private-key $KEY
-# 2. swap 2 USDC for MACHINA, sent to you
-cast send $ROUTER "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))" \
-  "($USDC,$MACHINA,3000,$YOUR_ADDRESS,2000000,0,0)" --rpc-url $RPC --private-key $KEY
-cast call $MACHINA "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
-```
-
-Both `cast send` lines should print `status 1 (success)`, and your balance grows
-by about 2 MACHINA (`2000000000000000000` is 2 MACHINA, 18 decimals).
-
-Bonds are always taken at the pool price, so read the current amount from the Diamond (`minerBondParams()`, `entityBonds()`, `intentProposalParams()`) rather than assuming it. For example, the adapter bond in MACHINA wei is the third value of:
-
-```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 cast call $DIAMOND "entityBonds()(uint64,uint64,uint256,uint256)" --rpc-url $RPC
-# 5000000 [5e6]                      adapter bond in USD (6 decimals)
-# 1000000 [1e6]                      contributor bond in USD
-# 5294308675628276852 [5.294e18]     adapter bond in MACHINA wei (about 5.3 MACHINA)
-# 1058861735125655371 [1.058e18]     contributor bond in MACHINA wei
+# 5000000 [5e6]      adapter bond in USD (6 decimals)
+# 1000000 [1e6]      contributor bond in USD
+# 5000000 [5e6]      adapter bond in USDC base units ($5)
+# 1000000 [1e6]      contributor bond in USDC base units ($1)
 ```
 
-The miner bond, in USD with 6 decimals:
+The miner bond, in USD with 6 decimals. On this Diamond no miner bond is set yet:
 
 ```bash
 cast call $DIAMOND "minerBondParams()(uint256,uint256,uint256,uint256,uint256)" --rpc-url $RPC
-# 1000000 [1e6]      first intent ($1)
-# 100000 [1e5]       each further intent, up to the count below ($0.10)
-# 70000 [7e4]        each intent after that ($0.07)
-# 9                  the count where the $0.10 rate ends
+# 0                  first intent
+# 0                  each further intent, up to the count below
+# 0                  each intent after that
+# 9                  the count where the second rate ends
 # 172800 [1.728e5]   withdrawal delay in seconds (2 days)
 ```
 
@@ -226,7 +216,7 @@ For **x402 pay-per-call inference**, the charged price is `min_price_usdc × mul
 |---|---|
 | Gas escrow multiplier (floor) | 2.0× estimated gas |
 | Gas escrow multiplier (ceiling) | 5.0× |
-| Escrow withdrawal wait | Two more settled blocks or 7 days, whichever comes first (`protocolParams()`) |
+| Escrow withdrawal wait | Until a ledger root built at least 30 minutes after the request is active (activation delay: 15 minutes on Sepolia), or 7 days (the fallback) |
 | WebSocket minimum escrow | 1.00 USDC |
 | Discovery Tier participation minimum | 95% of assigned rounds |
 

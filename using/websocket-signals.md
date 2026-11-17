@@ -145,7 +145,7 @@ The server immediately confirms with a `subscribed` message:
 }
 ```
 
-- **`spend_limit_usdc` is required and must be greater than 0.** It's a per-session USDC budget in raw μUSDC (6 decimals — `500000` = $0.50) capping how much this connection can spend on pushed signals. It resets to zero spent every time you subscribe (including resubscribing) or reconnect; it is not carried over between sessions. See "How Delivery is Settled" below for what happens when you hit it.
+- **`spend_limit_usdc` is required and must be greater than 0.** It's a per-session USDC budget in raw μUSDC (6 decimals — `500000` = $0.50) capping how much this connection can spend. **Asks and pushed signals share it:** an `ask` holds what it may bill (one call, or its `max_budget_usdc`) while it runs, and only what it billed counts once it ends. It resets to zero spent every time you subscribe (including resubscribing) or reconnect; it is not carried over between sessions. See "How Delivery is Settled" below for what happens when you hit it.
 - **Optional filters:** `category` (restrict to one signal category), `min_interest` (only receive signals at or above this interest score), `max_per_hour` (rate cap on how often you're pushed to; defaults to 60 if omitted).
 
 **A wallet has at most one subscription.** Sending `subscribe` again replaces your existing intents, filters, and spend limit — it does not create a second, parallel subscription.
@@ -181,8 +181,8 @@ Available actions on the WebSocket connection:
 | `unsubscribe` | Yes | Stop receiving signals. Requires `subscription_id` |
 | `list_subscriptions` | Yes | See your current subscription, if any |
 | `list_subnets` | No | See the loaded miner catalog |
-| `ask` | Yes | Request live intelligence (routed automatically), from a `query` or from `intent` + `params`. Billed $0.01 to escrow per call |
-| `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed $0.01 to escrow per call |
+| `ask` | Yes | Request live intelligence (routed automatically), from a `query` or from `intent` + `params`, with `max_budget_usdc` for a multi-miner ask. Billed to escrow at each used miner's price |
+| `ask_direct` | Yes | Route directly to a specific miner by ID, with a native `method`/`endpoint`/`payload` or with `intent` + `params`. Billed to escrow at that miner's price |
 | `ping` | No | Keep the connection alive. The reply is `{"type": "pong"}` |
 
 `list_subnets` responds with the catalog under a `subnets` key:
@@ -198,17 +198,19 @@ The `ask` and `ask_direct` actions request intelligence through the Engine direc
 For an Intent with an [input schema](engine-ask.md#canonical-ask-intent-params) you can send canonical params instead of (or with) the query, and `ask_direct` accepts the same form next to the native one:
 
 ```json
-{ "action": "ask", "intent": "FX_NOW_EUR", "params": { "currency": "EUR" } }
+{ "action": "ask", "intent": "FX_NOW_EUR", "params": { "currency": "EUR" }, "max_budget_usdc": 260000 }
 { "action": "ask_direct", "subnet_id": "31009", "intent": "FX_NOW_EUR", "params": { "currency": "EUR" } }
 ```
 
+`ask` takes the same `max_budget_usdc` and `deadline_ms` as `POST /engine/v1/ask`, with the same rules and limits (see [Multi-miner asks](engine-ask.md#multi-miner-asks-max_budget_usdc)); send `max_budget_usdc` with every `ask`. Its `result` carries the same `fulfillment`. `ask_direct` names its miner, so it takes no budget.
+
 A request refused for its input gets an `error` message carrying the HTTP body (`invalid_params`, `no_input_schema`, `intent_required`, `no_compatible_miner`, ...) plus a `message`, before any routing and before the escrow check. Nothing is charged. Mixing native and canonical fields in one `ask_direct` is refused.
 
-The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version` and `field_status`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). A native `ask_direct` result is the miner's raw output and carries `result_shape: "raw"`; a canonical `ask_direct` result is shaped like `ask`'s. Subscription pushes are raw and carry no `result_shape`.
+The final `result` message of an `ask` is shaped like `POST /engine/v1/ask`: `result` is read into the Intent's response format when the node can, and the message carries `result_shape` and, as they apply, `shape_error`, `format_version`, `field_status` and `fulfillment`, with the same fields and rules. See [The answer's shape](engine-ask.md#the-answers-shape). A native `ask_direct` result is the miner's raw output and carries `result_shape: "raw"`; a canonical `ask_direct` result is shaped like `ask`'s. Subscription pushes are raw and carry no `result_shape`.
 
 An `ask` streams these messages, in this order: `received`, `routing`, `routed`
 (the chosen miner as `subnet_id`, its `fallback_miner` and `reasoning`),
-`executing`, `result`, then `receipt`. Routing can take 10 seconds or more. The
+`executing`, `result`, then `receipt` (one per paid call: a multi-miner `ask` that used two miners gets two). Routing can take 10 seconds or more. The
 `result` message has no `signal_hash`; keep the `receipt_hash` from the
 `receipt` instead.
 
@@ -309,10 +311,10 @@ Before connecting with wallet auth, you must have at least **1.00 USDC** deposit
 
 - Fund your escrow **before** connecting — see [Funding your escrow](#funding-your-escrow) below.
 - Each pushed signal is logged with your wallet address, intent ID, receipt hash, and a node signature.
-- At each epoch boundary, the Validator batch-settles all logged deliveries, deducting USDC from your escrow.
+- At each epoch boundary, the deliveries are charged to your escrow in the epoch's ledger root.
 - If your escrow runs dry mid-epoch, WebSocket delivery is suspended — each matching signal is silently skipped rather than queued — until you replenish it.
 
-**2. Session spend limit (`spend_limit_usdc`).** Independent of escrow, your subscription's spend limit (set in Step 2) is charged for each pushed signal. Unlike escrow depletion, hitting this limit is terminal for the session: the signal that would cross it is **not delivered**, your subscription is **cancelled**, and the server sends a `limit_reached` message and **closes the connection**:
+**2. Session spend limit (`spend_limit_usdc`).** Independent of escrow, your subscription's spend limit (set in Step 2) is charged for each pushed signal and each `ask`. A push that does not fit only because asks in flight hold the rest is skipped (not delivered, not billed, the subscription kept). An `ask` that would cross the limit gets an `error` (`spend limit reached: this ask needs N μUSDC and M of L are left`) and runs nothing; the connection stays open. When the money actually billed would cross the limit, it is terminal for the session: the signal that would cross it is **not delivered**, your subscription is **cancelled**, and the server sends a `limit_reached` message and **closes the connection**:
 
 ```json
 {
@@ -345,7 +347,7 @@ Every billed delivery is followed by a `receipt` message. It arrives **after** t
 }
 ```
 
-`receipt_hash` identifies that one consumption permanently — it is the key of the delivery's ledger row and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch. There is no `tx_hash`, because WebSocket deliveries settle at the epoch boundary rather than per signal; `chain: "telegraph"` says so, and `epoch_id` names the transaction your charge will ride.
+`receipt_hash` identifies that one consumption permanently — it is the key of the delivery's ledger row and the `Finalised_Receipt_Hash` in the signed Delivery Log Entry submitted with the epoch. There is no `tx_hash`, because WebSocket deliveries settle at the epoch boundary rather than per signal; `chain: "telegraph"` says so, and `epoch_id` names the epoch whose ledger root charges it.
 
 This is the same receipt object the [x402](x402-inference.md) and [escrow](escrow-inference.md) HTTP rails return, so you can handle all three identically.
 
@@ -353,45 +355,45 @@ If you don't care about receipts, ignore the message — nothing about `result` 
 
 ### How `ask` and `ask_direct` are billed
 
-`ask` and `ask_direct` are billed against your escrow, but on a different meter
-from subscriptions:
+`ask` and `ask_direct` are billed against your escrow:
 
-- **Each call costs a flat $0.01** — the protocol's minimum price per signal,
-  which is also the `cost_usd` reported back to you. The demand multiplier that
-  moves the x402 price does not apply here.
+- **Each call costs the price of the miner endpoint called**, the same price the
+  HTTP routes charge (the miner's price times the demand multiplier; $0.01 while
+  the miner's price is not known). That is the `cost_usd` reported back to you.
+  An `ask` with `max_budget_usdc` holds the budget instead, bills each call whose
+  answer the result uses at its miner's price (one `receipt` per paid call), and
+  releases the rest.
 - **Escrow is checked before the miner is called**, and the charge is recorded
   only **after** a result is actually delivered to you. A call that fails to
   route or execute is never billed.
-- **The charge is queued, not deducted immediately.** It settles at the next
-  epoch close, the same mechanism subscription deliveries use.
-- **It does not touch your subscription's `spend_limit_usdc`.** That cap applies
-  only to pushed signals.
+- **The charge is queued, not deducted immediately.** It is charged in the next
+  epoch's ledger root, the same mechanism subscription deliveries use.
+- **`ask` counts against your `spend_limit_usdc`** once you have subscribed:
+  asks and pushed signals share the session limit. `ask_direct` does not.
 
 The connect-time balance gate runs once; this check runs on every call. So a
 wallet that got in on the $1.00 minimum can still be refused mid-session:
 
 ```json
-{"type": "error", "data": {"message": "insufficient escrow for delivery: committed=10000 μUSDC + price=10000 μUSDC > available=15000 μUSDC"}}
+{"type": "error", "data": {"message": "insufficient escrow for delivery: unbilled=10000 μUSDC + price=10000 μUSDC > balance=15000 μUSDC"}}
 ```
 
-`committed` is what this epoch has already charged you but not yet settled.
-Deposit more — see [Funding your escrow](#funding-your-escrow) — and retry; you
-do not need to reconnect.
+`unbilled` is what you were billed but not yet charged in a root; a pending
+withdrawal request is not spendable either. Deposit more — see
+[Funding your escrow](#funding-your-escrow) — and retry; you do not need to
+reconnect.
 
 ### Funding your escrow
 
 Escrow lives on the Diamond, in the token the Diamond is configured to use — on
-the testnet that is a test USDC anyone can mint (step 0 below). Three transactions, in this order.
-Skipping the approval fails with `ERC20: insufficient allowance`:
+the testnet that is Circle's Sepolia USDC, free from the [Circle faucet](https://faucet.circle.com)
+(choose Ethereum Sepolia). Two transactions, in this order. Skipping the approval fails with an
+insufficient-allowance error:
 
 ```bash
-export DIAMOND=0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b
-export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
+export USDC=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
-
-# 0 — testnet only: mint yourself 10 test USDC
-cast send $USDC "mint(address,uint256)" $YOUR_ADDRESS 10000000 \
-  --rpc-url $RPC --private-key $KEY
 
 # 1 — let the Diamond move your USDC (2000000 = 2.00 USDC, 6 decimals)
 cast send $USDC "approve(address,uint256)" $DIAMOND 2000000 \
@@ -402,21 +404,22 @@ cast send $DIAMOND "depositUSDC(uint256)" 2000000 \
   --rpc-url $RPC --private-key $KEY
 
 # 3 — confirm it landed, before you open the socket
-cast call $DIAMOND "escrowBalance(address)(uint256)" $YOUR_ADDRESS --rpc-url $RPC
-# 2000000
+curl -s https://devnode.telegraphprotocol.com/v1/ledger/account/$YOUR_ADDRESS | jq '{deposited, available}'
+# "2000000" each
 ```
 
-`escrowBalance(address)` is your raw deposit. `effectiveBalance(address)` is what
-you can spend, and `agentDebt(address)` shows any unpaid deliveries. Other names
-such as `getEscrowBalance()` and `available()` do not exist on the Diamond.
+`available` is what you can spend: your ledger balance less what is billed but
+not yet charged and any pending withdrawal request. See
+[Pay from Escrow](escrow-inference.md#step-1-fund-your-escrow) for every field.
+Balances on the previous Diamond do not carry over.
 
 Deposit more than the $1.00 minimum. That figure is only the gate to *connect* —
 both meters then draw against the same balance: every pushed subscription signal
 and every `ask`/`ask_direct` call. An escrow that runs dry mid-epoch silently
 stops subscription delivery rather than queueing, and starts refusing asks.
-A withdrawal unlocks once two more blocks settle (1 hour each on the testnet, 24 hours on mainnet) or after 7 days, whichever comes first, so deposit what you will actually use. See [Withdrawing](escrow-inference.md#withdrawing).
+A withdrawal is paid once a ledger root that covers the request is active (or after the 7-day fallback), so deposit what you will actually use. See [Withdrawing](escrow-inference.md#withdrawing).
 
-The same escrow funds [ERC-8183 jobs](erc8183-jobs.md) — one balance, both rails.
+[ERC-8183 jobs](erc8183-jobs.md) are paid from your wallet, not from this balance; their refunds and unused budgets land in it.
 
 ## Keeping the Connection Alive
 

@@ -31,18 +31,17 @@ Every request is paid, so you need a wallet with test funds on Ethereum Sepolia:
 - **Sepolia ETH** for gas, from a public Sepolia faucet. Most faucets ask you to
   sign in, solve a captcha or hold a little mainnet ETH. A transaction here costs
   well under 0.001 ETH, so 0.01 ETH lasts a long time.
-- **Test USDC.** Anyone can mint it, 10 USDC is plenty:
-  ```bash
-  cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" $YOUR_ADDRESS 10000000 \
-    --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key $KEY
-  ```
-  You should see `status 1 (success)`. Check it with
-  `cast call 0xcc194e1a843B658526D0D5C431f670028582Ae17 "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url https://ethereum-sepolia-rpc.publicnode.com`
+- **Test USDC.** Circle's Sepolia USDC, from the [Circle faucet](https://faucet.circle.com):
+  choose Ethereum Sepolia and paste your address. Check it with
+  `cast call 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 "balanceOf(address)(uint256)" $YOUR_ADDRESS --rpc-url https://ethereum-sepolia-rpc.publicnode.com`
   (`10000000` is 10 USDC). The public RPC can show the old balance for a few
   seconds after a transaction; wait and read it again.
 
-A request costs $0.01 and is paid per call with [x402](x402-inference.md), or
-from a balance you deposit once with [escrow](escrow-inference.md). Without a
+A request costs $0.01 per miner whose answer it uses, and is paid per call with
+[x402](x402-inference.md), or from a balance you deposit once with
+[escrow](escrow-inference.md). Send `max_budget_usdc` with every routed request:
+it makes a [multi-miner ask](engine-ask.md#multi-miner-asks-max_budget_usdc),
+which asks the next ranked miners for whatever the first answer missed. Without a
 payment, every request answers `402 Payment Required` with the price; that is
 expected. More detail: [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
 
@@ -92,7 +91,7 @@ and retry the same request.
 ```bash
 curl -X POST https://devnode.telegraphprotocol.com/engine/v1/ask \
   -H "Content-Type: application/json" \
-  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}'
+  -d '{"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"},"max_budget_usdc":260000}'
 ```
 
 The no-payment response is expected to be `402 Payment Required`, not a failed

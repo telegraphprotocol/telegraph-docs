@@ -13,11 +13,11 @@ This page covers payment. For request and result shapes, see [Make a Request](en
 ## What You Need
 
 - USDC on one of the networks the node accepts. Pick one:
-  - **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: mint yourself some with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
+  - **Ethereum Sepolia**: Circle's test USDC (`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`), free from the [Circle faucet](https://faucet.circle.com).
   - **Base Sepolia**: Circle's test USDC (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`), free from the [Circle faucet](https://faucet.circle.com).
   - **Solana Devnet**: Circle's devnet USDC (`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`), from the same faucet.
 
-  Base Sepolia and Solana payments go to a Telegraph wallet, not the Diamond; see [Payment Networks](#payment-networks) for what that changes.
+  Base Sepolia and Solana payments go to a Telegraph wallet, not the Diamond; see [Payment Networks](#payment-networks) for what that changes. A [multi-miner ask](engine-ask.md#multi-miner-asks-max_budget_usdc) (`max_budget_usdc`) must be paid on Ethereum Sepolia, or from escrow.
 - An x402 client library to sign the payment — the [`@x402/*` packages](https://github.com/x402-foundation/x402) (`@x402/fetch`, `@x402/core`, `@x402/evm`) are what the [Telegraph MCP server](mcp-server.md) uses. Install them in a new folder:
   ```bash
   mkdir telegraph-x402 && cd telegraph-x402
@@ -79,11 +79,11 @@ Decode the `PAYMENT-REQUIRED` header (base64 → JSON) to see the payment option
     {
       "scheme": "exact",
       "network": "eip155:11155111",
-      "asset": "0xcc194e1a843B658526D0D5C431f670028582Ae17",
+      "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
       "amount": "10000",
-      "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b",
+      "payTo": "0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b",
       "maxTimeoutSeconds": 60,
-      "extra": { "name": "USD Coin", "version": "2" }
+      "extra": { "name": "USDC", "version": "2" }
     },
     {
       "scheme": "exact",
@@ -117,9 +117,9 @@ curl -s -D - -o /dev/null -X POST https://devnode.telegraphprotocol.com/engine/v
   | grep -i '^payment-required' | cut -d' ' -f2 | tr -d '\r' | base64 -d | jq .
 ```
 
-The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts.
+The `amount` field is in 6-decimal USDC units — `10000` = $0.01. Different miners charge different amounts. An ask with `max_budget_usdc` is quoted its budget instead (`260000` for the largest budget the testnet node takes).
 
-There is one `exact` entry per network; pay on whichever you hold USDC on. Each entry's `extra` object holds what the signature needs — `{"name": "USD Coin", "version": "2"}` for the Ethereum Sepolia USDC, `{"name": "USDC", "version": "2"}` for Circle's on Base Sepolia. The SDK reads it for you. The second entry, `escrow`, is the other way to pay; see [Pay from Escrow](escrow-inference.md).
+There is one `exact` entry per network; pay on whichever you hold USDC on. Each entry's `extra` object holds what the signature needs — `{"name": "USDC", "version": "2"}` for Circle's USDC on Ethereum Sepolia and on Base Sepolia. The SDK reads it for you. The second entry, `escrow`, is the other way to pay; see [Pay from Escrow](escrow-inference.md).
 
 The response **body** carries a shorter summary of the same options, meant for humans reading a failed call:
 
@@ -131,7 +131,7 @@ The response **body** carries a shorter summary of the same options, meant for h
       "scheme": "exact",
       "price": "$0.01",
       "network": "eip155:11155111",
-      "payTo": "0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b"
+      "payTo": "0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b"
     },
     { "scheme": "escrow", "...": "..." }
   ]
@@ -159,13 +159,13 @@ const account = privateKeyToAccount(process.env.EVM_PRIVATE_KEY);
 
 const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:11155111", client: new ExactEvmScheme(account) }],
-  // The testnet USDC is not one of the library's built-in tokens, so allow it.
-  // maxAmountPerPayment caps each payment (100000 = $0.10).
+  // Allow Sepolia USDC explicitly. maxAmountPerPayment caps each payment
+  // (260000 = $0.26, the budget of the ask below).
   spendControls: {
     allowedAssets: [{
       network: "eip155:11155111",
-      asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17",
-      maxAmountPerPayment: "100000",
+      asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      maxAmountPerPayment: "260000",
     }],
   },
 });
@@ -174,7 +174,8 @@ const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
 const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ intent: "CRYPTO_PRICE_USD", params: { symbol: "BTC" } }),
+  // max_budget_usdc: a multi-miner ask that may cost up to $0.26, first call included.
+  body: JSON.stringify({ intent: "CRYPTO_PRICE_USD", params: { symbol: "BTC" }, max_budget_usdc: 260000 }),
 });
 console.log(res.status, await res.json());
 
@@ -185,7 +186,7 @@ if (receipt) console.log(JSON.parse(Buffer.from(receipt, "base64").toString()));
 
 To pay on **Base Sepolia** instead, use `eip155:84532` as the network and `0x036CbD53842c5426634e7929541eC2318f3dCF7e` as the asset in both places above. For **Solana Devnet**, use the Solana exact scheme from `@x402/svm` with a Solana keypair and the network `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1`.
 
-You should see `200` and the answer (see [Step 5](#step-5-receive-the-response)), then the receipt. Each run spends $0.01 of your USDC. Without the `spendControls` block, recent versions of `@x402/fetch` refuse to pay with `All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed`. Nothing is paid in that case.
+You should see `200` and the answer (see [Step 5](#step-5-receive-the-response)), then the receipt. Each run pays $0.26 of your USDC up front; what the miners whose answers were used did not cost is credited to your [escrow](escrow-inference.md) at the next ledger root, where it pays for later asks or can be withdrawn. Without `max_budget_usdc` a run pays one call, $0.01, and nothing more is tried. Without the `spendControls` block, recent versions of `@x402/fetch` refuse to pay with `All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed`. Nothing is paid in that case.
 
 Use a library rather than hand-rolling the payload. The signature is EIP-712 typed data over the token's own domain, not a plain `transfer` call. A payload that is not valid base64 JSON gets `400 {"error":"Invalid payment"}`; a payload that does not verify gets a bare `402`, indistinguishable from having sent no payment at all. The quickest working setup is the [MCP server](mcp-server.md), which bundles this client and pays for you.
 
@@ -239,15 +240,14 @@ Keep this if you need to audit or dispute the payment later.
 
 Requests that fail the input checks (`400 invalid_params`, `400 invalid request body` before payment, `404 miner_not_found` on the canonical direct form) are refused before you pay.
 
-Once you send a valid payment, it settles on chain **before** the miner is called. If the request then fails (the miner is down, times out or answers an error status), the node returns an error status and your $0.01 is **not lost**: it is credited to your escrow balance on the Diamond, and since nothing was delivered, it is never charged. You can spend it on later calls with the [escrow scheme](escrow-inference.md), or [withdraw it](escrow-inference.md#withdrawing). Check it with:
+Once you send a valid payment, it settles on chain **before** the miner is called. If the request then fails (the miner is down, times out or answers an error status), the node returns an error status and your payment is **not lost**: it is credited to your escrow balance on the Diamond, and since nothing was delivered, it is never charged. You can spend it on later calls with the [escrow scheme](escrow-inference.md), or [withdraw it](escrow-inference.md#withdrawing). Check it with:
 
 ```bash
-cast call 0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b "effectiveBalance(address)(uint256)" $YOUR_ADDRESS \
-  --rpc-url https://ethereum-sepolia-rpc.publicnode.com
+curl -s https://devnode.telegraphprotocol.com/v1/ledger/account/$YOUR_ADDRESS | jq '{credited, available}'
 # in 6-decimal units: 10000 = $0.01
 ```
 
-The credit shows up a few minutes after the payment. Calls you made successfully are charged against it at the next epoch close, so what stays is the amount of the calls that failed.
+The credit is folded into your ledger leaf (`credited`) at the next epoch close, and shows here once that root is built.
 
 This applies to **Ethereum Sepolia** payments, which reach the Diamond. A **Base Sepolia** or **Solana Devnet** payment goes to a Telegraph wallet on that chain, so a failed request's payment is **not** moved into your escrow. It is recorded with its transaction hash; ask the team for a refund.
 
@@ -323,11 +323,11 @@ your escrow balance (see [When a Paid Request Fails](#when-a-paid-request-fails)
 
 | Network | CAIP-2 Identifier | USDC Contract |
 |---|---|---|
-| Ethereum Sepolia (testnet) | `eip155:11155111` | `0xcc194e1a843B658526D0D5C431f670028582Ae17` |
+| Ethereum Sepolia (testnet) | `eip155:11155111` | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` (Circle) |
 | Base Sepolia (testnet) | `eip155:84532` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Circle) |
 | Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (Circle) |
 
-Only **Ethereum Sepolia** pays the Diamond, where the network settles. **Base Sepolia** and **Solana Devnet** pay a Telegraph wallet on their own chain: you get the same answer and a receipt, but the payment stays off the Diamond's books. Its receipt says `"epoch_id": 0`, and a failed request's payment is not moved into escrow (see [When a Paid Request Fails](#when-a-paid-request-fails)).
+Only **Ethereum Sepolia** pays the Diamond, where the network settles. **Base Sepolia** and **Solana Devnet** pay a Telegraph wallet on their own chain: you get the same answer and a receipt, but the payment stays off the Diamond's books. Its receipt says `"epoch_id": 0`, and a failed request's payment is not moved into escrow (see [When a Paid Request Fails](#when-a-paid-request-fails)). For the same reason an ask with `max_budget_usdc` paid on them is refused with `400` before the payment settles (nothing is charged): its unused part could not be credited back.
 
 The `accepts[]` array in the challenge is authoritative — a node may offer more or fewer networks than this table.
 

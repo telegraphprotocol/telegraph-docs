@@ -8,7 +8,7 @@ The Engine is Telegraph's intelligence coordinator. You send it a question; it p
 
 There are three ways to ask:
 
-- **Auto-routed, plain language.** You describe what you want and the Engine classifies it and selects the best miner.
+- **Auto-routed, plain language.** You describe what you want and the Engine classifies it and selects the best miner. With [`max_budget_usdc`](#multi-miner-asks-max_budget_usdc) (recommended) it also asks the next ranked miners for whatever the first answer missed.
 - **Auto-routed, canonical.** You name the [intent](intents.md) and send typed `params`. The node validates them before anything is charged.
 - **Direct.** You already know which miner you want, so you skip routing and call it by ID, with either the miner's native request or the same canonical `intent` + `params`.
 
@@ -29,7 +29,8 @@ POST /engine/v1/ask
 Content-Type: application/json
 
 {
-  "query": "What is the current weather in London?"
+  "query": "What is the current weather in London?",
+  "max_budget_usdc": 260000
 }
 ```
 
@@ -39,6 +40,8 @@ Content-Type: application/json
 | `intent` | With `params` | The Intent the request is for. See [Canonical ask](#canonical-ask-intent-params). |
 | `params` | With `intent` | The request's typed params, as the Intent's input schema defines them. |
 | `context` | No | Object merged into the routed request body. Use it to pass structured hints the miner understands. For an Intent with an input schema, keys that match the schema's params also stand in for params. |
+| `max_budget_usdc` | No, but recommended | Integer, μUSDC: the most the ask may cost, its first call included. Makes it a [multi-miner ask](#multi-miner-asks-max_budget_usdc). Without it the ask is a single-miner ask with no recovery. |
+| `deadline_ms` | No | Your own deadline for the ask, in milliseconds (2,000 to 60,000; the `X-Telegraph-Deadline-Ms` header, which wins, works too). The node answers before it with what it has, and says so in `fulfillment.stopped` (`deadline`). Without it the node's own 60 seconds apply. |
 
 The endpoint is gated: your first request returns a `402 Payment Required` challenge. Complete the payment and retry exactly as described in [Pay per Request (x402)](x402-inference.md), or pay from escrow with [`scheme: "escrow"`](escrow-inference.md).
 
@@ -81,6 +84,7 @@ The endpoint is gated: your first request returns a `402 Payment Required` chall
 | `intent` | The Intent the request was matched to. |
 | `signal_hash` | The hash the **raw** miner answer was recorded under. Look it up at `GET /engine/v1/signal/{hash}`. Omitted when the ask failed. |
 | `warnings` | Advisory notes, for example your body is larger than the miner declared it accepts. The request still ran. Omitted when empty. |
+| `fulfillment` | Whether the answer fulfils the whole request, who answered what, and what you were billed. See [Multi-miner asks](#multi-miner-asks-max_budget_usdc). Present on routed asks when the node runs its fulfillment check. |
 
 > **Changed in V2.** Before V2, `result` was always the miner's raw output and a separate `parsed` object held any extracted fields. `parsed` is gone; the same information is now `result`. If your code reads the miner's own JSON out of `result`, read the Intent's fields instead, or branch on `result_shape == "raw"`.
 
@@ -90,13 +94,54 @@ These are answered before any payment is taken, and nothing is charged:
 
 | Status | Body | Meaning |
 |---|---|---|
-| `400` | `{"error": "invalid request body"}` | The body is not one JSON object with a non-empty `query`, or an `intent` with `params`. A `message` field says which. |
+| `400` | `{"error": "invalid request body"}` | The body is not one JSON object with a non-empty `query`, or an `intent` with `params`. A `message` field says which. Also a `max_budget_usdc` outside what the node takes: `"message": "max_budget_usdc must be from 10000 (one call) to 260000 μUSDC on this node"`. |
 | `400` | `{"error": "invalid_params", ...}` | `params` do not pass the Intent's input schema. See [Canonical ask](#canonical-ask-intent-params). |
 | `400` | `{"error": "no_input_schema", ...}` | You sent `params` for an Intent that has no input schema. Send a free-form `query`. A misspelled or unknown intent name gets this same error, so check the name in `GET /engine/v1/intents` first. |
 | `429` | `{"error": "too many requests, slow down"}` | One client asked about too many **new** questions in a minute (default 60). A question quoted in the last 3 minutes is never refused this way. Wait and retry. |
 | `503` | `{"error": "extraction_unavailable", ...}` | The node needed its parser model to read or complete your params and it is off, down or slow. Retry, or send `intent` + `params`. |
 | `503` | `{"error": "no_compatible_miner", ...}` | No live miner can take the params, or the Intent you named is served by no live miner right now. It is never served by another Intent's miner. |
 | `503` | `{"error": "could not route this question now, try again later"}` | No miner can take the question now. |
+
+### Multi-miner asks (`max_budget_usdc`)
+
+Send `max_budget_usdc` with every routed ask. It is how Telegraph completes an answer: when the first miner's answer misses a field, or part of your question belongs to another intent, the node asks the next ranked miners for what is missing. Without it the ask is a single-miner ask: if the first answer is incomplete, nothing more is tried.
+
+- **The number** is the most the ask may cost, in μUSDC, its first call included. It must be at least one call (the flat price, `10000` = $0.01) and at most one call plus the node's per-ask cap. The live testnet node allows $0.25 on top of the first call, so **`260000` is the most it takes today**. Out of range is `400 invalid request body`, before payment.
+- **Payment.** The `402` quotes the budget. **From escrow**, you sign for the budget; it is held while the ask runs, the calls whose answers are used are billed, and the rest of the hold is released. **By x402 on Ethereum Sepolia** (the network that pays the Diamond), you pay the budget up front; the unused part is credited to your escrow at the next ledger root. x402 on Base Sepolia or Solana Devnet pays a wallet off the Diamond, so a budgeted ask paid there is refused with `400` ("max_budget_usdc needs escrow ... or x402 paid to the diamond") before the payment settles, and nothing is charged.
+- **Billing.** The first call is billed what it would be without a budget. Each other miner whose answer the result uses is billed its own price from the rest of the budget, one row per paid call. A call that failed, or whose answer was not used, is not billed. A miner whose price the rest cannot cover is not called.
+- **When the budget runs out**, you get what was obtained, with `fulfillment` saying what is missing.
+
+The reply carries `fulfillment` (illustrative):
+
+```json
+{
+  "fulfillment": {
+    "status": "complete",
+    "provenance": {
+      "<field>": { "miner": "<first-miner>", "intent": "<intent>" },
+      "<other-field>": { "miner": "<second-miner>", "intent": "<intent>" }
+    },
+    "payments": [
+      { "miner": "<first-miner>", "intent": "<intent>", "amount_uusdc": 10000, "receipt_hash": "0x…" },
+      { "miner": "<second-miner>", "intent": "<intent>", "amount_uusdc": 10000, "receipt_hash": "0x…" }
+    ],
+    "stopped": "complete"
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `status` | `complete` (every requirement met), `partial` (some work done, something missing), `unverifiable` (an answer exists, but not enough evidence to accept it), `unavailable` (nothing usable) |
+| `provenance` | For each field of `result`, the miner and intent it came from |
+| `payments` | What you are billed for this ask, one `{miner, intent, amount_uusdc, receipt_hash}` per paid call, the first call first. Only on an ask with `max_budget_usdc` |
+| `stopped` | Why recovery ended: `complete`, `no_budget` (the rest of the budget cannot cover another call), `deadline`, `max_attempts`, `no_candidate`, `missing_input`, ... |
+| `missing_ids`, `unanswered`, `parts` | What is still missing, the parts of your question nothing answered, and the parts other miners answered |
+| `replaced` | `true` when the first answer did not answer the request and a ranked alternative stands in for it |
+
+The HTTP status does not change with `fulfillment`. `miner_id` is the miner the first payment is booked to (the replacement's when `replaced` is `true`).
+
+A direct ask (`/engine/v1/ask/{minerId}`) names its miner, so it skips fulfillment and recovery: send no budget there.
 
 ### The answer's shape
 

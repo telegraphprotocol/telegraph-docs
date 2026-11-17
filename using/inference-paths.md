@@ -28,8 +28,8 @@ Start here, then follow the link for the one you want.
 | | HTTP `ask` | HTTP `ask/{id}` | WebSocket `ask` | WebSocket `subscribe` | ERC-8183 job |
 |---|---|---|---|---|---|
 | **Who picks the miner** | Engine's LLM router | You | Engine's LLM router | n/a, pushed to you | Protocol, by intent (or you, with `createJobForMiner`) |
-| **You need** | USDC + x402 client, *or* funded escrow | USDC + x402 client, *or* funded escrow | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in escrow, or approve the Diamond and `createJobAndPay` |
-| **How you pay** | Per call, x402, or from [escrow](escrow-inference.md) | Per call, x402, or from [escrow](escrow-inference.md) | $0.01 per call, from escrow | Per delivered signal, from escrow | `jobBasePrice` from escrow |
+| **You need** | USDC + x402 client, *or* funded escrow | USDC + x402 client, *or* funded escrow | Wallet + ≥ $1 escrow | Wallet + ≥ $1 escrow | USDC in your wallet, with the Diamond approved |
+| **How you pay** | Per call, x402, or from [escrow](escrow-inference.md); a budget for a multi-miner ask | Per call, x402, or from [escrow](escrow-inference.md) | The miner's price per call, from escrow; a budget for a multi-miner ask | Per delivered signal, from escrow | `jobBasePrice` from your wallet |
 | **Answer arrives** | In the response, in the Intent's shape | In the response (raw, or shaped for the canonical form) | As stream events | Pushed, on the Daemon's cycle | Callback + on-chain state |
 | **Synchronous** | Yes | Yes | Yes | No | No |
 | **Fresh result** | Yes | Yes | Yes | Yes (Daemon-generated) | Yes |
@@ -38,9 +38,9 @@ Start here, then follow the link for the one you want.
 Two things that surprise people:
 
 - **WebSocket `ask` and `ask_direct` are billed, just not via x402.** Each call
-  draws a flat $0.01 from your on-chain escrow, settled at the next epoch close
-  rather than paid up front. It does not count against a subscription's
-  `spend_limit_usdc` — that cap is only for pushed signals. Clearing the $1.00
+  draws the miner's price from your on-chain escrow, charged at the next epoch
+  close rather than paid up front. `ask` also counts against a subscription's
+  `spend_limit_usdc`: asks and pushed signals share it. Clearing the $1.00
   connect minimum once does not buy you unlimited calls.
 - **The Daemon feed is published intelligence.** It is a read of results the
   network produced on its own schedule. You cannot ask it your own question.
@@ -64,18 +64,21 @@ const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:11155111",
               client: new ExactEvmScheme(privateKeyToAccount(process.env.EVM_PRIVATE_KEY)) }],
   spendControls: { allowedAssets: [{ network: "eip155:11155111",
-    asset: "0xcc194e1a843B658526D0D5C431f670028582Ae17", maxAmountPerPayment: "100000" }] },
+    asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", maxAmountPerPayment: "260000" }] },
 });
 
 const res = await fetchWithPayment("https://devnode.telegraphprotocol.com/engine/v1/ask", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ query: "What is the current price of Bitcoin?" }),
+  // max_budget_usdc: a multi-miner ask that may cost up to $0.26, first call included.
+  body: JSON.stringify({ query: "What is the current price of Bitcoin?", max_budget_usdc: 260000 }),
 });
 ```
 
 The library handles the `402` challenge, signs, and retries. The `spendControls`
-block lets it pay with the testnet USDC. Doing it by hand is
+block lets it pay with Sepolia USDC, up to the ask's budget. What the used
+miners did not cost is credited to your escrow. See
+[Multi-miner asks](engine-ask.md#multi-miner-asks-max_budget_usdc). Doing it by hand is
 covered in [Pay per Request (x402)](x402-inference.md) — read it before you try,
 because a malformed payment comes back as a bare `402`, indistinguishable from
 not having paid at all.
