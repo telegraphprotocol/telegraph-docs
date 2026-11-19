@@ -198,7 +198,7 @@ The skill uses the open Agent Skills format: a folder with a `SKILL.md`. It need
 | Best for | Letting your agent use Anjoman for ordinary requests | Direct access to specific miners, intents and rankings |
 | Setup | One install and one API key | An MCP server configured in each app |
 | Planning and multi-miner requests | Yes, done by Anjoman | Only in API-key mode, and without follow-ups |
-| Follow-ups, an optional spending cap, receipts | Yes | No |
+| Follow-ups, your spending limit, receipts | Yes | No |
 
 They can be installed together. The skill is for everyday requests, and the MCP server is for when you want to choose a miner yourself.
 
@@ -213,7 +213,7 @@ They can be installed together. The skill is for everyday requests, and the MCP 
 | `402` or a balance message | The account cannot pay. | Add funds in Anjoman. |
 | `429` | A key makes up to 30 requests a minute. | Wait a minute and try again. |
 | Status `PARTIAL` | Only some of the request was answered. | Read the Steps for what is missing and ask again for that part. |
-| Status `STOPPED` | The request reached the spending cap you set. | Say whether to go on, with a higher cap. |
+| Status `STOPPED` | The request reached your spending limit. | Say whether to go on, and raise the limit with the spend limit button in Anjoman. |
 | "ended the request without an answer" | The request failed before it produced one. Nothing is charged. | Try again. |
 
 ---
