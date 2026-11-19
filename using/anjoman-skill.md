@@ -45,7 +45,37 @@ You can also copy the [`skills/anjoman`](https://github.com/telegraphprotocol/te
 
 ## Step 3: Add your key
 
-Set it as an environment variable, then restart your agent so it sees it.
+There are two ways. Pick one.
+
+### Option A: save it once with `login` (recommended)
+
+`login` stores the key in a private file, `~/.anjoman/key`, readable only by you. Every project and every agent on the machine then finds it, so you do it once.
+
+Run it **in a normal terminal, not inside your agent**, so the key never goes into a chat. It asks for the key and does not show it as you type.
+
+**macOS and Linux:**
+
+```bash
+node ~/.claude/skills/anjoman/scripts/anjoman.mjs login
+```
+
+**Windows**, in PowerShell:
+
+```powershell
+node "$HOME\.claude\skills\anjoman\scripts\anjoman.mjs" login
+```
+
+The path depends on where the skill was installed:
+
+- **For one project:** the skill is in `.claude/skills/anjoman/` inside that project.
+- **For all your projects** (installed with `-g`): it is in `~/.claude/skills/anjoman/`.
+- **Other agents** use their own skills folder, such as `.agents/skills/anjoman/`.
+
+Not sure where it went? Run `npx skills list` (add `-g` for the global ones) to see the installed skills.
+
+### Option B: an environment variable
+
+Set it, then restart your agent so it sees it.
 
 **macOS and Linux**, in `~/.zshrc` or `~/.bashrc`:
 
@@ -59,7 +89,17 @@ export ANJOMAN_API_KEY=anjoman_your_key
 setx ANJOMAN_API_KEY "anjoman_your_key"
 ```
 
-Or save it to a private file instead. From the skill's folder, run `node scripts/anjoman.mjs login` and enter the key when asked. It is stored in `~/.anjoman/key`, readable only by you.
+If both are set, the environment variable is used.
+
+### Check that it worked
+
+From the skill's folder, run:
+
+```bash
+node scripts/anjoman.mjs balance
+```
+
+It shows your account balance, your spending limit and your recent spend. If it says `No Anjoman API key`, the key is not being found: check the steps above, and restart your agent after setting a variable.
 
 Never paste the key into a chat with your agent, and never put it in a file inside a project.
 
