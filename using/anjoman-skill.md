@@ -14,7 +14,7 @@ Anjoman does the work: it plans the request, picks ranked specialist miners from
 
 - **One entry point for everything.** You do not decide whether a task needs one miner, several, or a whole workflow. Anjoman decides.
 - **Follow-ups that keep their context.** Your agent continues the same conversation, so "and in euros?" works.
-- **A spending limit on every request**, set to $2.00 by default. [Spending](#spending) explains how it works.
+- **A spending limit that you control.** There is none unless you set one, and your account balance is the only limit. [Spending](#spending) shows how to set one.
 - **Progress while it works**, so a request that takes a minute does not look stuck.
 - **The full picture of each answer:** the status, the cost, which specialist answered each step, the payment receipts and the sources.
 - **Honest failures.** A partial answer, a request stopped by the spending limit and a rejected key are each reported as what they are.
@@ -133,11 +133,20 @@ Anjoman keeps the context, so the question can be short. A new topic starts a ne
 
 ## Spending
 
-Every request is capped at **$2.00**. Change it for one request with `--max-spend`, or for all of them with the `ANJOMAN_MAX_SPEND_USD` environment variable. Use `none` to remove the cap.
+The limit is yours to set. By default there is **no cap**, and your account balance is the only limit. Most requests cost a few cents.
 
-The cap is a ceiling, not the price. Most requests cost a few cents. While a specialist is working, Anjoman holds back up to about $0.26 for it and gives back what the call did not cost. A request that asks several specialists at once needs room for all of them, which is why the default is well above what such a request really costs. A cap under about $0.30 per specialist stops steps early even when the real cost would be cents.
+To set a ceiling, use the `ANJOMAN_MAX_SPEND_USD` environment variable for every request, or `--max-spend` for one request:
 
-When a request reaches the cap, it stops and the agent asks you before going on. It never raises the cap by itself.
+```bash
+export ANJOMAN_MAX_SPEND_USD=2
+node scripts/anjoman.mjs ask "…" --max-spend 5
+```
+
+Use `none` to remove a cap you set earlier.
+
+A cap is a ceiling, not the price. While a specialist is working, Anjoman holds back up to about $0.26 for it and gives back what the call did not cost. A request that asks several specialists at once needs room for all of them, so pick a cap well above what you expect to spend. A cap under about $0.30 per specialist stops steps early even when the real cost would be cents.
+
+When a request reaches a cap you set, it stops and the agent asks you before going on. The agent never sets, raises or removes a cap by itself.
 
 To see your balance and recent spend:
 
@@ -189,7 +198,7 @@ The skill uses the open Agent Skills format: a folder with a `SKILL.md`. It need
 | Best for | Letting your agent use Anjoman for ordinary requests | Direct access to specific miners, intents and rankings |
 | Setup | One install and one API key | An MCP server configured in each app |
 | Planning and multi-miner requests | Yes, done by Anjoman | Only in API-key mode, and without follow-ups |
-| Follow-ups, spending limit, receipts | Yes | No |
+| Follow-ups, an optional spending cap, receipts | Yes | No |
 
 They can be installed together. The skill is for everyday requests, and the MCP server is for when you want to choose a miner yourself.
 
@@ -204,7 +213,7 @@ They can be installed together. The skill is for everyday requests, and the MCP 
 | `402` or a balance message | The account cannot pay. | Add funds in Anjoman. |
 | `429` | A key makes up to 30 requests a minute. | Wait a minute and try again. |
 | Status `PARTIAL` | Only some of the request was answered. | Read the Steps for what is missing and ask again for that part. |
-| Status `STOPPED` | The request reached its spending limit. | Say whether to go on, with a higher limit. |
+| Status `STOPPED` | The request reached the spending cap you set. | Say whether to go on, with a higher cap. |
 | "ended the request without an answer" | The request failed before it produced one. Nothing is charged. | Try again. |
 
 ---
