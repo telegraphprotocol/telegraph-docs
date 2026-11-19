@@ -133,22 +133,22 @@ Anjoman keeps the context, so the question can be short. A new topic starts a ne
 
 ## Spending
 
-The limit is yours to set. By default there is **no cap**, and your account balance is the only limit. Most requests cost a few cents.
+The limit is yours to set, and it lives on your account. By default there is **no limit**, and your account balance is the only limit. Most requests cost a few cents.
 
-To set a ceiling, use the `ANJOMAN_MAX_SPEND_USD` environment variable for every request, or `--max-spend` for one request:
+To set one, sign in to [anjoman.ai](https://anjoman.ai), open the chat and use the **spend limit** button beside the message box. Enter the most one message may spend. It is saved on your account, and Anjoman applies it to **every request from your account**: the chat, your API keys, and agents using the skill. A request cannot go above it, whatever the agent sends, and a key cannot change it. Only you can, from a signed-in session. Remove it from the same button.
+
+An agent or a single session can set a lower ceiling than yours, but never a higher one:
 
 ```bash
-export ANJOMAN_MAX_SPEND_USD=2
-node scripts/anjoman.mjs ask "…" --max-spend 5
+export ANJOMAN_MAX_SPEND_USD=1
+node scripts/anjoman.mjs ask "…" --max-spend 0.5
 ```
 
-Use `none` to remove a cap you set earlier.
+A limit is a ceiling, not the price. While a specialist is working, Anjoman holds back up to about $0.26 for it and gives back what the call did not cost. A request that asks several specialists at once needs room for all of them, so pick a limit well above what you expect to spend. A limit under about $0.30 per specialist stops steps early even when the real cost would be cents.
 
-A cap is a ceiling, not the price. While a specialist is working, Anjoman holds back up to about $0.26 for it and gives back what the call did not cost. A request that asks several specialists at once needs room for all of them, so pick a cap well above what you expect to spend. A cap under about $0.30 per specialist stops steps early even when the real cost would be cents.
+When a request reaches your limit, it stops and the agent asks you before going on. To raise it, use the spend limit button in Anjoman. The agent never sets, raises or removes a limit by itself.
 
-When a request reaches a cap you set, it stops and the agent asks you before going on. The agent never sets, raises or removes a cap by itself.
-
-To see your balance and recent spend:
+To see your balance, your limit and recent spend:
 
 ```bash
 node scripts/anjoman.mjs balance
