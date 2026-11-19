@@ -14,6 +14,7 @@
 * [Pay per Request (x402)](using/x402-inference.md)
 * [Pay from Escrow](using/escrow-inference.md)
 * [Use an API Key](using/api-keys.md)
+* [Anjoman Skill for AI Agents](using/anjoman-skill.md)
 * [Read the Daemon Feed](using/daemon-signals.md)
 * [Stream over WebSocket](using/websocket-signals.md)
 * [On-Chain Jobs](using/erc8183-jobs.md)

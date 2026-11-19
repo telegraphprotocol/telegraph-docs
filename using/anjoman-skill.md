@@ -1,0 +1,229 @@
+---
+description: Install the Anjoman skill so your AI agent uses Anjoman whenever a task needs outside intelligence. One command, one API key, no MCP server and no wallet.
+---
+
+# Anjoman Skill for AI Agents
+
+The Anjoman skill makes Anjoman your agent's default for outside intelligence. You install it once and add an API key. After that, whenever a task needs live data, research or a specialist check, your agent sends the request to Anjoman on its own, even if you never mention Anjoman or Telegraph, and brings the answer back into your normal session.
+
+Anjoman does the work: it plans the request, picks ranked specialist miners from the Telegraph network (one or several, in parallel or in order), checks what is missing, retries what failed and writes one combined answer. The skill does not rebuild any of that. It carries your request to Anjoman and reports what came back.
+
+---
+
+## What you get
+
+- **One entry point for everything.** You do not decide whether a task needs one miner, several, or a whole workflow. Anjoman decides.
+- **Follow-ups that keep their context.** Your agent continues the same conversation, so "and in euros?" works.
+- **A spending limit on every request**, set to $2.00 by default. [Spending](#spending) explains how it works.
+- **Progress while it works**, so a request that takes a minute does not look stuck.
+- **The full picture of each answer:** the status, the cost, which specialist answered each step, the payment receipts and the sources.
+- **Honest failures.** A partial answer, a request stopped by the spending limit and a rejected key are each reported as what they are.
+- **Nothing to configure.** No MCP server, no wallet and no extra dependencies. It needs Node.js 18 or later.
+
+It does not take over your agent. It is for requests that need information or analysis from outside your project and conversation: live prices and market data, weather, news, web or academic research, security or compliance checks, wallet or contract risk, fact checks, and research that needs several sources. Editing code and files, running tests and anything your project already answers stay with your agent's own tools.
+
+---
+
+## Step 1: Get an API key
+
+1. Sign in at [anjoman.ai](https://anjoman.ai) and make sure the account has a balance. See [Use an API Key](api-keys.md) for deposits.
+2. Create a key on the [API keys page](https://anjoman.ai/dashboard/api-keys), or open the skill section on the [Integrations page](https://anjoman.ai/dashboard/integrations), which makes a key for you and shows the commands below with it filled in.
+
+The key starts with `anjoman_`. Treat it like a password: it can spend your balance.
+
+## Step 2: Install the skill
+
+In a terminal:
+
+```bash
+npx skills add telegraphprotocol/telegraph-mcp --skill anjoman
+```
+
+It asks which agents to add the skill to and puts it where each one looks for skills. Add `-g` to install it for all your projects instead of the current one.
+
+You can also copy the [`skills/anjoman`](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/skills/anjoman) folder into your agent's skills folder by hand.
+
+## Step 3: Add your key
+
+Set it as an environment variable, then restart your agent so it sees it.
+
+**macOS and Linux**, in `~/.zshrc` or `~/.bashrc`:
+
+```bash
+export ANJOMAN_API_KEY=anjoman_your_key
+```
+
+**Windows**, in PowerShell:
+
+```powershell
+setx ANJOMAN_API_KEY "anjoman_your_key"
+```
+
+Or save it to a private file instead. From the skill's folder, run `node scripts/anjoman.mjs login` and enter the key when asked. It is stored in `~/.anjoman/key`, readable only by you.
+
+Never paste the key into a chat with your agent, and never put it in a file inside a project.
+
+## Step 4: Ask something
+
+Ask your agent as you normally would, without mentioning Anjoman:
+
+> What is Bitcoin trading at, what is the weather in Karachi, and what is the euro worth in US dollars?
+
+The agent recognises that this needs outside data, runs the skill, and answers from what Anjoman returns.
+
+---
+
+## How it works
+
+The skill is a folder with two parts:
+
+- `SKILL.md` tells the agent when to use it and how to read the result. Agents decide whether to load a skill from its description, which is why it works without being named.
+- `scripts/anjoman.mjs` is one file with no dependencies. It sends your request to Anjoman's `/agent/chat` with your key, follows the progress, and prints the answer followed by a report.
+
+The agent runs it like this:
+
+```bash
+node scripts/anjoman.mjs ask "What is Bitcoin trading at right now?"
+```
+
+Progress lines go to the error output while it works, so the answer stays clean. A request takes from a few seconds to a few minutes.
+
+### The report
+
+Every answer ends with a short report:
+
+```
+The current price of Bitcoin is 63,753.70 USD, according to Kraken Spot Price.
+
+— Anjoman —
+Status: complete
+Cost: $0.01
+Conversation: f97fb7f5-…  (pass --conversation f97fb7f5-… to continue it)
+Job: 4d2d227b-…
+Steps:
+  1. CRYPTO_PRICE_USD → Kraken Spot Price: answered · 13.2s
+Receipts:
+  CRYPTO_PRICE_USD: 0xca1802bb…
+Sources:
+  CRYPTO_PRICE_USD — Kraken Spot Price [receipt 0xca1802bb…]
+```
+
+| Line | What it is |
+|---|---|
+| **Status** | `complete`, `PARTIAL` (only some of the request was answered), `FAILED`, `UNSUPPORTED` (the network has nothing for this) or `STOPPED` (the spending limit was reached). |
+| **Cost** | What the request cost. |
+| **Conversation** | The id that continues this conversation. |
+| **Steps** | What each specialist did: its intent, who answered, how long it took, and anything missing or any reason it failed. |
+| **Receipts** | The payment receipt for each answering step. |
+| **Sources** | What the answer was built from. |
+
+A partial answer is never passed off as complete. If a step is missing, the agent says which one.
+
+### Follow-ups
+
+When you continue a topic, the agent passes the conversation id from the last report:
+
+```bash
+node scripts/anjoman.mjs ask "and what is that in euros?" --conversation f97fb7f5-…
+```
+
+Anjoman keeps the context, so the question can be short. A new topic starts a new conversation.
+
+---
+
+## Spending
+
+Every request is capped at **$2.00**. Change it for one request with `--max-spend`, or for all of them with the `ANJOMAN_MAX_SPEND_USD` environment variable. Use `none` to remove the cap.
+
+The cap is a ceiling, not the price. Most requests cost a few cents. While a specialist is working, Anjoman holds back up to about $0.26 for it and gives back what the call did not cost. A request that asks several specialists at once needs room for all of them, which is why the default is well above what such a request really costs. A cap under about $0.30 per specialist stops steps early even when the real cost would be cents.
+
+When a request reaches the cap, it stops and the agent asks you before going on. It never raises the cap by itself.
+
+To see your balance and recent spend:
+
+```bash
+node scripts/anjoman.mjs balance
+```
+
+The skill cannot deposit or withdraw. Add funds in Anjoman, from the wallet menu.
+
+---
+
+## Long requests
+
+A request that outlasts the connection keeps running on Anjoman's side. The skill follows it by its job id until it ends. You can read or stop one yourself:
+
+```bash
+node scripts/anjoman.mjs job <jobId> --wait
+node scripts/anjoman.mjs cancel <jobId>
+```
+
+---
+
+## Make Anjoman the default
+
+Agents decide whether to use a skill from its description, and some agents are stricter about it than others. To make it more certain, add a short rule to your agent's own instructions (`CLAUDE.md`, `AGENTS.md` or a Cursor rule). Print it with:
+
+```bash
+node scripts/anjoman.mjs rule
+```
+
+Or copy it from the skill section on the [Integrations page](https://anjoman.ai/dashboard/integrations). The rule is wrapped in `<!-- anjoman:start -->` and `<!-- anjoman:end -->` markers so you can find and remove it later. The skill never edits your instruction files.
+
+---
+
+## Where it works
+
+The skill uses the open Agent Skills format: a folder with a `SKILL.md`. It needs an agent that reads skills and can run a command, plus Node.js 18 or later and internet access.
+
+- **Claude Code** is tested. With the skill installed, a plain question about live prices started it without the agent being told to, and an unrelated coding task left it alone.
+- **Other agents that read skills** (Cursor, Codex and others) should work with the same folder, but are not yet tested. Where an agent does not start the skill on its own, add the rule above.
+- **Chat apps that cannot run commands**, such as Claude Desktop's chat, cannot run the skill. Use the [Telegraph MCP server](mcp-server.md) there.
+
+---
+
+## Skill or MCP server
+
+| | Anjoman skill | Telegraph MCP server |
+|---|---|---|
+| Best for | Letting your agent use Anjoman for ordinary requests | Direct access to specific miners, intents and rankings |
+| Setup | One install and one API key | An MCP server configured in each app |
+| Planning and multi-miner requests | Yes, done by Anjoman | Only in API-key mode, and without follow-ups |
+| Follow-ups, spending limit, receipts | Yes | No |
+
+They can be installed together. The skill is for everyday requests, and the MCP server is for when you want to choose a miner yourself.
+
+---
+
+## Errors
+
+| You see | What it means | What to do |
+|---|---|---|
+| `No Anjoman API key` | No key is set. | Do [Step 3](#step-3-add-your-key). |
+| `401` and "key was rejected" | The key is wrong, expired or revoked. | Check it or create a new one on the [API keys page](https://anjoman.ai/dashboard/api-keys). |
+| `402` or a balance message | The account cannot pay. | Add funds in Anjoman. |
+| `429` | A key makes up to 30 requests a minute. | Wait a minute and try again. |
+| Status `PARTIAL` | Only some of the request was answered. | Read the Steps for what is missing and ask again for that part. |
+| Status `STOPPED` | The request reached its spending limit. | Say whether to go on, with a higher limit. |
+| "ended the request without an answer" | The request failed before it produced one. Nothing is charged. | Try again. |
+
+---
+
+## Keep a key safe
+
+- Keep the key in an environment variable or in `~/.anjoman/key`, never in a project file or a public repository.
+- Make a separate key for the skill, so you can revoke it without stopping anything else.
+- Revoke a key on the [API keys page](https://anjoman.ai/dashboard/api-keys) if it may have been seen. It stops working at once.
+- The skill never prints the key. A skill runs with your agent's permissions, so install only skills you trust.
+
+---
+
+## Questions
+
+**Does my agent need to know about Telegraph?** No. The skill's description tells it when to use Anjoman.
+
+**Where do I see what a request cost?** In the report, on the API keys page and on [Account & Billing](https://anjoman.ai/dashboard/account).
+
+**Can I limit what it spends?** Yes. See [Spending](#spending).
+
+**Where is the code?** In the [telegraph-mcp repository](https://github.com/telegraphprotocol/telegraph-mcp/tree/main/skills/anjoman).
