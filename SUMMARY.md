@@ -54,5 +54,6 @@
 * [How It Works](protocol/how-it-works.md)
 * [Tokenomics](protocol/tokenomics.md)
 * [Addresses & Parameters](protocol/addresses-and-params.md)
+* [Testnet Payment Changes](protocol/testnet-changes.md)
 * [Roles](protocol/roles.md)
 * [Intents](using/intents.md)

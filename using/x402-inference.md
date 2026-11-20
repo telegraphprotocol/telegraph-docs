@@ -10,10 +10,12 @@ This page covers payment. For request and result shapes, see [Make a Request](en
 
 > **Paying more than occasionally?** The same endpoints accept a second scheme, `escrow`: fund once, then skip the facilitator round trip and the per-request on-chain settlement entirely. Same header, same envelope, one different string. See [Pay from Escrow](escrow-inference.md).
 
+> **Testnet status (20 November 2026).** On the live testnet node, x402 `exact` payments are **not offered on Ethereum Sepolia** right now: the public facilitator we used there (`facilitator.x402.rs`) stopped settling on 17 November. The node offers `exact` on **Base Sepolia** and **Solana Devnet** (through `https://x402.org/facilitator`), and `escrow` on Ethereum Sepolia. Read the 402 challenge for the live list. Dated changes are in [Testnet Payment Changes](../protocol/testnet-changes.md).
+
 ## What You Need
 
 - USDC on one of the networks the node accepts. Pick one:
-  - **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`). It is a test token: claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet), or mint it directly with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
+  - **Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`), *not offered on the live testnet node at the moment (see the note above)*. It is a test token: claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet), or mint it directly with `cast send 0xcc194e1a843B658526D0D5C431f670028582Ae17 "mint(address,uint256)" <yourAddress> 10000000 --rpc-url https://ethereum-sepolia-rpc.publicnode.com --private-key <key>` (10 USDC).
   - **Base Sepolia**: Circle's test USDC (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`), free from the [Circle faucet](https://faucet.circle.com).
   - **Solana Devnet**: Circle's devnet USDC (`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`), from the same faucet.
 
@@ -202,7 +204,7 @@ PAYMENT-SIGNATURE: <base64-encoded-payment-payload>
 {"intent":"CRYPTO_PRICE_USD","params":{"symbol":"BTC"}}
 ```
 
-The node forwards the payment proof to its x402 facilitator (`https://facilitator.x402.rs` on the testnet) for verification. On success, the miner is called.
+The node forwards the payment proof to its x402 facilitator (`https://x402.org/facilitator` on the testnet since 19 November 2026; it was `https://facilitator.x402.rs` before) for verification. On success, the miner is called.
 
 ## Step 5: Receive the Response
 
@@ -328,6 +330,8 @@ your escrow balance (see [When a Paid Request Fails](#when-a-paid-request-fails)
 | Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (Circle) |
 
 Only **Ethereum Sepolia** pays the Diamond, where the network settles. **Base Sepolia** and **Solana Devnet** pay a Telegraph wallet on their own chain: you get the same answer and a receipt, but the payment stays off the Diamond's books. Its receipt says `"epoch_id": 0`, and a failed request's payment is not moved into escrow (see [When a Paid Request Fails](#when-a-paid-request-fails)). For the same reason an ask with `max_budget_usdc` paid on them is refused with `400` before the payment settles (nothing is charged): its unused part could not be credited back.
+
+On the live testnet node today only Base Sepolia and Solana Devnet are offered as `exact` (see the note at the top of this page).
 
 The `accepts[]` array in the challenge is authoritative — a node may offer more or fewer networks than this table.
 
