@@ -14,7 +14,7 @@ This page takes you from nothing to a working call. If you would rather pay from
 
 ## What a key is
 
-- A key stands in for you on a short list of endpoints: asking questions, reading the result, and reading your balance and spend. [What a key can call](#what-a-key-can-call) lists them all.
+- A key stands in for you on a short list of endpoints: asking questions (through Anjoman's agent, or straight to the network as an auto-routed ask or a miner call), reading the result, and reading your balance and spend. [What a key can call](#what-a-key-can-call) lists them all.
 - Every call made with a key is paid from your account's escrow balance. The key itself holds no money.
 - A key cannot deposit, withdraw, change your account or create other keys. Those need you to be signed in on the website.
 - You can have up to 10 active keys. Make one for each thing that uses it, so you can revoke one without stopping the others.
@@ -171,7 +171,9 @@ Everything below is called with the same header, `Authorization: Bearer <key>`, 
 
 | Endpoint | What it does |
 |---|---|
-| `POST /agent/chat` | Ask a question. See above. |
+| `POST /agent/chat` | Ask a question as a multi-miner call. See above. |
+| `POST /engine/ask` | Auto-routed ask: the node picks the miner. See [Ask the network directly](#ask-the-network-directly). |
+| `POST /engine/ask/{minerId}` | Miner call: one miner you name. See [Ask the network directly](#ask-the-network-directly). |
 | `GET /agent/jobs/{id}` | A request's state: `status`, `outcome`, `costUsd`, `startedAt`, `finishedAt`, and the `answer` once it has one. |
 | `POST /agent/jobs/{id}/cancel` | Stop a request that is still running. A request that has already ended is returned as it is. |
 | `GET /engine/escrow/balance` | The balance your calls are paid from. |
@@ -188,7 +190,35 @@ The balance reply:
 
 `effectiveBalance` is what you can spend now, in USDC. `agentDebt` is what you already owe from earlier calls; while you owe something, new calls are refused until a deposit covers it.
 
-Any other endpoint answers `403` with `This endpoint cannot be called with an API key. Sign in to use it.` That includes `/engine/ask`: a key asks through `/agent/chat`, which chooses the miners for you.
+Any other endpoint answers `403` with `This endpoint cannot be called with an API key. Sign in to use it.`
+
+### Ask the network directly
+
+`/agent/chat` is a multi-miner call: Anjoman's agent splits your request across intents and miners and combines their answers into one. Two endpoints skip the agent and send one request to the Telegraph node, paid from the same escrow balance. Both answer in one JSON reply: `result` is the node's reply (described in [Make a Request](engine-ask.md)) and `receipt` is the payment's.
+
+**Auto-routed ask.** The node picks the best-ranked live miner for the question, and asks the next ranked ones for any field the first answer missed. Anjoman sends it with a budget of $0.26 (`max_budget_usdc` 260000, the most the node takes): it is held while the ask runs, and only the miners whose answers are used are billed, about $0.01 each.
+
+```bash
+curl https://backend.telegraphprotocol.com/engine/ask \
+  -H "Authorization: Bearer $TELEGRAPH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is the current price of Bitcoin in USD?"}'
+```
+
+Send `query`, or an exact `intent` with its `params` (see [Intents](intents.md)), or both.
+
+**Miner call.** One miner you name, by its id from [the miner list](engine-ask.md#listing-available-miners), with no routing and no fallback, at that miner's price. No budget is sent.
+
+```bash
+curl https://backend.telegraphprotocol.com/engine/ask/377 \
+  -H "Authorization: Bearer $TELEGRAPH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"intent": "CRYPTO_PRICE_USD", "params": {"symbol": "BTC"}}'
+```
+
+Send `query`, `intent` with `params`, or both; or the miner's own request as `method`, `endpoint` and `payload`. Mixing the two forms is refused with `400`.
+
+On either endpoint a key cannot use the free trial: `paymentMethod: "free"` is refused with `400`. An empty balance is refused with `400` and the balance it found, and nothing is charged.
 
 ---
 
@@ -208,7 +238,7 @@ The [Telegraph MCP server](mcp-server.md) accepts an API key in place of a walle
 }
 ```
 
-This needs version 2.1.0 or later of the server. See [API key mode](mcp-server.md#api-key-mode) for what changes.
+This needs version 2.1.0 or later of the server; the auto-routed ask (`telegraph_ask_auto`) and the miner call (`telegraph_ask_miner`) need 2.2.0. See [API key mode](mcp-server.md#api-key-mode) for what changes.
 
 ---
 
