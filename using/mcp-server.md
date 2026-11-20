@@ -107,7 +107,8 @@ Run these in a terminal, each after `npx -y @telegraphprotocol/telegraph-protoco
 | Tool | Cost | What it does |
 |---|---|---|
 | `telegraph_ask` | ~$0.01 | Ask a question, optionally with an exact intent and params. The node routes it to the top live miner |
-| `telegraph_ask_miner` | The miner's price | Ask one miner you choose, or call one of its endpoints directly |
+| `telegraph_ask_miner` | The miner's price | Miner call: ask one miner you choose, or call one of its endpoints directly |
+| `telegraph_ask_auto` | ~$0.01 per miner used | [API key mode](#api-key-mode) only: the node's auto-routed ask, without Anjoman's agent |
 | `telegraph_find_intents` | Free | Search the intents (kinds of question) |
 | `telegraph_intent` | Free | One intent's kind, params, answer fields and top miners |
 | `telegraph_find_miners` | Free | An intent's miners with rank, score, price and endpoints, or a word search over all miners |
@@ -147,9 +148,12 @@ If you have an Anjoman account, you can skip the wallet. Create an [API key](api
 
 No `setup` is needed. With a key set, the wallet is not used, and:
 
-- **`telegraph_ask`** goes through your Anjoman account. It picks the sources, can combine several for one question and writes the answer, paid from your account's escrow balance. A question can take up to a minute.
+- **`telegraph_ask`** is a multi-miner call through your Anjoman account's agent. It splits the request across intents and miners, combines their answers and writes one reply. A question can take up to a minute.
+- **`telegraph_ask_auto`** is the node's auto-routed ask, without the agent: the node picks the top live miner for the question (or an exact intent with params) and asks the next ranked ones for what it missed. It holds a budget of $0.26 while it runs, and only the miners whose answers are used are billed. Needs version 2.2.0 or later.
+- **`telegraph_ask_miner`** is a miner call: one miner you choose, with a question or one of its endpoints, at that miner's price. Needs version 2.2.0 or later.
+- **All three are paid from your account's escrow balance.**
 - **`telegraph_account`** shows the account's escrow balance and what its last jobs cost. Top up on the website: the server cannot deposit.
-- **`telegraph_ask_miner` and `telegraph_deposit` are not offered.** A key cannot call one miner directly or move funds.
+- **`telegraph_deposit` is not offered.** A key cannot move funds.
 - **The free tools** work as before.
 - **The spending limits above do not apply.** Your account's balance does, and so do the key's own limits: 30 requests a minute and an optional expiry date. Revoke the key on the [API keys page](https://anjoman.ai/dashboard/api-keys) to cut an agent off at once.
 

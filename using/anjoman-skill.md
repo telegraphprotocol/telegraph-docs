@@ -169,6 +169,24 @@ node scripts/anjoman.mjs ask "and what is that in euros?" --conversation f97fb7f
 
 Anjoman keeps the context, so the question can be short. A new topic starts a new conversation.
 
+### Ask the network directly
+
+`ask` is a multi-miner call: Anjoman's agent splits the request across intents and miners and combines their answers into one. Two more commands skip the agent and go straight to the Telegraph node, paid from the same account:
+
+| Command | What it is | Cost |
+|---|---|---|
+| `auto` | **Auto-routed ask** (`POST /engine/ask`): the node picks the best-ranked live miner for the question, and asks the next ones for fields it missed | A budget of $0.26 is held while it runs; only the miners whose answers are used are billed, about $0.01 each |
+| `miner` | **Miner call** (`POST /engine/ask/{minerId}`): one miner you name, by id or slug, with no routing and no fallback | That miner's price |
+
+```bash
+node scripts/anjoman.mjs auto "What is Bitcoin trading at?"
+node scripts/anjoman.mjs auto --intent CRYPTO_PRICE_USD --params '{"symbol":"BTC"}'
+node scripts/anjoman.mjs miner crypto-kraken "BTC price"
+node scripts/anjoman.mjs miner 377 --endpoint /price --method GET --payload '{"symbol":"BTC"}'
+```
+
+The reply is the answer's fields, then **Status**, **Intent**, **Miner**, **Cost** and **Receipt**. `--json` prints it as one object. These need version 0.2.0 or later of the skill.
+
 ---
 
 ## Spending
@@ -235,7 +253,7 @@ The skill uses the open Agent Skills format: a folder with a `SKILL.md`. It need
 
 | | Anjoman skill | Telegraph MCP server |
 |---|---|---|
-| Best for | Letting your agent use Anjoman for ordinary requests | Direct access to specific miners, intents and rankings |
+| Best for | Letting your agent use Anjoman for ordinary requests, plus auto-routed asks and miner calls | Direct access to specific miners, intents and rankings |
 | Setup | One install and one API key | An MCP server configured in each app |
 | Planning and multi-miner requests | Yes, done by Anjoman | Only in API-key mode, and without follow-ups |
 | Follow-ups, your spending limit, receipts | Yes | No |
