@@ -1,5 +1,5 @@
 ---
-description: Write, test and register your own evaluator adapter (a comparator WASM module or a safetensors delta on the shared Foundation Model) that scores how good a miner's answer is. Start here — no prior Telegraph knowledge needed.
+description: Write, test and register your own Evaluator adapter (a safetensors delta on the shared Foundation Model) that scores a judgment or hybrid intent. Comparator modules are no longer accepted. Start here — no prior Telegraph knowledge needed.
 ---
 
 # Build an Evaluator Adapter
@@ -13,158 +13,80 @@ instead: this page is about the judge, not the contestant.
 ## What is an evaluator adapter?
 
 When someone asks the network a question, several miners may answer it. The
-network needs a way to decide which answer was best. That job is done by a
-scoring module that runs in a **WebAssembly (WASM)** sandbox inside the node,
-without needing to trust your code: a small WASM program of your own for a
-deterministic intent, or, for a judgment or hybrid intent, a model delta that
-the node runs on its shared Foundation Model.
+network needs a way to decide which answer was best. For a judgment or hybrid
+intent, that job is done by an **Evaluator adapter**: a model delta (a LoRA
+package) that the node applies to its shared Foundation Model. Your code never
+runs on the node, so nobody has to trust it.
 
-Every intent has a **class**, and the class decides which kind of module scores
-it (see [How answers are scored](../using/intents.md#the-three-kinds)):
+Every intent has a **class**, and the class decides how it is scored (see
+[How answers are scored](../using/intents.md#the-three-kinds)):
 
-| Intent class | Module you register | What it does |
+| Intent class | How it is scored | What you build |
 |---|---|---|
-| Deterministic | **Comparator module** | Compares the value read from a miner's answer with the epoch's reference value (the median of up to 3 truth sources from the [evaluation pool](contribute-evaluation-data.md#truth-sources-deterministic-intents)), using the intent's comparison rule and tolerance. |
-| Judgment | **Evaluator adapter** (a safetensors delta on the shared Foundation Model) | A reward model judges each answer on its own merits. No reference answer is needed. |
-| Hybrid | **Evaluator adapter**, hybrid class | A comparator score for the checkable part, combined with the model's judgment of the rest. |
+| Deterministic | By the node's **built-in checker**. It compares the value read from a miner's answer with the epoch's reference value (the median of up to 3 truth sources from the [evaluation pool](contribute-evaluation-data.md#truth-sources-deterministic-intents)), using the intent's comparison rule and tolerance. | **Nothing.** A deterministic intent takes no adapter and no module. |
+| Judgment | An **Evaluator adapter** (a safetensors delta on the shared Foundation Model). A reward model judges each answer on its own merits. No reference answer is needed. | An Evaluator adapter. |
+| Hybrid | An **Evaluator adapter**, hybrid class, plus the node's built-in checker. The checker scores the checkable part, the adapter judges the rest, and the node combines the two. | An Evaluator adapter, hybrid class. |
 
-Each intent has one live module at a time, its **canonical** module. A judgment
-or hybrid intent with no module of its own can use its family's (see
+Each intent has one live adapter at a time, its **canonical** adapter. A judgment
+or hybrid intent with no adapter of its own can use its family's (see
 [Families](#families-one-module-for-many-intents)). An intent that nothing
 serves is not scored, and its miners keep their previous ranking.
 
 > [!IMPORTANT]
-> **Check the family's class before you build a comparator.** A module belongs to a
-> family, and it only scores the intents that share the family's class. Most
-> deterministic intents sit under a judgment family: `GAS_PRICE_GENERAL` sits under
-> `GAS_PRICE`, which is judgment. For those, no module you register can ever score
-> them — the node compares their answers with its own comparator. A comparator sent to
-> such a family is never rejected and never goes live; it waits at `pending` for ever.
-> What those intents need is
-> [truth sources](contribute-evaluation-data.md#truth-sources-deterministic-intents).
+> **Comparator modules are no longer accepted.** The node refuses every new
+> comparator module (a `.wasm` that exports `imw_score_deterministic`, also called a
+> deterministic checker), for every kind of intent. The reason it gives:
+>
+> `Comparator modules are no longer accepted. Deterministic intents are scored by the node's built-in checker and take no adapter. Build an Evaluator adapter (a LoRA package) for a judgment or hybrid intent family; check GET /engine/v1/intents/<intent> for its class.`
+>
+> Do not build one. Check the class first:
 >
 > ```bash
-> curl -s "https://devnode.telegraphprotocol.com/api/wasm?intent=GAS_PRICE&resolve=GAS_PRICE"
+> curl -s https://devnode.telegraphprotocol.com/engine/v1/intents/GAS_PRICE | jq .class
 > ```
 >
-> Build a comparator only if the family's own `class` is `deterministic`.
+> Build an adapter only if the class is `judgment` or `hybrid`. Every intent has
+> the same class as its parent family, so the class this call shows is the class
+> your adapter is tested by. Register the adapter on the **parent family** (the
+> prefix), for example `GAS_PRICE`, not `GAS_PRICE_GENERAL`.
 
 > **`rank_answer` modules are retired.** Earlier versions of this guide
 > described a module exporting `rank_answer`, `alloc` and `dealloc` that
 > compared a miner's answer with a reference answer. The node no longer runs
 > that kind of module. A new registration of one is rejected straight away with
 > `MiniLM rank_answer scoring modules are retired and are no longer accepted: …`.
-> Build one of the two kinds below instead.
+> Build an Evaluator adapter instead.
 
 ## What environment does it run in?
 
-Your module runs inside a lightweight WASM sandbox built into the node
-itself, not a separate VM or Docker container, just an in-process sandbox. (An
-Evaluator adapter brings no code at all: its deltas are fed to the node's own
-Foundation Model engine, in the same kind of sandbox.) That means:
+An Evaluator adapter brings no code at all. Its deltas are fed to the node's own
+Foundation Model engine, which runs in a lightweight WASM sandbox built into the
+node, not in a separate VM or Docker container. That means:
 
-- **No network access.** Your code can't make HTTP calls, open sockets, or
-  reach the internet.
-- **No filesystem access.** No reading/writing files, no environment
+- **No network access.** No HTTP calls, no sockets, no internet.
+- **No filesystem access.** No reading or writing files, no environment
   variables.
 - **No state you can rely on.** The node may reuse one loaded copy of your
-  module for many calls, or load a fresh copy for each batch. The same input
+  adapter for many calls, or load a fresh copy for each batch. The same input
   must always give the same output.
 - It only gets the inputs it's given and must work with those alone.
 
 This is by design: it keeps scoring fast, deterministic, and safe to run
-untrusted, third-party code.
+untrusted, third-party adapters.
 
-## Comparator modules (deterministic intents)
+## Deterministic intents take no adapter
 
 A deterministic intent has one right answer: a price, a count, a yes or no. Each
 epoch the node builds a reference value from the intent's truth sources in the
 evaluation pool (public APIs that contributors upload, see
 [Truth sources](contribute-evaluation-data.md#truth-sources-deterministic-intents)),
-reads the value out of each miner's answer, and asks the comparator module how
-close they are. Your module only sees the two numbers; it never calls anything.
+reads the value out of each miner's answer, and scores how close they are with
+its own built-in checker. There is nothing for you to build or register, and the
+node refuses every new comparator module (see the box above).
 
-A comparator has no model, so there is no "better" comparator to build. What
-the node checks is that yours computes the network's **reference rule**
-exactly (see [Stage 2 for comparator modules](#stage-2-for-comparator-modules-correctness)).
-
-### What it must export
-
-| Export | Signature | What it's for |
-|---|---|---|
-| `imw_score_deterministic` | `(truth: i64, miner: i64, spec_ptr: i32) -> i64` | Scores one miner value against the true value. |
-| `imw_alloc` | `(size: i32) -> i32` | Gives the node memory inside your module to write the comparison spec into. |
-| `imw_free` | `(ptr: i32, size: i32)` | Lets the node tell your module it can reuse that memory. |
-
-How a call works:
-
-- **`truth` comes first, then `miner`.** Both are integers on the same
-  fixed-point scale; the node scales them before calling you. The order is easy
-  to get backwards, and the gate will catch it.
-- **`spec_ptr`** points to 16 bytes the node wrote into memory from your
-  `imw_alloc`: two little-endian `i64` values, the comparison code and then the
-  tolerance.
-- **Return** a score in basis points, from `0` to `10000` (`10000` is a perfect
-  match). A negative return means your module refuses the input; the node treats
-  it as an error, not as a score. Anything above `10000` is also an error.
-- The node never passes a `truth` of `0`.
-
-### The reference rule
-
-| Code | Name | Score |
-|---|---|---|
-| `0` | Exact | `10000` if `miner == truth`, else `0`. Tolerance is ignored. |
-| `1` | AbsTol | The error is `|miner − truth|`. |
-| `2` | RelTol | The error is `|miner − truth| × 10000 / max(|truth|, 1)`, in basis points, truncated toward zero. |
-| `3` | PassFail | Same as Exact. |
-
-For AbsTol and RelTol the score falls linearly with the error: `10000` at an
-error of `0`, then `10000 × (2 × tolerance − error) / (2 × tolerance)` (integer
-division), down to `0` once the error reaches `2 × tolerance`. A tolerance of
-`0` or less means only an exact match scores.
-
-Details that matter:
-
-- The code is read as a 32-bit integer, and an unknown code is treated as Exact.
-- Multiplications saturate rather than wrap.
-- Compute the RelTol product in 128 bits. With values at wei scale (`1e18`),
-  `difference × 10000` overflows 64 bits.
-
-### Size and build
-
-Your compiled **comparator** `.wasm` file must be **32 MB or smaller**; a
-comparator is usually tens of KB. Evaluator adapters have their own limit
-below. Anything that compiles to a standalone WASM
-binary works.
-Rust is the easiest (`#![no_std]`, `crate-type = ["cdylib"]`), and C/C++,
-TinyGo and AssemblyScript also work.
-
-**Build for `wasm32-unknown-unknown`, not WASI.** The module runs with no
-operating-system imports, so a `wasm32-wasip1` build (which imports functions
-like `fd_write` or `proc_exit`) fails to load at registration. Check the build
-has no imports before you register:
-
-```bash
-wasm-tools print target/wasm32-unknown-unknown/release/<your_module>.wasm | grep -c '(import'
-# 0
-```
-
-If you have several targets installed, make sure you upload the file from
-`target/wasm32-unknown-unknown/release/`, not the similarly named file under
-`target/wasm32-wasip1/release/`.
-
-### Testing it before you register
-
-Before you register, run your module against the reference rule above on
-inputs like these:
-
-- every code, at several tolerances, including `0`;
-- truths from `1` up to `1e18`, and negative values;
-- miner values at an exact match, one unit off, at the half-score point, at the
-  edge of the `2 × tolerance` window, and past it, on both sides of the truth.
-
-Every result must match the rule within ±10 basis points, and a second run must
-give exactly the same results.
+What helps these intents is
+[evaluation material](contribute-evaluation-data.md): truth sources and test
+cases.
 
 ## Evaluator adapters (judgment and hybrid intents)
 
@@ -241,16 +163,14 @@ negative, `accuracy` is between 0 and 1, and `spearman` is between −1 and 1. I
 the numbers to decide anything; the hidden evaluation is the real test. A malformed record
 is rejected with `lora adapter: training_record: …`.
 
-A comparator module may carry a `telegraph.adapter` custom section with `abi_version` `1`
-and `class` `comparator` (the comparator interface did not change). It is optional.
-
 ## Families: one module for many intents
 
 Some intents are very specific, like `WEATHER_FORECAST_LAHORE` and
-`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. A
-module is registered on a **prefix** (the family name, for example
-`WEATHER_FORECAST` or `FX_NOW`), and it serves every **child** intent whose name
-extends that prefix with `_`. The prefix must be a **registered prefix** in the
+`WEATHER_FORECAST_TOKYO`, so that miners answer exactly the same question. An
+adapter is registered on a **prefix** (the family name, for example
+`WEATHER_FORECAST` or `CODE_REVIEW`), and it serves every **child** intent whose name
+extends that prefix with `_`. Always register on the parent family: `GAS_PRICE`,
+not `GAS_PRICE_GENERAL`. The prefix must be a **registered prefix** in the
 catalog: `registerWasm` reverts with `not a registered prefix` otherwise. See
 [Intents](../using/intents.md#prefixes-and-intents) for how prefixes work.
 
@@ -259,10 +179,9 @@ catalog: `registerWasm` reverts with `not a registered prefix` otherwise. See
   module uses its own.
 - **The `_` is part of the rule.** `WEATHERX` is not a child of `WEATHER`.
 - **Same class only.** A judgment family never serves a hybrid child, or the
-  other way round.
-- **Comparators work the same way.** A comparator registered on `FX_NOW` scores
-  `FX_NOW_EUR`, `FX_NOW_CAD` and every other intent under it, each against its
-  own spec (tolerance, question, truth sources).
+  other way round. Every intent has the same class as its parent family, so the
+  `class` shown by `GET /engine/v1/intents/<intent>` is the class your adapter
+  is tested by.
 - **Only the module is shared.** Each child keeps its own miners, ranking and
   evaluation data.
 
@@ -324,15 +243,13 @@ few HTTP requests instead of a download.
 Run as soon as the node has downloaded your file.
 
 1. **It is a kind the node accepts.** An Evaluator adapter (a safetensors delta
-   package) registered for a judgment or hybrid intent, or a comparator module
-   registered for a deterministic intent. A full-model float `.wasm`
+   package) registered for a judgment or hybrid intent. A comparator module
+   (`imw_score_deterministic`), a full-model float `.wasm`
    (`legacy_full_model`), a MiniLM `rank_answer` module or a Q32.32 package is
    rejected with its own message.
-2. **It passes the checks for its kind.** For an Evaluator adapter, the table in
+2. **It passes the checks for an Evaluator adapter.** The table in
    [What the node checks](#what-the-node-checks), against the validator's own
-   Foundation Model and tokenizer; reasons start with `lora adapter: …`. A
-   comparator module must load, with its three exports, and any
-   `telegraph.adapter` section it carries must be valid.
+   Foundation Model and tokenizer; reasons start with `lora adapter: …`.
 3. **It is not a child registration under a live family** (judgment and hybrid
    intents only).
 
@@ -340,22 +257,6 @@ Running out of time is not a rejection. A check that times out, or a download or
 evaluation that fails with an error, is retried; after 3 failed attempts the
 registration is rejected with `gave up after 3 failed evaluation attempts: …`.
 A hash mismatch is rejected immediately.
-
-### Stage 2 for comparator modules: correctness
-
-The node runs your module on about 1,260 test cases: the intent's own
-comparison code and tolerance, plus all four codes at several tolerances, over
-truths from `1` to wei scale (`1e18`) and negative values, with miner values on
-both sides of the truth.
-
-- On **every** case your score must be within **±10 basis points** (0.1% of a
-  full score) of the reference rule.
-- A second identical run must return **exactly** the same results.
-- The module must finish within the evaluation time limit.
-
-Any miss rejects the module, and the reason names the first case it got wrong.
-A module that passes becomes the intent's comparator, replacing the previous
-one.
 
 ### Stage 2 for model adapters: competition on the hidden evaluation pool
 
@@ -431,12 +332,6 @@ For example, a challenger that reaches `0.765` against a current module at
 `0.75` on the same 200 pairs **loses**: it is better, but not by the 2-point
 margin.
 
-For a **comparator module**, the score is the fraction of test cases within the
-margin (`1.0` when promoted). The breakdown has `gate: "comparator"`, `cases`,
-`mismatches`, `margin_bps` (`10`), `max_deviation_bps`, `deterministic`, the
-intent's own `intent_spec`, and up to five `first_mismatches`, each with the
-expected (`want`) and returned (`got`) score.
-
 ## How to submit / register your module
 
 You register a module on-chain, either through the Telegraph platform or by
@@ -444,8 +339,7 @@ calling the contract yourself.
 
 ### The easy way
 
-Build your module (a comparator `.wasm`, or an Evaluator adapter's
-`.safetensors` package), host it somewhere it can be downloaded from a public URL
+Build your Evaluator adapter (a `.safetensors` package), host it somewhere it can be downloaded from a public URL
 (IPFS or any file host), then submit it at
 [anjoman.ai/dashboard/eval](https://anjoman.ai/dashboard/eval).
 The platform hashes the file and sends the transaction for you.
@@ -538,10 +432,10 @@ bare `execution reverted` whose data starts `0xfb8f41b2`
 (`ERC20InsufficientAllowance`; `cast decode-error <data>` names it), and it
 hides any other mistake, such as a name that is not a prefix.
 
-The `xxd` one-liner suits a comparator module. An Evaluator adapter (6.8 MB at
-rank 8) is too large to pass as a shell argument: take the `keccak256` that the
-kit's `adapterbuild lora` prints, or let `cast` read the file from standard
-input, which hashes its raw bytes:
+An Evaluator adapter (6.8 MB at rank 8) is too large to pass as a shell
+argument, so the `xxd` one-liner above does not work for it. Take the `keccak256`
+that the kit's `adapterbuild lora` prints, or let `cast` read the file from
+standard input, which hashes its raw bytes:
 
 ```bash
 export WASM_HASH=$(cast keccak < runs/CODE_REVIEW/CODE_REVIEW.safetensors)
@@ -585,10 +479,7 @@ your registration leaves `pending`.
 The endpoint must implement the **batch request**:
 
 - **Request.** One `POST` whose JSON body is `{"batch": [<question>, ...]}`, never one
-  question per request. A comparator question is `{"ground_truth_value": <int64>,
-  "miner_value": <int64>, "spec": [<comparator kind>, <tolerance>]}`, with both values
-  already on the same fixed-point scale. An Evaluator adapter question is
-  `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with the
+  question per request. A question is `{"tokens": [<int64>, ...]}`: the node renders and tokenises the text itself with the
   pinned vocabulary, so your endpoint needs no tokenizer; score each list as given
   (truncated to the package's `max_tokens`). A batch holds at most 100 questions, and the
   body is at most a few hundred KB, so accept bodies of at least 1 MiB.
@@ -612,8 +503,7 @@ The endpoint must implement the **batch request**:
   mismatch.
 - **Reply.** `200` with `{"results": [<result>, ...]}`, exactly one result per question,
   **in the same order**. A result is `{"score": <integer>}` or `{"error": "..."}` when your
-  module rejects that input. For a comparator the score is in basis points, `0` to
-  `10000`. For an Evaluator adapter it is the **f32 bit pattern** of the reward logit as an
+  module rejects that input. The score is the **f32 bit pattern** of the reward logit as an
   unsigned 32-bit integer (for example `3204838382` for `0xbf05f3ee`), never a decimal,
   which would be rounded. NaN and infinity bit patterns are refused. A reply over 64 KiB, a
   different number of results than questions, or an out-of-range score counts as a failed
@@ -621,13 +511,11 @@ The endpoint must implement the **batch request**:
 - **When it is called.** Not straight away. The cases are picked by a seed from the first
   epoch that settles after your registration, so nobody can know them when registering.
   Until then the registration stays `pending`, your endpoint is not called, your file is
-  not downloaded and no attempt is used. For a comparator the node asks 100 cases out of its
-  correctness battery (two batch requests). For an Evaluator adapter it asks up to 30
+  not downloaded and no attempt is used. The node asks up to 30
   questions (15 public pairs, two texts each) in one batch, and at least 70% of the pairs
   must come out in the right order. The hidden competition split is never sent to your
   endpoint.
-- **Time limit.** The whole check must finish within 30 minutes for an Evaluator adapter
-  (2 minutes for a comparator). On a laptop CPU one 512-token text takes about 13-14
+- **Time limit.** The whole check must finish within 30 minutes. On a laptop CPU one 512-token text takes about 13-14
   seconds on the Foundation Model, so 30 texts take about 7 minutes.
 - **Failures.** A `4xx`, or a `200` with no `results` array (for example the old single
   `{"score": N}` form), means the endpoint does not implement the batch request: the
@@ -780,7 +668,7 @@ Your module doesn't go live instantly. It moves through a handful of states:
 | Status | Meaning |
 |---|---|
 | `pending` | Registered, being fetched and evaluated, or waiting for evaluation material. |
-| `active` | Won (or passed, for a comparator) and is the live module for its intent. |
+| `active` | Won its competition round and is the live module for its intent. |
 | `rejected` | Failed a check or lost its competition round; the reason is recorded. |
 | `superseded` | Was active, then a better module took over the intent, or a validator upgrade took it out of service (a full-model `.wasm`, or a foundation update: `foundation_updated: …`). |
 | `deregistered` | Taken down by its author (see the next section). |
@@ -799,9 +687,9 @@ lifecycle:
 
 First, the node has to see your transaction. It reads the chain at Sepolia's
 `safe` block, so your registration appears about 10 to 15 minutes after the
-transaction. A comparator module is then usually decided within minutes.
+transaction.
 
-An Evaluator adapter takes longer. It waits for an epoch to be confirmed after it
+An Evaluator adapter is not decided at once. It waits for an epoch to be confirmed after it
 registered (epochs are 1 hour on the testnet), then every check scores real texts
 on the Foundation Model (up to 30 at your endpoint, the same 30 again on the
 validator, then 60 in the competition round), and it can wait for evaluation
@@ -841,7 +729,7 @@ curl -s https://devnode.telegraphprotocol.com/engine/validator/v1/wasm/12
 |---|---|
 | `ActivationStatus` | The state from the table above. This is what you poll for. |
 | `RejectionReason` | Exactly which bar you missed, in the evaluator's own words. `null` unless rejected. |
-| `EvalScore` | Your win rate (Evaluator adapter) or the fraction of cases within the margin (comparator). `null` on a module that never got as far as Stage 2. |
+| `EvalScore` | Your win rate. `null` on a module that never got as far as Stage 2. |
 | `EvalDetails` | The full [breakdown](#the-numbers-on-your-registration) as a JSON string. On a waiting module it carries `decision: "awaiting_material"` and the reason. |
 | `EvalErrorCount` | How many times evaluation failed with an *error* rather than a verdict (fetch failed, evaluator errored). Retried until it hits 3, then rejected with `gave up after N failed evaluation attempts`. Waiting for material is not an error and is not counted. |
 
@@ -866,6 +754,7 @@ remote-check reasons start with `remote executor check failed before download: �
 
 | Reason | What it means | Fix |
 |---|---|---|
+| `Comparator modules are no longer accepted. …` | The file is a comparator module (it exports `imw_score_deterministic`). The node refuses these for every intent kind. | Do not register a comparator. A deterministic intent takes no adapter. For a judgment or hybrid family, build an Evaluator adapter. |
 | `legacy_full_model` | The file is a full-model float `.wasm` (the model baked into a WASI command), the format before the shared Foundation Model. Its download is stopped at the first MiB. | Export the delta from the adapter's training run with the kit's `export_adapter.py` and register the `.safetensors`. See [Upgrading](upgrade-shared-foundation.md). |
 | `foundation_mismatch` | The package's `foundation_hash` is not the validator's Foundation Model. | Export again with the current `foundation.json`. A package built for another foundation is never served on this one. |
 | `tokenizer_mismatch` | `tokenizer_hash` is not the pinned ModernBERT tokenizer. | Train and export with ModernBERT-base's `tokenizer.json`. |
@@ -986,8 +875,7 @@ Once the network sees the deregistration:
 You usually **don't** need to deregister to upgrade. Just register the new
 module. An Evaluator adapter takes over only if it wins its competition round against
 the current module (see
-[Stage 2 for model adapters](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool));
-a comparator module takes over once it passes the correctness gate.
+[Stage 2 for model adapters](#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool)).
 Deregistering the old one afterwards is optional tidy-up, not a required step.
 
 ### Putting the same module back
@@ -1005,10 +893,9 @@ Nothing is ever slashed.
 
 ## Tips for building a good evaluator adapter
 
-- **Comparator modules:** reproduce the reference rule exactly, including the
-  awkward parts — truth first, saturating multiplication, 128-bit RelTol, unknown
-  codes treated as Exact. Test at the window edges and at wei scale.
-- **Evaluator adapters:** the test is ordering. On every pair your model should score
+- **Check the class first:** `GET /engine/v1/intents/<intent>`. A `deterministic`
+  intent takes no adapter. Register on the parent family, not on a child.
+- **Ordering:** the test is ordering. On every pair your model should score
   the better answer above the worse one. A model that gives everything the same
   score wins nothing.
 - **Families:** a family module has to hold up on each child, not just on

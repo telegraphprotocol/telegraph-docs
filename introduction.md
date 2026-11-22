@@ -40,7 +40,7 @@ So every real use of the network creates direct, permanent demand for the token 
 1. An agent sends a request (plain language, or an intent with typed `params`) and pays the signal price in USDC via x402 or from escrow.
 2. The protocol routes the request to a miner based on its leaderboard score for that intent.
 3. The miner returns a response, which the node reads into the intent's own answer shape, the same whichever miner answered.
-4. Validators grade miners each epoch with the intent's scoring module (a comparator, or an evaluator adapter on the shared Foundation Model) and sign the epoch's state.
+4. Validators grade miners each epoch with the node's built-in checker (deterministic intents) or an evaluator adapter on the shared Foundation Model (judgment and hybrid intents) and sign the epoch's state.
 5. The signal is delivered, either directly to the agent, or as a callback to a smart contract.
 6. The USDC paid is swapped for MACHINA on Uniswap in spaced, price-limited batches, and the miner claims it.
 

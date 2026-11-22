@@ -40,7 +40,7 @@
 * [Your First Bounty, Step by Step](bounties/your-first-bounty.md)
 * [Reading a Bounty](bounties/reading-a-bounty.md)
 * [Adding Evaluation Material](bounties/evaluation-material.md)
-* [Building an Adapter or Comparator](bounties/building-an-adapter.md)
+* [Building an Adapter](bounties/building-an-adapter.md)
 * [Doing It With an AI Assistant](bounties/using-ai.md)
 * [How a Bounty Works](bounties/how-a-bounty-works.md)
 * [Rules and Rewards](bounties/rules-and-rewards.md)

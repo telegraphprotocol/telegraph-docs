@@ -183,7 +183,7 @@ adapters the same way it scored the old ones. See
 hybrid intent is not ranked while it has no Active delta adapter.** At the upgrade, intents
 whose adapter was a full-model `.wasm` lose it, and they stay unranked (your previous
 ranking is kept) until an adapter author registers a delta and it passes the gate.
-Deterministic intents, scored by comparator modules, are not affected.
+Deterministic intents, scored by the node's built-in checker, are not affected.
 
 ## App and API users
 

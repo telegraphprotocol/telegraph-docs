@@ -43,15 +43,15 @@ Deterministic Intents (and the checkable part of hybrid Intents) are checked aga
 
 **2. Canonical Scoring Module**
 Every family has at most one canonical scoring module at a time, which defines how to score a miner response. Which kind depends on the family's kind (see [Intents](../using/intents.md#the-three-kinds)):
-- **Deterministic** families use a comparator: the value in the miner's answer is compared with the epoch's reference value from truth sources (step 1), within the Intent's tolerance.
+- **Deterministic** families take no adapter. The node's built-in checker compares the value in the miner's answer with the epoch's reference value from truth sources (step 1), within the Intent's tolerance. Comparator modules are no longer accepted.
 - **Judgment** families use a model-based **evaluator adapter** that judges each answer on its own merits. The question miners are asked comes from the Evaluation Pool (below). An adapter is a small delta (LoRA weights and a reward head) that every Validator runs on the same shared Foundation Model, so every Validator computes the same score.
-- **Hybrid** families combine a comparator score with a model's judgment, using the Intent's fusion rule.
+- **Hybrid** families combine the built-in checker's score with an evaluator adapter's judgment, using the Intent's fusion rule.
 
 Each Validator independently executes the module on the miner's response, producing a Local Score between 0 and 1.
 
 One module registered on a family prefix (for example `WEATHER_FORECAST`) also scores every Intent under it (`WEATHER_FORECAST_LAHORE`). An Intent that no module serves is not scored that epoch, and its miners keep their previous ranking.
 
-Canonical modules are not chosen by humans. Anyone can register a challenger on-chain. A challenger for a judgment or hybrid family replaces the canonical module only by beating it in a competition on a hidden sample from the Evaluation Pool: both are scored on the same sample, and the challenger must win by a set margin and clear a minimum win rate. A comparator replaces the canonical one only if it reproduces the reference comparison exactly. The previous canonical module is kept as a fallback. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md#what-checks-your-module-must-pass).
+Canonical modules are not chosen by humans. Anyone can register a challenger on-chain. A challenger for a judgment or hybrid family replaces the canonical module only by beating it in a competition on a hidden sample from the Evaluation Pool: both are scored on the same sample, and the challenger must win by a set margin and clear a minimum win rate. The previous canonical module is kept as a fallback. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md#what-checks-your-module-must-pass).
 
 **3. Quorum Signature (BLS)**
 Validators independently compute the epoch's state and sign it. The signatures are **BLS12-381** signatures that aggregate into one. They sign a Consensus_Message that commits to the chain, the protocol version, the validator set, the state sequence and the state root being created, so a signature counts for exactly one state transition.
