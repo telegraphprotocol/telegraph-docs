@@ -29,7 +29,7 @@ A maintainer independently verifies the stated acceptance criteria before approv
 | Need | Typical label |
 |---|---|
 | A provider or miner | `work:miner` |
-| An evaluator, adapter, comparator, or evaluation material | `work:evaluator` |
+| An evaluator, adapter, or evaluation material | `work:evaluator` |
 | An app, agent, or integration | `work:app` |
 | Tooling or protocol work | `work:tooling`, `work:protocol` |
 | Public security hardening | `work:security` |

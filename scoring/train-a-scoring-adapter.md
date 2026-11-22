@@ -28,8 +28,11 @@ adapter:
 > [Upgrading to the Shared Foundation Model](upgrade-shared-foundation.md).
 
 If your intent is deterministic (a price, a rate, a yes/no fact), you don't need any of
-this: deterministic intents use a comparator module instead. See
-[Comparator modules](build-a-scoring-module.md#comparator-modules-deterministic-intents).
+this: deterministic intents take no adapter. The node scores them with its built-in
+checker, and it refuses comparator modules. See
+[Deterministic intents take no adapter](build-a-scoring-module.md#deterministic-intents-take-no-adapter).
+Check an intent's class with `GET /engine/v1/intents/<intent>`, and register on the
+parent family (the prefix).
 
 ## What you need
 
@@ -380,6 +383,6 @@ The node never does arithmetic on the float itself. It keeps the 32 bits and:
 - turns them into a **score from `0` to `10000`** (100.00%) with a sigmoid computed in
   whole-number arithmetic, for display and for the hybrid combination.
 
-For a hybrid intent, the node combines that score with the comparator's score itself; the
+For a hybrid intent, the node combines that score with the built-in checker's score itself; the
 adapter only judges the answer. Your model should simply give a higher number to a better
 answer.

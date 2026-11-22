@@ -28,7 +28,7 @@ before you register a miner or propose an intent.
 | Do miners serve it? | **No.** A miner cannot register for a prefix. | **Yes.** Miners register for intents. |
 | Is it ranked? | No. | Yes. Each intent has its own miners and its own ranking. |
 | Who adds it? | The admin only. | Anyone can propose one. The admin approves it. |
-| Scored by | The module registered on the prefix (an evaluator adapter or a comparator). | The module of its family. |
+| Scored by | A deterministic prefix is scored by the node's built-in checker and takes no adapter. A judgment or hybrid prefix is scored by the evaluator adapter registered on it. | The same as its family. Its class is its family's class. |
 
 The rule is simple: **an intent is a registered prefix, then `_`, then a suffix**.
 `FX_NOW_EUR` is valid because `FX_NOW` is a prefix. `FXNOW_EUR` is not, because
@@ -224,14 +224,14 @@ judged, and therefore how a miner wins traffic.
 
 | Kind | Code | How it is judged | What wins |
 |---|---|---|---|
-| **Deterministic** | 1 | A **comparator** module. There is one right answer. The value in each miner's answer is compared with a reference value within the intent's tolerance. The reference is the median of up to 3 public APIs (**truth sources**) uploaded to the [evaluation pool](../scoring/contribute-evaluation-data.md#truth-sources-deterministic-intents). | Being close to the reference. |
-| **Hybrid** | 2 | Both. A comparator scores the checkable part against truth sources, a model judges the rest, and the two are combined with the intent's `fusion` rule. | The combined score. |
+| **Deterministic** | 1 | The node's **built-in checker**, with no adapter. There is one right answer. The value in each miner's answer is compared with a reference value within the intent's tolerance. The reference is the median of up to 3 public APIs (**truth sources**) uploaded to the [evaluation pool](../scoring/contribute-evaluation-data.md#truth-sources-deterministic-intents). | Being close to the reference. |
+| **Hybrid** | 2 | Both. The built-in checker scores the checkable part against truth sources, an evaluator adapter judges the rest, and the two are combined with the intent's `fusion` rule. | The combined score. |
 | **Judgment** | 3 | A model-based **evaluator adapter**. The answer is open-ended and has no reference. Miners are ranked on questions from the [evaluation pool](../scoring/contribute-evaluation-data.md). | Winning against other miners on the pool's questions. |
 
 A deterministic or hybrid intent carries an **on-chain spec** (below). A judgment
 intent has none.
 
-An intent with no scoring module for its kind is not scored, and its miners keep
+A judgment or hybrid intent with no evaluator adapter is not scored, and its miners keep
 their previous ranking. The same is true of a deterministic or hybrid intent with
 no truth source in the evaluation pool.
 
@@ -242,7 +242,7 @@ curl "https://devnode.telegraphprotocol.com/api/wasm?resolve=FX_NOW_EUR"
 ```
 
 The reply names the family that scores it (`served_by`), whether it is inherited
-(`inherited`), which scorer holds it (`judgment`, `hybrid` or `comparator`) and
+(`inherited`), which scorer holds it and
 whether the epoch scorer will actually route it (`routed`). See
 [Families](../scoring/build-a-scoring-module.md#families-one-module-for-many-intents).
 

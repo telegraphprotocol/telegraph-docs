@@ -1,15 +1,15 @@
 ---
-description: How to approach an evaluator or comparator bounty without inventing a separate publication process.
+description: How to approach an evaluator adapter bounty without inventing a separate publication process.
 ---
 
-# Building an Adapter or Comparator
+# Building an Adapter
 
 An evaluator bounty asks for a scoring artifact or supporting evaluation work. The exact artifact, Intent or category, acceptance checks, and required evidence are defined by the Issue.
 
 ## Use the public build guides
 
 - For an evaluator adapter, start with [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md) and [Train an Evaluator Adapter](../scoring/train-a-scoring-adapter.md).
-- For deterministic comparison logic, follow the comparator section of the build guide — and read its warning first: most deterministic Intents are compared by the node itself and take no module from anyone.
+- Comparator modules are no longer accepted. A deterministic Intent is scored by the node's built-in checker and takes no adapter, so a bounty for one is not an adapter bounty. Check the Intent's class with `GET /engine/v1/intents/<intent>`, and register an adapter on the parent family (the prefix).
 
 Use only public inputs you are entitled to use. Do not request or attempt to infer hidden qualification cases, private evaluator files, private model assets, source credentials, or current ranking diagnostics.
 

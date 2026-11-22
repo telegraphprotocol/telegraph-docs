@@ -80,12 +80,12 @@ Validators also earn a small gas reimbursement from the Treasury for each on-cha
 
 ## Evaluator (Adapter Author and Material Contributor)
 
-Evaluators build the layer that scores miners. Adapter authors build the evaluator adapters that score miner answers (a comparator WASM module, or a model delta on the shared Foundation Model); material contributors supply the evaluation data those adapters are judged and ranked on.
+Evaluators build the layer that scores miners. Adapter authors build the evaluator adapters that score miner answers (a model delta on the shared Foundation Model, for judgment and hybrid Intents); material contributors supply the evaluation data those adapters are judged and ranked on.
 
 **What adapter authors do:**
-- Build a scoring module for an Intent's tier: a comparator WASM module for a deterministic Intent, or, for a judgment or hybrid Intent, a model adapter exported as a safetensors delta for the shared Foundation Model (see [Train an Evaluator Adapter](../scoring/train-a-scoring-adapter.md)).
+- Build an Evaluator adapter for a judgment or hybrid Intent: a model adapter exported as a safetensors delta for the shared Foundation Model (see [Train an Evaluator Adapter](../scoring/train-a-scoring-adapter.md)). Deterministic Intents are scored by the node's built-in checker and take no adapter. Comparator modules are no longer accepted. Check an Intent's class with `GET /engine/v1/intents/<intent>`.
 - Register the adapter on-chain with `registerWasm`, on the intent's family (prefix), with a $5 bond in MACHINA that is returned in full when it is deregistered.
-- A judgment or hybrid script competes with the current Canonical on a hidden sample from the Evaluation Pool. It becomes the new Canonical only if it beats the Canonical's win rate by the replacement margin and clears the minimum win rate. A comparator becomes Canonical only if it reproduces the reference comparison exactly. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md).
+- A judgment or hybrid script competes with the current Canonical on a hidden sample from the Evaluation Pool. It becomes the new Canonical only if it beats the Canonical's win rate by the replacement margin and clears the minimum win rate. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md).
 
 **What material contributors do:**
 - Upload evaluation material (question + better answer + worse answer) for an intent, signed with their wallet. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
@@ -95,7 +95,7 @@ Evaluators earn **50% of daily MACHINA emissions**, split per intent: 30% to the
 
 **Requirements:**
 - A $5 MACHINA bond per adapter registration (uploading material needs only a signature).
-- A module that runs within the protocol sandbox (no filesystem access, no network): a comparator WASM module, or a delta package for the validators' Foundation Model.
+- A delta package for the validators' Foundation Model, which runs within the protocol sandbox (no filesystem access, no network).
 - A hosted runnable endpoint (`wasmRunnableUrl`) that runs the registered module; the node checks a candidate there before downloading it.
 
 ---
