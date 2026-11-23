@@ -4,7 +4,7 @@ description: Create an Anjoman account, deposit, make an API key, and call Teleg
 
 # Use an API Key
 
-An API key lets a script, a server or an AI agent use Telegraph through your Anjoman account. You sign up, deposit once from the website, create a key, and send requests with it. There is no wallet to manage, no signing and no x402 or escrow transaction on your side: Anjoman pays for each call from your account's balance.
+An API key lets a script, a server or an AI agent use Telegraph through your Anjoman account. You sign up, deposit once from the website, create a key, and send requests with it. There is no wallet to manage and no signing on your side: Anjoman pays for each call from your account, from its escrow balance by default, or with x402 from its Solana address if you ask (see [Choose how a call is paid](#choose-how-a-call-is-paid)).
 
 This page takes you from nothing to a working call. If you would rather pay from your own wallet, use [Pay from Escrow](escrow-inference.md) or [Pay per Request (x402)](x402-inference.md) instead.
 
@@ -15,7 +15,7 @@ This page takes you from nothing to a working call. If you would rather pay from
 ## What a key is
 
 - A key stands in for you on a short list of endpoints: asking questions (through Anjoman's agent, or straight to the network as an auto-routed ask or a miner call), reading the result, and reading your balance and spend. [What a key can call](#what-a-key-can-call) lists them all.
-- Every call made with a key is paid from your account's escrow balance. The key itself holds no money.
+- Every call made with a key is paid from your account: its escrow balance unless the call asks for x402, then its Solana address (or, for a wallet-connected account, its EVM address). The key itself holds no money.
 - A key cannot deposit, withdraw, change your account or create other keys. Those need you to be signed in on the website.
 - You can have up to 10 active keys. Make one for each thing that uses it, so you can revoke one without stopping the others.
 
@@ -32,6 +32,8 @@ Calls are paid from your balance, so it needs funds before the first one.
 1. Open the wallet menu at the top of the page and choose **Deposit**. Follow the steps for your account type.
 2. On the testnet the money is a test token, so there is nothing real to lose. If you need some, claim it at [anjoman.ai/dashboard/faucet](https://anjoman.ai/dashboard/faucet).
 3. Check the balance on [Account & Billing](https://anjoman.ai/dashboard/account) or on the API keys page. It must show some **Available** balance before a paid call can succeed.
+
+To pay on Solana instead, fund the Solana address in the wallet menu; see [Choose how a call is paid](#choose-how-a-call-is-paid).
 
 A request costs the price of the miner calls it makes, usually about $0.01 each. A question may use more than one miner call, and the reply says what it cost.
 
@@ -180,21 +182,31 @@ Everything below is called with the same header, `Authorization: Bearer <key>`, 
 | `GET /agent/spend` | Your jobs with what each cost, and totals. Optional `from` and `to` (ISO dates) and `limit`. |
 | `GET /agent/conversations` | Your conversations. |
 | `GET /agent/conversations/{id}` | One conversation with its messages. |
-| `GET /agent/payment-methods` | How your account can pay for a message. For a key this is escrow. |
+| `GET /agent/payment-methods` | How your account can pay: escrow, and x402 with the networks it can use (`solana` for every account, `evm` too for a wallet-connected one). |
 
 The balance reply:
 
 ```json
-{ "effectiveBalance": "1.5", "escrowBalance": "2", "agentDebt": "0" }
+{ "effectiveBalance": "1.5", "escrowBalance": "2", "agentDebt": "0", "unbilled": "0.2", "withdrawal": { "status": "waiting_root", "amount": "0.3", "requestedAt": 1795427000, "fallbackAt": 1796031800 } }
 ```
 
-`effectiveBalance` is what you can spend now, in USDC. `agentDebt` is what you already owe from earlier calls; while you owe something, new calls are refused until a deposit covers it.
+All amounts are USDC. They come from the node's [escrow ledger](escrow-inference.md#step-1-fund-your-escrow):
+
+| Field | Meaning |
+|---|---|
+| `effectiveBalance` | What calls can spend now. It is `escrowBalance` less `unbilled` and any requested withdrawal, and it is the number checked before a paid call. |
+| `escrowBalance` | Your balance as of the last ledger root: deposited and credited, less what was charged and withdrawn. |
+| `unbilled` | Usage since the last ledger root. The next root charges it. |
+| `withdrawal` | A withdrawal you asked for and have not received yet, or `null`. `status` is `waiting_root`, `waiting_activation`, `ready` or `fallback_open` (see [Withdrawing](escrow-inference.md#withdrawing)). |
+| `agentDebt` | Always `0`: the ledger keeps no debt. Kept for older clients. |
+
+Only calls paid from escrow show here. A call paid with x402 on Solana is paid from your account's Solana address instead.
 
 Any other endpoint answers `403` with `This endpoint cannot be called with an API key. Sign in to use it.`
 
 ### Ask the network directly
 
-`/agent/chat` is a multi-miner call: Anjoman's agent splits your request across intents and miners and combines their answers into one. Two endpoints skip the agent and send one request to the Telegraph node, paid from the same escrow balance. Both answer in one JSON reply: `result` is the node's reply (described in [Make a Request](engine-ask.md)) and `receipt` is the payment's.
+`/agent/chat` is a multi-miner call: Anjoman's agent splits your request across intents and miners and combines their answers into one. Two endpoints skip the agent and send one request to the Telegraph node, paid the same way (see [Choose how a call is paid](#choose-how-a-call-is-paid)). Both answer in one JSON reply: `result` is the node's reply (described in [Make a Request](engine-ask.md)) and `receipt` is the payment's.
 
 **Auto-routed ask.** The node picks the best-ranked live miner for the question, and asks the next ranked ones for any field the first answer missed. Anjoman sends it with a budget of $0.26 (`max_budget_usdc` 260000, the most the node takes): it is held while the ask runs, and only the miners whose answers are used are billed, about $0.01 each.
 
@@ -210,7 +222,7 @@ Send `query`, or an exact `intent` with its `params` (see [Intents](intents.md))
 **Miner call.** One miner you name, by its id from [the miner list](engine-ask.md#listing-available-miners), with no routing and no fallback, at that miner's price. No budget is sent.
 
 ```bash
-curl https://backend.telegraphprotocol.com/engine/ask/377 \
+curl https://backend.telegraphprotocol.com/engine/ask/32003 \
   -H "Authorization: Bearer $TELEGRAPH_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"intent": "CRYPTO_PRICE_USD", "params": {"symbol": "BTC"}}'
@@ -219,6 +231,30 @@ curl https://backend.telegraphprotocol.com/engine/ask/377 \
 Send `query`, `intent` with `params`, or both; or the miner's own request as `method`, `endpoint` and `payload`. Mixing the two forms is refused with `400`.
 
 On either endpoint a key cannot use the free trial: `paymentMethod: "free"` is refused with `400`. An empty balance is refused with `400` and the balance it found, and nothing is charged.
+
+### Choose how a call is paid
+
+All three asks (`/agent/chat`, `/engine/ask` and `/engine/ask/{minerId}`) take the same two optional fields in the body:
+
+| You send | Paid from |
+|---|---|
+| Nothing (or `"paymentMethod": "escrow"`) | Your escrow balance on Ethereum Sepolia. The default. |
+| `"paymentMethod": "x402", "network": "solana"` | Your account's Solana address, in USDC on Solana Devnet. Every account has one: it is in the Wallet menu on [anjoman.ai](https://anjoman.ai). |
+| `"paymentMethod": "x402", "network": "evm"` | Your account's EVM x402 address. Wallet-connected accounts only; an email or Google account gets `403`. |
+
+For an email or Google account, `"paymentMethod": "x402"` with no `network` pays on Solana.
+
+```bash
+curl https://backend.telegraphprotocol.com/engine/ask/32003 \
+  -H "Authorization: Bearer $TELEGRAPH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"intent": "CRYPTO_PRICE_USD", "params": {"symbol": "BTC"}, "paymentMethod": "x402", "network": "solana"}'
+```
+
+To fund your Solana address, send it USDC on Solana Devnet, or get free test USDC from [Circle's faucet](https://faucet.circle.com/) (pick Solana Devnet and paste the address). It needs no SOL: the network fee is paid for you.
+
+> [!NOTE]
+> On Solana an auto-routed ask is sent without a budget, so it is answered by one miner and does not fill in missing fields from the next ranked ones. Solana payments go to a Telegraph wallet rather than the escrow contract, so the unused part of a budget could not be returned. A multi-miner call still asks several miners, one per part of your request. Escrow keeps the budget and the fill-in.
 
 ---
 
@@ -266,7 +302,9 @@ Every error is JSON with a `message` that says what went wrong.
 | `403` | This endpoint cannot be called with an API key. | Use one of the [endpoints above](#what-a-key-can-call), or sign in on the website. |
 | `403` | Your account has been suspended… | Contact support. Repeated requests for prohibited content suspend an account. |
 | `403` | A message saying the request asks for prohibited content. | Rephrase it. Such requests are refused and recorded. |
-| `400` | API keys pay from your account's escrow balance. | Remove `paymentMethod`. Keys cannot use the free trial. |
+| `400` | API keys pay from your account: escrow … or x402 … The free trial is not available with a key. | Remove `paymentMethod`, or set it to `escrow` or `x402`. |
+| `400` | Insufficient USDC balance: wallet has … | Fund the address the call pays from (escrow, or your Solana address). Nothing was charged. |
+| `403` | Email accounts pay with escrow, or with x402 on Solana … | Use `"network": "solana"`, or escrow. |
 | `400` | A list of fields that are wrong. | Fix the body: `message` is required and at most 2000 characters. |
 | `404` | Job not found. | The id is wrong, or the job is not your account's. |
 | `409` | Your previous message in this conversation is still being answered. | Wait for it to finish, or start a new conversation. |
@@ -292,7 +330,7 @@ An empty balance is not an HTTP error. The question is accepted, no miner is pai
 
 ## Questions
 
-**Does a key work for every kind of account?** A key works for any account. Calls are paid from the escrow balance shown on your [Account & Billing](https://anjoman.ai/dashboard/account) page.
+**Does a key work for every kind of account?** A key works for any account. Calls are paid from the escrow balance shown on your [Account & Billing](https://anjoman.ai/dashboard/account) page, or from your Solana address when a call asks for x402 on Solana.
 
 **Can a key deposit or withdraw money?** No. Deposits and withdrawals need you signed in on the website.
 
