@@ -14,6 +14,7 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 | **USDC (test token)** | `0xcc194e1a843B658526D0D5C431f670028582Ae17`: anyone can mint it (`mint(address to, uint256 amount)`), or claim it from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet) |
 | **Treasury** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e`, also the Diamond's owner |
 | **x402 payment receiver (EVM)** | `0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b`, the Diamond itself, for Ethereum Sepolia payments |
+| **x402 payment receiver (Base Sepolia)** | `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e`, the Treasury wallet. These payments are not on the Diamond's books. |
 
 > **Every call goes to the Diamond.** Escrow, jobs, miner and adapter registration, intents and rewards are all functions on the one Diamond address above. If a call reverts with an unknown selector, you are pointing at an old address.
 
@@ -99,7 +100,7 @@ A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has
 |---|---|
 | **HTTP API** | `https://devnode.telegraphprotocol.com` |
 | **WebSocket** | `wss://devnode.telegraphprotocol.com/engine/ws` |
-| **x402 Facilitator** | `https://facilitator.x402.rs` |
+| **x402 Facilitator** | `https://x402.org/facilitator` (since 19 Nov 2026; `https://facilitator.x402.rs` before) |
 
 Engine and Daemon are the same node, reached via `/engine` and `/daemon` path prefixes on the HTTP API base above (e.g. `https://devnode.telegraphprotocol.com/engine/v1/ask`) — not separate services.
 
