@@ -394,7 +394,7 @@ The whole call from the command line:
 ```bash
 export DIAMOND=0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b
 export RPC=https://ethereum-sepolia-rpc.publicnode.com
-export MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
+export USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
 export AUTHOR_PRIVATE_KEY=0x...   # the wallet that will own the registration
 export WASM_URL="ipfs://bafkrei..."
 
@@ -410,9 +410,8 @@ export WASM_FEE_ADDRESS=0xYourPayoutAddress
 # Your hosted, runnable endpoint (see "The runnable endpoint" below).
 export WASM_RUNNABLE_URL="https://your-host.example/runnable"
 
-# Let the Diamond take the $5 bond in MACHINA (20 MACHINA is plenty; only the
-# bond at the pool price is taken).
-cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 20000000000000000000 \
+# Let the Diamond take the $5 bond in test USDC (6 decimals: 5000000 = 5 USDC).
+cast send "$USDC" "approve(address,uint256)" "$DIAMOND" 5000000 \
   --rpc-url "$RPC" --private-key "$AUTHOR_PRIVATE_KEY"
 
 # Dry run (free): returns the registrationId you would get, or the revert reason.
@@ -448,11 +447,11 @@ Hash the bytes you are actually going to serve, not a local copy you might edit
 afterwards. The safest order is: upload, then `curl` it back down and hash
 *that*.
 
-Registering posts a **$5 bond in MACHINA** (at the pool price; read it with
-`entityBonds()`), plus gas. To get MACHINA, see
+Registering posts a **$5 bond in test USDC** (at face value; read it with
+`entityBonds()`), plus gas. To get test USDC, see
 [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens). The bond is returned in full when you deregister and
 is never slashed. Approve the Diamond for it first, as above, or the call reverts
-with `ERC20InsufficientAllowance`. The Diamond's address is on the
+with `ERC20: insufficient allowance` (or `ERC20: transfer amount exceeds balance` if the wallet holds less than 5 USDC). The Diamond's address is on the
 [Addresses & Parameters](../protocol/addresses-and-params.md) page.
 
 ### The runnable endpoint
@@ -887,7 +886,7 @@ you're bringing back, gets its own fresh registration ID.
 
 ### What it costs
 
-A $5 bond in MACHINA plus gas to register; gas to deregister. Deregistering
+A $5 bond in test USDC plus gas to register; gas to deregister. Deregistering
 releases the bond in full; withdraw it after 2 days with `withdrawMinerBond()`.
 Nothing is ever slashed.
 

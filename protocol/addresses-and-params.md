@@ -19,7 +19,7 @@ These are the live contract addresses on Ethereum Sepolia as verified on-chain.
 
 > **New Diamond, 17 November 2026.** It replaces `0x3624EB012B5E998BB57B6bE6C9Cfc9c4bc5eb99b`, which is retired. No node watches the old Diamond, so a registration (miner, adapter or intent) sent there is never seen or scored. It uses the same test USDC. Balances on the old Diamond do not carry over: deposit again on the new one.
 
-> **MACHINA on this Diamond.** It has no MACHINA token set (`machinaToken()` returns the zero address) and its bonds are paid in USDC, so the MACHINA token, pool and EmissionMinter rows are removed from the table. The MACHINA bond figures on other pages are from the previous Diamond and are not updated yet.
+> **MACHINA on this Diamond.** It has no MACHINA token set (`machinaToken()` returns the zero address) and its bonds (miner, adapter and intent proposal) are paid in test USDC at face value, so the MACHINA token, pool and EmissionMinter rows are removed from the table.
 
 > The Diamond is where x402 payments land. You don't need to hardcode it: every
 > `402` response carries the address to pay in `accepts[].payTo`, and that is
@@ -67,16 +67,18 @@ cast call $DIAMOND "entityBonds()(uint64,uint64,uint256,uint256)" --rpc-url $RPC
 # 1000000 [1e6]      contributor bond in USDC base units ($1)
 ```
 
-The miner bond, in USD with 6 decimals. On this Diamond no miner bond is set yet:
+The miner bond, in USD with 6 decimals, paid in test USDC at face value. It has been set since 17 November 2026 (it was 0 before):
 
 ```bash
 cast call $DIAMOND "minerBondParams()(uint256,uint256,uint256,uint256,uint256)" --rpc-url $RPC
-# 0                  first intent
-# 0                  each further intent, up to the count below
-# 0                  each intent after that
+# 1000000 [1e6]      first intent ($1)
+# 100000 [1e5]       each further intent, up to the count below ($0.10)
+# 70000 [7e4]        each intent after that ($0.07)
 # 9                  the count where the second rate ends
 # 172800 [1.728e5]   withdrawal delay in seconds (2 days)
 ```
+
+A miner has one bond for all its registrations. A registration or update takes only what that bond is short of: `quoteMinerBond(n)` prices `n` intents, and `minerBondOf(address)` shows the intents, USD and USDC a miner's bond holds. See [What the bond costs](../miners/miner-registration.md#what-the-bond-costs).
 
 A released bond is withdrawn with `withdrawMinerBond()` once its 2-day delay has passed; `releasedMinerBond(address)` shows the amount and when it unlocks.
 
@@ -177,13 +179,13 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 
 | Parameter | Value |
 |---|---|
-| Registration bond | $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each — paid in MACHINA at the pool price (`minerBondParams()`) |
+| Registration bond | $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, across all of a miner's registrations. Paid in test USDC at face value (`minerBondParams()`, `quoteMinerBond(n)`) |
 | Grace period duration | 7 days |
 | Grace period routing share | 5% flat (shared among all grace-period miners) |
 | Miner routing (genesis) | 70% top / 20% second / 10% third |
 | Deregistration | Immediate; the bond is released and can be withdrawn after 2 days (`withdrawMinerBond()`) |
-| Evaluator adapter registration bond | $5 in MACHINA at the pool price (`entityBonds()`); returned in full on deregistration, never slashed |
-| Intent proposal bond | $1 in MACHINA (`intentProposalParams()`); returned when the proposal is approved or rejected |
+| Evaluator adapter registration bond | $5 in test USDC (`entityBonds()`); returned in full on deregistration, never slashed |
+| Intent proposal bond | $1 in test USDC (`intentProposalParams()`); returned when the proposal is approved or rejected |
 
 ### Demand Multiplier Tiers
 

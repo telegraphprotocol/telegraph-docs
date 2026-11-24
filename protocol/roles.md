@@ -45,7 +45,7 @@ Miners earn MACHINA, but not from protocol emissions. The earning path is:
 The amount a miner earns per request depends on their declared floor price and the demand multiplier active for that Intent.
 
 **Requirements:**
-- A small bond in MACHINA: $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, at the pool price. It is returned when you deregister.
+- A small bond in test USDC: $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, across all your registrations. It is returned when you deregister.
 - A hosted YAML configuration describing your capabilities.
 - An operational API endpoint compatible with the declared Intents.
 - A fee address (EVM wallet) to receive MACHINA payouts.
@@ -84,7 +84,7 @@ Evaluators build the layer that scores miners. Adapter authors build the evaluat
 
 **What adapter authors do:**
 - Build an Evaluator adapter for a judgment or hybrid Intent: a model adapter exported as a safetensors delta for the shared Foundation Model (see [Train an Evaluator Adapter](../scoring/train-a-scoring-adapter.md)). Deterministic Intents are scored by the node's built-in checker and take no adapter. Comparator modules are no longer accepted. Check an Intent's class with `GET /engine/v1/intents/<intent>`.
-- Register the adapter on-chain with `registerWasm`, on the intent's family (prefix), with a $5 bond in MACHINA that is returned in full when it is deregistered.
+- Register the adapter on-chain with `registerWasm`, on the intent's family (prefix), with a $5 bond in test USDC that is returned in full when it is deregistered.
 - A judgment or hybrid script competes with the current Canonical on a hidden sample from the Evaluation Pool. It becomes the new Canonical only if it beats the Canonical's win rate by the replacement margin and clears the minimum win rate. See [Build an Evaluator Adapter](../scoring/build-a-scoring-module.md).
 
 **What material contributors do:**
@@ -94,7 +94,7 @@ Evaluators build the layer that scores miners. Adapter authors build the evaluat
 Evaluators earn **50% of daily MACHINA emissions**, split per intent: 30% to the Canonical adapter that ranks it, 70% to the contributors whose material it used.
 
 **Requirements:**
-- A $5 MACHINA bond per adapter registration (uploading material needs only a signature).
+- A $5 test USDC bond per adapter registration (uploading material needs only a signature).
 - A delta package for the validators' Foundation Model, which runs within the protocol sandbox (no filesystem access, no network).
 - A hosted runnable endpoint (`wasmRunnableUrl`) that runs the registered module; the node checks a candidate there before downloading it.
 

@@ -76,7 +76,7 @@ parent family (the prefix).
   executor ([Step 5](#step-5-host-the-file-and-run-the-executor)). It must stay up
   until your registration is decided. A laptop behind a home router is not enough on
   its own: the node refuses private and loopback addresses.
-- **About 5.3 MACHINA** for the $5 adapter bond, and a little Sepolia ETH. See
+- **5 test USDC** for the $5 adapter bond, and a little Sepolia ETH. See
   [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
 - **Evaluation material from at least 5 contributors** for your intent, or your
   registration waits. Check `GET /api/evalpool/status?intent_id=<INTENT>`
@@ -274,7 +274,7 @@ competition still decide.
 ## Step 6: Register and compete
 
 1. Register with `registerWasm(keccak256, url, prefix, feeAddress, runnableUrl)` and the
-   $5 adapter bond in MACHINA. See
+   $5 adapter bond in test USDC. See
    [Registering directly](build-a-scoring-module.md#registering-directly).
 2. The node checks it, in this order:
    1. **Remote check.** After the next confirmed epoch, and once the intent has public

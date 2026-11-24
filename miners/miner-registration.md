@@ -29,7 +29,7 @@ The rest of this page covers doing the same thing by hand with `cast`.
 2. **The intents you will serve.** These must be canonical **intents** such as `FX_NOW_EUR`, never prefixes such as `FX_NOW`. See [Pick your intents](#step-1-pick-your-intents).
 3. **A hosted YAML.** Publicly reachable at a stable URL. IPFS is strongly recommended; HTTPS is also acceptable.
 4. **A small amount of Sepolia ETH**, for gas on the registration transaction.
-5. **A little MACHINA for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in MACHINA at the pool price. It is returned when you deregister. To get MACHINA (and test USDC), see [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
+5. **A little test USDC for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in test USDC at face value (1 USDC per $1). A miner has one bond for all its registrations, priced on their intents together, so each registration or update pays only what that bond is short of (see [What the bond costs](#what-the-bond-costs)). It is returned when you deregister. To get test USDC, see [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
 6. **A fee address.** The EVM wallet where your MACHINA payouts go. It can be the registering wallet or a separate cold address.
 7. **`cast` (Foundry).** Install at [getfoundry.sh](https://getfoundry.sh).
 
@@ -83,16 +83,17 @@ IPFS: `ipfs://bafkreig5nxc...`  HTTPS: `https://your-host.com/miner.yaml`
 ```bash
 export DIAMOND="0x72a70e949362670Bf8bceAd24eFC5b8f950aa08b"
 export RPC="https://ethereum-sepolia-rpc.publicnode.com"
-export MACHINA="0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4"
+export USDC="0xcc194e1a843B658526D0D5C431f670028582Ae17"
 export YAML_URL="ipfs://bafkreig5nxc..."
 export YAML_HASH="0x$(sha256sum my-miner.yaml | awk '{print $1}')"
 export FEE_ADDRESS="0xYourFeeAddress"
 export MIN_PRICE=10000          # 0.01 USDC in 6-decimal units (minimum allowed)
 export MINER_PRIVATE_KEY="0x..."
 
-# 1. Let the Diamond take the bond (10 MACHINA is plenty for a few intents; the
-#    exact amount is the USD bond at the pool price, and only that is taken).
-cast send "$MACHINA" "approve(address,uint256)" "$DIAMOND" 10000000000000000000 \
+# 1. Let the Diamond take the bond in test USDC (6 decimals). 5 USDC covers a first
+#    registration of up to 54 intents; only what your bond is short of is taken.
+#    To approve the exact amount, work it out first (see "What the bond costs").
+cast send "$USDC" "approve(address,uint256)" "$DIAMOND" 5000000 \
   --rpc-url "$RPC" --private-key "$MINER_PRIVATE_KEY"
 
 # 2. Dry run (free): the same call with `cast call` returns the registrationId
@@ -120,6 +121,27 @@ The addresses above are the Ethereum Sepolia testnet deployment. The current add
 | `feeAddress` | EVM address for MACHINA payouts (must be non-zero) |
 | `minPriceUsdc` | Floor price in 6-decimal USDC (minimum: `10000` = $0.01). Changeable later via `updateMiner`. |
 | `supportedIntents` | JSON array of at least one canonical **intent** |
+
+### What the bond costs
+
+A miner has **one bond for all its registrations**, priced on the intents they declare together: $1 for the first, $0.10 each up to 9, then $0.07 each. A registration or an update takes only what that bond is short of, in test USDC from the sending wallet. A change that needs less releases the extra.
+
+- **A new registration** of `n` intents takes `quoteMinerBond(intents + n)` minus the USD your bond already covers.
+- **An update** first takes the replaced registration's intents out, then adds the new list. Keeping the same intents costs nothing if your bond already covers them.
+
+Read both numbers from the Diamond (USD in 6 decimals; the USDC taken is the same number):
+
+```bash
+export ME=$(cast wallet address --private-key "$MINER_PRIVATE_KEY")
+# Intents your bond covers, the USD it covers, and the USDC it holds.
+cast call "$DIAMOND" "minerBondOf(address)(uint256,uint256,uint256)" "$ME" --rpc-url "$RPC"
+# The bond for a number of intents (here 37 = the 35 you have + 2 new): USD, USDC.
+cast call "$DIAMOND" "quoteMinerBond(uint256)(uint256,uint256)" 37 --rpc-url "$RPC"
+```
+
+The second number minus the USD your bond covers is what the transaction takes. Your wallet must hold that much test USDC, and have approved the Diamond for it.
+
+> **Registered before 17 November 2026?** The bond was $0 until then, so your bond may cover your intents but hold nothing. Your **first update** after that date pays the bond for all your intents, even if the list is unchanged. For example, 35 intents cost 3.62 USDC. If the wallet holds less, the update reverts with `ERC20: transfer amount exceeds balance`.
 
 ### When registration opens
 
@@ -274,6 +296,7 @@ cast send "$DIAMOND" \
 
 What happens:
 - The old registration ends and a new one is created, so you get a **new `registrationId`**.
+- The bond moves with it. More intents take only the difference in test USDC, and fewer release the extra. If your bond holds less than your intents now cost (for example, you registered before the bond existed), the update takes the shortfall. Approve the Diamond for it first. See [What the bond costs](#what-the-bond-costs).
 - The same intent rule applies. If any intent in the new list is not canonical, or is a prefix, the whole update reverts and your original registration is untouched.
 - Only the address that registered a miner can update or deregister it. There is no admin override.
 
@@ -350,8 +373,8 @@ cast send "$DIAMOND" "withdrawMinerBond()" --rpc-url "$RPC" --private-key "$MINE
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `ERC20InsufficientAllowance` or `ERC20InsufficientBalance` | The Diamond could not take the MACHINA bond | Hold enough MACHINA and `approve` the Diamond first (Step 4) |
-| A bare `execution reverted` whose `data` starts `0xfb8f41b2` (or `0xe450d38c`) | The same two errors, which `cast` does not name | `cast decode-error <data>` prints `ERC20InsufficientAllowance` (or `ERC20InsufficientBalance`). Approve or top up MACHINA |
+| `ERC20: transfer amount exceeds balance` | The wallet holds less test USDC than the bond takes. This happens on an update too, when the bond holds less than your intents cost | Work out the amount ([What the bond costs](#what-the-bond-costs)), top up test USDC, and send again |
+| `ERC20: insufficient allowance` | The Diamond is approved for less than the bond takes | `approve` the Diamond for at least that amount in test USDC (Step 4) |
 | `MinerRegistryFacet: unsupported intent` | One of your intents isn't canonical | Check each with `isCanonicalIntent(string)` |
 | `MinerRegistryFacet: a prefix is not an intent` | You listed a family such as `FX_NOW` | List the intent, for example `FX_NOW_EUR` |
 | `registration opens when the migration closes` | The network is mid-migration | Existing miners were imported. New registrations open when the admin closes the migration |

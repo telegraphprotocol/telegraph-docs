@@ -42,7 +42,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | Before | Now | Details |
 |---|---|---|
 | You listed canonical intents such as `WEATHER_FORECAST`. | You list **intents**, never family prefixes. `WEATHER_FORECAST` is a prefix. List `WEATHER_FORECAST_LAHORE`, or a `_GENERAL` intent. | [Intents](using/intents.md#prefixes-and-intents) |
-| Registration cost gas only. | A small **bond in MACHINA**: $1 for the first intent, $0.10 each up to 9, then $0.07. Approve the Diamond first. It is returned when you deregister (withdraw after 2 days). | [Registering as a Miner](miners/miner-registration.md#step-4-register-on-chain) |
+| Registration cost gas only. | A small **bond in test USDC**: $1 for the first intent, $0.10 each up to 9, then $0.07, across all your registrations. Approve the Diamond first. An update takes only what your bond is short of. It is returned when you deregister (withdraw after 2 days). | [Registering as a Miner](miners/miner-registration.md#step-4-register-on-chain) |
 | To change anything you deregistered and registered again. | `updateMiner` (and the relayed `updateMinerFor`) changes your YAML, price, address or intents in one transaction. | [Updating your miner](miners/miner-registration.md#updating-your-miner) |
 | The node's model read your whole answer. | You may declare an **`intent_mapping`**: paths and formulas that read each field exactly. | [Intent mapping](miners/yaml-config.md#intent-mapping-optional) |
 | Jobs used your `on_chain.request` and `on_chain.fields` blocks. | Jobs no longer read them. The node builds your request from the Intent's inputs and reads your answer into the Intent's processed answer. | [YAML](miners/yaml-config.md#on-chain-jobs-and-the-onchain-block) |
@@ -51,11 +51,11 @@ This page lists what changed between the earlier release and V2, grouped by who 
 
 | Before | Now | Details |
 |---|---|---|
-| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent with a $1 MACHINA bond (returned); the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent). Not part of a bounty: bounties use only [Intents that already exist](bounties/rules-and-rewards.md#only-intents-that-already-exist). |
+| A flat list of 108 intents set at genesis, changed by the admin. | **Prefixes** (families) and **intents** under them. Anyone can **propose** an intent with a $1 test USDC bond (returned); the admin approves it. A deterministic or hybrid intent carries an on-chain spec. | [Proposing a new intent](using/intents.md#proposing-a-new-intent). Not part of a bounty: bounties use only [Intents that already exist](bounties/rules-and-rewards.md#only-intents-that-already-exist). |
 
 ## If you write scoring adapters or contribute data
 
 | Before | Now | Details |
 |---|---|---|
 | MiniLM `rank_answer` modules, then Q32.32 packages, then full-model float `.wasm` adapters. | **Evaluator adapters as safetensors deltas** (a few MB of LoRA deltas and a reward head) on the validators' **shared Foundation Model**. Every older format is refused (a full-model `.wasm` with `legacy_full_model`). | [Upgrading to the Shared Foundation Model](scoring/upgrade-shared-foundation.md) |
-| `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)` with a **$5 MACHINA bond** (returned on deregistration). You register on a **prefix** (a family) and supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |
+| `registerWasm(hash, url, intent, feeAddress)`, gas only. | `registerWasm(hash, url, prefix, feeAddress, runnableUrl)` with a **$5 test USDC bond** (returned on deregistration). You register on a **prefix** (a family) and supply a **runnable endpoint** the node checks first. | [Registering directly](scoring/build-a-scoring-module.md#registering-directly) |

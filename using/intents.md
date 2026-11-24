@@ -362,15 +362,15 @@ Anyone can propose an intent under an existing prefix. The admin approves it
 
 ### Propose
 
-A proposal posts a **$1 bond in MACHINA** (at the pool price; read it with
+A proposal posts a **$1 bond in test USDC** (at face value; read it with
 `intentProposalParams()`). It is released when the proposal is approved,
 rejected or withdrawn; withdraw it to your wallet 2 days later with
-`withdrawMinerBond()`. Need MACHINA? See
-[Getting MACHINA](../protocol/addresses-and-params.md#getting-test-tokens). Approve the Diamond for it first:
+`withdrawMinerBond()`. Need test USDC? See
+[Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens). Approve the Diamond for it first:
 
 ```bash
-MACHINA=0xd68305cA83C7AF42A4F720144E7416fB53F8AaF4
-cast send $MACHINA "approve(address,uint256)" $DIAMOND 5000000000000000000 \
+USDC=0xcc194e1a843B658526D0D5C431f670028582Ae17
+cast send $USDC "approve(address,uint256)" $DIAMOND 1000000 \
   --rpc-url $RPC --private-key $KEY
 
 cast send $DIAMOND \
@@ -412,7 +412,7 @@ block, so it sees the approval about 10 to 15 minutes after the transaction.
 | `IntentCatalog: a hybrid intent needs fusion` / `fusion is for hybrid intents` | `fusion` missing for hybrid, or given for deterministic |
 | `IntentCatalog: proposed by someone else` | You tried to edit another address's proposal |
 | `MinerRegistryFacet: empty description` | The description is empty |
-| `ERC20InsufficientAllowance` / `ERC20InsufficientBalance` | The Diamond could not take the $1 MACHINA bond. Hold enough MACHINA and `approve` the Diamond first |
+| `ERC20: insufficient allowance` / `ERC20: transfer amount exceeds balance` | The Diamond could not take the $1 test USDC bond. Hold at least 1 test USDC and `approve` the Diamond first |
 
 ## After your intent is approved
 

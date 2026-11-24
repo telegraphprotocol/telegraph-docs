@@ -66,7 +66,7 @@ structural validation failed: legacy_full_model: full-model float adapters are n
    package.
 5. **Register again** with `registerWasm(keccak256, url, prefix, feeAddress,
    runnableUrl)`: a new hash, the same intent prefix as before, and a new adapter bond
-   ($5 in MACHINA). The old registration keeps its bond until you deregister it
+   ($5 in test USDC). The old registration keeps its bond until you deregister it
    (`deregisterEntity(registrationId, 2)`), which releases it in full.
 
 **By when.** Now. Until a delta adapter is Active, the intent is not ranked by a model.
