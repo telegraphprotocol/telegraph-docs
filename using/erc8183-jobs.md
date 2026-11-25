@@ -263,7 +263,7 @@ the value with `cast call $CALLBACK "tempE6(uint256)(int256)" $JOB_ID --rpc-url 
 Things that are true of how you are called:
 
 - **Your revert is swallowed.** The protocol calls you inside `try ... catch`. If your callback reverts or runs out of gas, the job **still** settles (resolved or failed) and there is no retry.
-- **You get a gas stipend.** The Diamond forwards `protocolParams().jobCallbackGas` (1,000,000 on the testnet; at most 2,000,000). The node sizes the resolving transaction from its gas estimate so the stipend is never starved. A callback that copies large arrays into storage can still exceed it, in which case your contract is simply not told. **Keep the callback to a few cheap writes** and do anything expensive in a transaction you send yourself.
+- **You get a gas stipend.** The Diamond forwards `protocolParams().jobCallbackGas` (300,000 on the testnet). It is an owner-set protocol parameter (at most 2,000,000): read it as the 4th value of `protocolParams()`. The node sizes the resolving transaction from its gas estimate so the stipend is never starved. A callback that copies large arrays into storage can still exceed it, in which case your contract is simply not told. **Keep the callback to a few cheap writes** and do anything expensive in a transaction you send yourself.
 - **A callback with no code is skipped**, not reverted.
 
 A dapp that pays for its user: because the **dapp** is the agent, a refund lands in the **dapp's** escrow, not the user's. The dapp must send it on to its user.

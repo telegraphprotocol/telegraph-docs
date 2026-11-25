@@ -207,7 +207,7 @@ For **x402 pay-per-call inference**, the charged price is `min_price_usdc × mul
 |---|---|
 | Job base price | 1 USDC (`getJobBasePrice()`), times the demand multiplier |
 | Protocol fee | 2% of the job price |
-| Callback gas | 1,000,000 gas for your callback contract |
+| Callback gas | 300,000 gas for your callback contract. An owner-set protocol parameter: `jobCallbackGas`, the 4th value of `protocolParams()` |
 | Cancel | After 1 hour, if no answer arrived (`cancelJob`); the price minus the fee is refunded |
 
 ### Gas & Escrow

@@ -35,7 +35,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | `intentId` could be a miner's registration id. | `intentId` must be `keccak256` of a canonical **Intent** name. Use `createJobForMiner` to prefer a miner. | [Step 2](using/erc8183-jobs.md#step-2-find-the-intent-id-and-its-layout) |
 | A failed miner call left the job `Funded` until you cancelled. The callback never fired. | The validator quorum **fails** the job: refund at once, `JobFailed` event, and your callback gets `success = false` with the reason. | [When a job fails](using/erc8183-jobs.md#when-a-job-fails) |
 | `JobCreated` had four fields. | `JobCreated` carries the request (`miner` and `params`). | [Step 3](using/erc8183-jobs.md#step-3-create-the-job) |
-| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, 1,000,000 on the testnet). | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
+| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, 300,000 on the testnet). The owner sets it; read it from `protocolParams()`. | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
 
 ## If you run a miner
 
