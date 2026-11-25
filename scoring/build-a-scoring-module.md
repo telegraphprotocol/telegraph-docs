@@ -378,7 +378,7 @@ registerWasm(bytes32 wasmHash, string wasmUrl, string intent, address feeAddress
   endpoint *before* it downloads the file, so a module that would fail costs one
   or two batch requests instead of a download, a Stage 1 pass and a competition
   round. See [The runnable endpoint](#the-runnable-endpoint).
-- **`feeAddress`** — your MACHINA payout address. Must be non-zero, or the call
+- **`feeAddress`** — your USDC payout address. Must be non-zero, or the call
   reverts with `zero fee address`. This is the same field miners and collectors
   have always had. It is deliberately a separate argument rather than being
   taken from the sending wallet: the key you register with is a hot key, and the
@@ -403,7 +403,7 @@ export WASM_URL="ipfs://bafkrei..."
 # you get a wrong hash with no error.
 export WASM_HASH=$(cast keccak "0x$(xxd -p -c 0 my_module.wasm)")
 
-# Where your MACHINA earnings are paid. Can be a cold wallet -- it never has to
+# Where your USDC earnings are paid. Can be a cold wallet -- it never has to
 # sign or hold gas.
 export WASM_FEE_ADDRESS=0xYourPayoutAddress
 

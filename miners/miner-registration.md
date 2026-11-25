@@ -30,7 +30,7 @@ The rest of this page covers doing the same thing by hand with `cast`.
 3. **A hosted YAML.** Publicly reachable at a stable URL. IPFS is strongly recommended; HTTPS is also acceptable.
 4. **A small amount of Sepolia ETH**, for gas on the registration transaction.
 5. **A little test USDC for the bond.** $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, paid in test USDC at face value (1 USDC per $1). A miner has one bond for all its registrations, priced on their intents together, so each registration or update pays only what that bond is short of (see [What the bond costs](#what-the-bond-costs)). It is returned when you deregister. To get test USDC, see [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
-6. **A fee address.** The EVM wallet where your MACHINA payouts go. It can be the registering wallet or a separate cold address.
+6. **A fee address.** The EVM wallet where your USDC payouts go. It can be the registering wallet or a separate cold address.
 7. **`cast` (Foundry).** Install at [getfoundry.sh](https://getfoundry.sh).
 
 ## Step 1: Pick your intents
@@ -118,7 +118,7 @@ The addresses above are the Ethereum Sepolia testnet deployment. The current add
 |---|---|
 | `yamlUrl` | IPFS or HTTPS URL where your YAML is hosted |
 | `yamlHash` | SHA-256 of the raw YAML bytes, prefixed with `0x` |
-| `feeAddress` | EVM address for MACHINA payouts (must be non-zero) |
+| `feeAddress` | EVM address for USDC payouts (must be non-zero) |
 | `minPriceUsdc` | Floor price in 6-decimal USDC (minimum: `10000` = $0.01). Changeable later via `updateMiner`. |
 | `supportedIntents` | JSON array of at least one canonical **intent** |
 
