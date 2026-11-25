@@ -31,7 +31,7 @@ Your contract → createJob*() → [JobCreated event, carries the request]
                                           ↓
        transitionToTerminal()  or  failJob()   called on-chain
                                           ↓
-   resolved: 98% USDC → TWAP → MACHINA → miner, 2% USDC → Treasury, callback gets the answer
+   resolved: the price joins the epoch's USDC split (40% miners), callback gets the answer
    failed:   agent refunded at once into its escrow, callback gets ok = false
 ```
 
@@ -281,8 +281,8 @@ What the node does after `JobCreated`:
 5. Calls `transitionToTerminal`.
 
 After `transitionToTerminal`:
-- The protocol fee goes to the Treasury.
-- The miner payment is swapped USDC to MACHINA and sent to the miner.
+- The price is held for the next ledger root's split: 40% miners, 40% evaluators, 20% validator. No fee is taken (`fee` is 0).
+- The miner claims its share in USDC with `claimMinerEntitlement`.
 - `JobTerminal(jobId, fee, minerPaid)` is emitted and your callback runs.
 
 Read the node's record of the job (the raw miner answer, and which format the answer reached the chain in):

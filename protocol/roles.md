@@ -28,7 +28,7 @@ An Agent is anything that consumes intelligence from the Telegraph network — a
 
 ## Miner
 
-Miners supply compute. They expose an AI capability — a model, a Bittensor subnet, an API — through Telegraph's standardized YAML interface, register on-chain, and earn MACHINA whenever their responses are used.
+Miners supply compute. They expose an AI capability — a model, a Bittensor subnet, an API — through Telegraph's standardized YAML interface, register on-chain, and earn USDC whenever their responses are used.
 
 **What Miners do:**
 - Declare one or more Intents they can fulfill, along with their API endpoint and minimum price.
@@ -36,11 +36,10 @@ Miners supply compute. They expose an AI capability — a model, a Bittensor sub
 - Compete on quality — their responses are scored by Validators, and higher-scoring miners get more traffic.
 
 **How Miners earn:**
-Miners earn MACHINA, but not from protocol emissions. The earning path is:
+Miners earn USDC from what agents pay. The earning path is:
 1. An agent pays USDC for a request.
-2. 98% of that USDC enters the TWAP Settler.
-3. Over 24 hours, that USDC is used to purchase MACHINA from the open market (Uniswap V3).
-4. The purchased MACHINA is sent to the miner's registered fee address.
+2. When the epoch's ledger root activates, 40% of what was collected goes to miners, split by what each miner served.
+3. The miner claims its USDC with `claimMinerEntitlement`. It is paid to the miner's registered fee address.
 
 The amount a miner earns per request depends on their declared floor price and the demand multiplier active for that Intent.
 
@@ -48,7 +47,7 @@ The amount a miner earns per request depends on their declared floor price and t
 - A small bond in test USDC: $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, across all your registrations. It is returned when you deregister.
 - A hosted YAML configuration describing your capabilities.
 - An operational API endpoint compatible with the declared Intents.
-- A fee address (EVM wallet) to receive MACHINA payouts.
+- A fee address (EVM wallet) to receive USDC payouts.
 
 For the full setup guide, see [Registering as a Miner](../miners/miner-registration.md).
 
@@ -66,7 +65,7 @@ Validators are the protocol's neutral guarantors. They run the scoring engine, v
 - Submit signed epoch state roots on-chain.
 
 **How Validators earn:**
-Validators earn **25% of daily MACHINA emissions**, split among the active Validators. At genesis that is 7,200 × 25% = 1,800 MACHINA a day, about 28 MACHINA per Validator per day with 64 Validators. This halves every 4 years on the same schedule as total emissions.
+The validator share is **20% of what agents pay**, in USDC (`validatorBps` 2000 in `protocolParams()`). The Diamond owes it to the Treasury (`protocolFeesOwed()`).
 
 Validators also earn a small gas reimbursement from the Treasury for each on-chain submission.
 
@@ -91,7 +90,7 @@ Evaluators build the layer that scores miners. Adapter authors build the evaluat
 - Upload evaluation material (question + better answer + worse answer) for an intent, signed with their wallet. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
 
 **How Evaluators earn:**
-Evaluators earn **50% of daily MACHINA emissions**, split per intent: 30% to the Canonical adapter that ranks it, 70% to the contributors whose material it used.
+Evaluators share **40% of what agents pay**, in USDC (`evaluatorBps` 4000). It is split per intent by its paid demand: 15% of the total to the Canonical adapter that ranks it (`adapterBps()` 3750 of the evaluator share), 25% to the contributors whose material it used. A share with no owner goes to the Treasury.
 
 **Requirements:**
 - A $5 test USDC bond per adapter registration (uploading material needs only a signature).
