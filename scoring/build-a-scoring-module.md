@@ -689,11 +689,11 @@ First, the node has to see your transaction. It reads the chain at Sepolia's
 transaction.
 
 An Evaluator adapter is not decided at once. It waits for an epoch to be confirmed after it
-registered (epochs are 1 hour on the testnet), then every check scores real texts
+registered (epochs are 3 hours on the testnet), then every check scores real texts
 on the Foundation Model (up to 30 at your endpoint, the same 30 again on the
 validator, then 60 in the competition round), and it can wait for evaluation
 material with no time limit. On the testnet, the checks after that epoch usually
-take about 5 to 15 minutes, so **plan for up to about an hour and a half from your
+take about 5 to 15 minutes, so **plan for up to about three and a half hours from your
 transaction to `active`**, most of it the wait for the epoch. A rejection is final — which is why it's worth testing first: every
 re-registration is another transaction.
 

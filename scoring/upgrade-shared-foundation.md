@@ -76,10 +76,10 @@ checked as described below.
 **How to check it worked.** `GET /api/wasm/<registrationId>` moves from `pending` to
 `active` (`stage: "canonical"`). It takes a while: the node sees your transaction about
 10 to 15 minutes after it is mined, the registration then waits for the next confirmed
-epoch (1 hour on the testnet), the remote check scores up to 30 texts at your executor
+epoch (3 hours on the testnet), the remote check scores up to 30 texts at your executor
 (about 10-15 s each on a laptop CPU), the validator downloads the package and re-scores
 the same texts, and then the competition round on the hidden split scores 60 more texts.
-On the testnet, plan for up to about an hour and a half from your transaction to Active;
+On the testnet, plan for up to about three and a half hours from your transaction to Active;
 most of it is the wait for the epoch. With no
 incumbent, the first adapter that reaches 70% becomes the first canonical one
 (`decision: "first_canonical"`).

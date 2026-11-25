@@ -147,7 +147,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Reduced consensus threshold (τ_reduced) | 33 / 64 (activates after 3 failed rounds) |
 | Minimum Validator stake | Set in USD, paid in MACHINA at the pool price (`protocolParams()`) |
 | Unbonding period | 21 days |
-| Epoch duration | 24 hours on mainnet; 1 hour on the testnet |
+| Epoch duration | 3 hours on the testnet. The mainnet value will be announced |
 | Commit phase timeout | 45 seconds |
 | Reveal phase timeout | 45 seconds |
 | Leader failover timeout | 90 seconds |
