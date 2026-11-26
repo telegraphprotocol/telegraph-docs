@@ -36,7 +36,7 @@ cast send $DIAMOND "claimMinerEntitlement(uint256,uint256,bytes32[])" \
 not claimed yet. Claim as often as you like.
 
 **Your earnings per request:**
-`Earnings = min_price_usdc × demand_multiplier × 0.40`, in USDC
+`Earnings ≈ min_price_usdc × demand_multiplier × 0.40`, in USDC
 
 ## Signal Pricing
 
@@ -52,7 +52,7 @@ The actual price an agent pays may be higher based on how much demand exists for
 | 100,000 – 999,999 | 5.0× |
 | 1,000,000+ | 10.0× |
 
-A miner charging $0.01 floor handling an Intent with 5,000 daily requests earns $0.015 per call. At 500 requests per day attributable to that miner, agents pay ~$7.50 a day and the miner's 40% is ~$3.00 in USDC.
+A miner charging $0.01 floor handling an Intent with 5,000 daily requests charges $0.015 per call. At 500 requests per day attributable to that miner, agents pay ~$7.50 a day and the miner's 40% is ~$3.00 in USDC.
 
 ## How Routing Works
 

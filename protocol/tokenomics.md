@@ -22,12 +22,12 @@ The emission schedule: `E(t) = 7,200 × 2^(−⌊t/1461⌋)` where `t` is the da
 
 ## Where the USDC Goes
 
-Everything agents pay (x402, escrow charges and completed on-chain jobs) is split on chain when the epoch's ledger root activates:
+What agents are charged (x402, escrow charges and completed on-chain jobs) is split on chain when the epoch's ledger root activates:
 
 | Recipient | Share | Who |
 |---|---|---|
 | Miners | 40% | The miners that served the requests, by what each served |
-| Evaluators | 40% | Per intent, by its paid demand: 15% to the evaluator adapter that ranks it, 25% to the people whose evaluation material it used |
+| Evaluators | 40% | Per intent, by its paid demand: 15% of the total to the evaluator adapter that ranks it, 25% to the people whose evaluation material it used |
 | Validator | 20% | Owed to the Treasury (`protocolFeesOwed()`) |
 
 The owner sets the split in `protocolParams()`: `validatorBps` 2000 and `evaluatorBps` 4000; miners get the rest. `adapterBps()` (3750) is the adapter's part of each intent's evaluator share. A share with no owner, such as an intent with no adapter, goes to the Treasury.
