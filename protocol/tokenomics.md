@@ -30,13 +30,13 @@ What agents are charged (x402, escrow charges and completed on-chain jobs) is sp
 | Evaluators | 40% | Per intent, by its paid demand: 15% of the total to the evaluator adapter that ranks it, 25% to the people whose evaluation material it used |
 | Validator | 20% | Owed to the Treasury (`protocolFeesOwed()`) |
 
-The owner sets the split in `protocolParams()`: `validatorBps` 2000 and `evaluatorBps` 4000; miners get the rest. `adapterBps()` (3750) is the adapter's part of each intent's evaluator share. A share with no owner, such as an intent with no adapter, goes to the Treasury.
+The owner sets the split; read it with `protocolParams()`. A share with no owner, such as an intent with no adapter, goes to the Treasury.
 
 ## How Miners Earn: USDC Entitlements
 
 1. An agent pays the signal price in USDC.
 2. When the epoch's ledger root activates, 40% of what was collected goes to miners, split by what each miner served.
-3. A later epoch's entitlement roots (`entitlementRoots()`) commit each miner's lifetime USDC.
+3. A later epoch commits each miner's lifetime USDC on chain.
 4. The miner claims it with `claimMinerEntitlement`. It is paid in USDC to the miner's payout address (see [Getting paid](../miners/miner-overview.md#getting-paid)). There is no swap.
 
 ## Signal Pricing: Floor + Demand Multiplier

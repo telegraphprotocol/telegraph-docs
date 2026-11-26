@@ -65,7 +65,7 @@ Validators are the protocol's neutral guarantors. They run the scoring engine, v
 - Submit signed epoch state roots on-chain.
 
 **How Validators earn:**
-The validator share is **20% of what agents pay**, in USDC (`validatorBps` 2000 in `protocolParams()`). The Diamond owes it to the Treasury (`protocolFeesOwed()`).
+The validator share is **20% of what agents pay**, in USDC. The Diamond owes it to the Treasury (`protocolFeesOwed()`).
 
 Validators also earn a small gas reimbursement from the Treasury for each on-chain submission.
 
@@ -90,7 +90,7 @@ Evaluators build the layer that scores miners. Adapter authors build the evaluat
 - Upload evaluation material (question + better answer + worse answer) for an intent, signed with their wallet. See [Contribute Evaluation Data](../scoring/contribute-evaluation-data.md).
 
 **How Evaluators earn:**
-Evaluators share **40% of what agents pay**, in USDC (`evaluatorBps` 4000). It is split per intent by its paid demand: 15% of the total to the Canonical adapter that ranks it (`adapterBps()` 3750 of the evaluator share), 25% to the contributors whose material it used. A share with no owner goes to the Treasury.
+Evaluators share **40% of what agents pay**, in USDC. It is split per intent by its paid demand: 15% of the total to the Canonical adapter that ranks it, 25% to the contributors whose material it used. A share with no owner goes to the Treasury.
 
 **Requirements:**
 - A $5 test USDC bond per adapter registration (uploading material needs only a signature).

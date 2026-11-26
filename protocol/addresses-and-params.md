@@ -131,11 +131,11 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Maximum MACHINA supply | 21,000,000 |
 | Genesis daily emission | 7,200 MACHINA |
 | Halving interval | 4 years (1,461 days) |
-| Revenue split (paid USDC) | 40% miners, 40% evaluators, 20% validator (`protocolParams()`: `validatorBps` 2000, `evaluatorBps` 4000; miners get the rest) |
-| Evaluator share per intent | 3750 bps to its adapter (15% of the total, `adapterBps()`), the rest (25%) to its evaluation material |
+| Revenue split (paid USDC) | 40% miners, 40% evaluators, 20% validator. Owner-set protocol parameters, readable with `protocolParams()` |
+| Evaluator share per intent | 15% of the total to its adapter, the other 25% to its evaluation material |
 | Validator share | Owed to the Treasury (`protocolFeesOwed()`) |
 | Protocol fee | None on a paid request. 2% of one call is kept only when a job fails as an invalid request |
-| Miner pay | USDC, claimed with `claimMinerEntitlement` from the entitlement roots (`entitlementRoots()`). No swap |
+| Miner pay | USDC, claimed with `claimMinerEntitlement`. No swap |
 | Minimum signal floor price | 0.01 USDC (10,000 in 6-decimal) |
 
 ### Validator & Consensus
