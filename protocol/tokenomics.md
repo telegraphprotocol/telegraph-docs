@@ -1,10 +1,12 @@
 ---
-description: MACHINA supply, halving schedule, emission distribution, miner earnings via USDC TWAP, and protocol fees.
+description: How the USDC agents pay is split, how miners are paid, signal pricing, fees, and the MACHINA token design.
 ---
 
 # Tokenomics
 
 ## MACHINA: The Protocol Token
+
+> **MACHINA on this Diamond.** The testnet Diamond has no MACHINA token set (`machinaToken()` returns the zero address). All pay and all bonds are in USDC.
 
 MACHINA is the native token of the Telegraph protocol. Its design deliberately mirrors Bitcoin in the most important properties: fixed maximum supply, a halving schedule, and zero pre-mine. There is no team allocation, no investor reserve, and no early-access advantage.
 
@@ -18,31 +20,24 @@ MACHINA is the native token of the Telegraph protocol. Its design deliberately m
 
 The emission schedule: `E(t) = 7,200 × 2^(−⌊t/1461⌋)` where `t` is the day number since genesis. Emissions halve every four years until the maximum supply is reached.
 
-## Where Emissions Go
+## Where the USDC Goes
 
-Daily MACHINA emissions are split three ways:
+What agents are charged (x402, escrow charges and completed on-chain jobs) is split on chain when the epoch's ledger root activates:
 
 | Recipient | Share | Who |
 |---|---|---|
-| Validators | 25% | Active validators |
-| Evaluators | 50% | Split per intent: 30% to the evaluator adapter that ranks it, 70% to the people whose evaluation material it used |
-| Protocol Treasury | 25% | On-chain treasury |
+| Miners | 40% | The miners that served the requests, by what each served |
+| Evaluators | 40% | Per intent, by its paid demand: 15% of the total to the evaluator adapter that ranks it, 25% to the people whose evaluation material it used |
+| Validator | 20% | Owed to the Treasury (`protocolFeesOwed()`) |
 
-**Miners receive zero MACHINA from emissions.** This is intentional. Emissions reward the verification infrastructure (validators) and the quality measurement layer (evaluator adapters and evaluation material). Miner compensation comes entirely from agent demand — keeping miner incentives honest and tied to actual usefulness.
+The owner sets the split; read it with `protocolParams()`. A share with no owner, such as an intent with no adapter, goes to the Treasury.
 
-## How Miners Earn: USDC → MACHINA via TWAP
+## How Miners Earn: USDC Entitlements
 
-When an agent pays for a signal, the USDC flows through a settlement pipeline before reaching the miner:
-
-1. Agent pays the signal price in USDC.
-2. The protocol deducts a **2% fee** (200 basis points) to the Treasury.
-3. The remaining **98%** is queued for the miner.
-4. At the end of each epoch, the settler swaps the queue into MACHINA on the MACHINA/USDC Uniswap V3 pool in batches. Each batch is a share of what is queued, batches are spaced out in time, and no batch may push the price more than a set limit past the pool's recent average price. Small amounts wait for a minimum batch size, but never longer than a maximum wait. The live settings are on the diamond: `twapSettlerConfig()`.
-5. The MACHINA bought is credited to the miner, who claims it to their payout address (see [Getting paid](../miners/miner-overview.md#getting-paid)).
-
-Swapping in spaced, price-limited batches serves two purposes. For miners: it smooths out price volatility. For the protocol: every USDC spent on inference creates persistent buy pressure on MACHINA, directly linking token value to network utility.
-
-Below the minimum batch size, miner pay waits and is swapped together with later epochs' pay, up to the maximum wait.
+1. An agent pays the signal price in USDC.
+2. When the epoch's ledger root activates, 40% of what was collected goes to miners, split by what each miner served.
+3. A later epoch commits each miner's lifetime USDC on chain.
+4. The miner claims it with `claimMinerEntitlement`. It is paid in USDC to the miner's payout address (see [Getting paid](../miners/miner-overview.md#getting-paid)). There is no swap.
 
 ## Signal Pricing: Floor + Demand Multiplier
 
@@ -64,13 +59,9 @@ A miner with a $0.01 floor that handles a popular Intent generating 5,000 reques
 
 ## Protocol Fee
 
-The protocol takes **2% (200 basis points)** of every payment — whether through x402 direct inference, Engine calls, or ERC-8183 jobs. This goes to the Treasury address.
+There is no separate fee on a paid request: the whole payment is split as above, and the validator's 20% is owed to the Treasury. A fee of 2% of one call is kept only when an on-chain job fails as an invalid request (see [On-Chain Jobs](../using/erc8183-jobs.md#when-a-job-fails)).
 
 **Treasury address (testnet):** `0xC0A3FB6d3F1f4B54617d29ffbdA4663Af5F96e2e` — read it live with `cast call $DIAMOND "getTreasury()(address)"`.
-
-## Value Linkage
-
-The flywheel: more agents using the protocol → more USDC flowing into Uniswap to buy MACHINA → higher MACHINA price → stronger incentive for validators to stake more → stronger security → more agent confidence → more usage. Unlike token models where value is extracted, MACHINA accumulates value proportional to cumulative protocol usage.
 
 ## Delegated Staking
 

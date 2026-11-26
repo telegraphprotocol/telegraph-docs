@@ -12,7 +12,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 |---|---|---|
 | Base Sepolia (chain ID 84532). | **Ethereum Sepolia** (chain ID `11155111`), with new contract addresses. Every call still goes to one Diamond. | [Addresses & Parameters](protocol/addresses-and-params.md) |
 | Circle USDC on Base Sepolia; USDC on Solana Devnet. | A **test USDC on Ethereum Sepolia** (`0xcc194e1a843B658526D0D5C431f670028582Ae17`) that anyone can mint with `mint(address,uint256)`, or claim from the [Anjoman faucet](https://anjoman.ai/dashboard/faucet). x402 also takes Circle USDC on **Base Sepolia** and USDC on **Solana Devnet**, paid to a Telegraph wallet; see [Pay with x402](using/x402-inference.md#payment-networks). | [Addresses & Parameters](protocol/addresses-and-params.md) |
-| Emissions: 60% Validators, 20% script authors, 20% Treasury. | **25% Validators, 50% Evaluators, 25% Treasury.** Each intent's Evaluator share goes 30% to its adapter and 70% to the evaluation material it used. | [Tokenomics](protocol/tokenomics.md) |
+| Emissions: 60% Validators, 20% script authors, 20% Treasury. | **Paid in USDC: 40% miners, 40% Evaluators, 20% validator** (owed to the Treasury). Each intent's Evaluator share goes 15% of the total to its adapter and 25% to the evaluation material it used. | [Tokenomics](protocol/tokenomics.md) |
 
 ## If you call the API
 
@@ -35,7 +35,7 @@ This page lists what changed between the earlier release and V2, grouped by who 
 | `intentId` could be a miner's registration id. | `intentId` must be `keccak256` of a canonical **Intent** name. Use `createJobForMiner` to prefer a miner. | [Step 2](using/erc8183-jobs.md#step-2-find-the-intent-id-and-its-layout) |
 | A failed miner call left the job `Funded` until you cancelled. The callback never fired. | The validator quorum **fails** the job: refund at once, `JobFailed` event, and your callback gets `success = false` with the reason. | [When a job fails](using/erc8183-jobs.md#when-a-job-fails) |
 | `JobCreated` had four fields. | `JobCreated` carries the request (`miner` and `params`). | [Step 3](using/erc8183-jobs.md#step-3-create-the-job) |
-| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, 1,000,000 on the testnet). | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
+| The callback got a small gas budget by accident. | A defined stipend (`jobCallbackGas`, 300,000 on the testnet). The owner sets it; read it from `protocolParams()`. | [Step 4](using/erc8183-jobs.md#step-4-implement-the-callback) |
 
 ## If you run a miner
 

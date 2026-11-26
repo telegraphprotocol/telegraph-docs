@@ -4,7 +4,7 @@ description: What miners are, how they earn, how routing works, and what the lea
 
 # What Miners Do
 
-Miners are the supply side of the Telegraph protocol. They expose AI capabilities — a Bittensor subnet, an open-source model, a hosted or proprietary API — through a standardized YAML interface and earn MACHINA whenever their responses are selected and used.
+Miners are the supply side of the Telegraph protocol. They expose AI capabilities — a Bittensor subnet, an open-source model, a hosted or proprietary API — through a standardized YAML interface and earn USDC whenever their responses are selected and used.
 
 Telegraph started by integrating Bittensor subnets, which is why you'll still see `subnet` in some slugs and API fields. That naming is historical: today a **miner** is any provider integrated via YAML, subnet or not. Becoming one doesn't require permission, a whitelist, or a relationship with the Telegraph team. The only stake is a small bond in test USDC ($1 for the first intent), returned when you deregister. Anyone with an AI API can register.
 
@@ -14,17 +14,14 @@ Miners earn exclusively from demand — not from protocol emissions.
 
 When an agent pays to use a miner's capability:
 1. The agent pays the signal price in USDC.
-2. 2% goes to the Protocol Treasury.
-3. The remaining 98% is queued for you.
-4. At the end of each epoch, the settler swaps the queue into MACHINA on the MACHINA/USDC Uniswap V3 pool in batches. Each batch is a share of what is queued, batches are spaced out in time, and no batch may push the price more than a set limit past the pool's recent average price. Small amounts wait for a minimum batch size, but never longer than a maximum wait. The live settings are on the diamond: `twapSettlerConfig()`.
-5. The MACHINA bought is credited to you. You claim it (below); it is paid to your payout address.
-
-Spacing the swaps out and limiting how far each one may move the price protects your pay from short price spikes.
+2. When the epoch's ledger root activates, the payment is split on chain: 40% to miners, 40% to evaluators, 20% to the validator.
+3. The miners' 40% is shared by what each miner served.
+4. You claim your USDC (below); it is paid to your payout address. There is no swap.
 
 ### Getting paid
 
-Your MACHINA is not pushed to you: you claim it. Read what you are owed by your
-registration ID, then claim it. Anyone may send the claim; the MACHINA always goes
+Your USDC is not pushed to you: you claim it. Read what you are owed by your
+registration ID, then claim it. Anyone may send the claim; the USDC always goes
 to your payout address.
 
 ```bash
@@ -39,7 +36,7 @@ cast send $DIAMOND "claimMinerEntitlement(uint256,uint256,bytes32[])" \
 not claimed yet. Claim as often as you like.
 
 **Your earnings per request:**
-`Earnings = min_price_usdc × demand_multiplier × 0.98 → MACHINA at market price`
+`Earnings ≈ min_price_usdc × demand_multiplier × 0.40`, in USDC
 
 ## Signal Pricing
 
@@ -55,7 +52,7 @@ The actual price an agent pays may be higher based on how much demand exists for
 | 100,000 – 999,999 | 5.0× |
 | 1,000,000+ | 10.0× |
 
-A miner charging $0.01 floor handling an Intent with 5,000 daily requests earns $0.015 per call. At 500 requests per day attributable to that miner, daily earnings would be ~$7.50 worth of MACHINA.
+A miner charging $0.01 floor handling an Intent with 5,000 daily requests charges $0.015 per call. At 500 requests per day attributable to that miner, agents pay ~$7.50 a day and the miner's 40% is ~$3.00 in USDC.
 
 ## How Routing Works
 
@@ -98,7 +95,7 @@ A revoked miner cannot receive new traffic until the next epoch tournament re-sc
 | **A small refundable bond** | $1 in test USDC for the first intent ($0.10 each after, $0.07 past 9), returned when you deregister. Gas is the only other cost |
 | **YAML configuration** | A YAML file describing your API, Intents, endpoint mapping, and pricing |
 | **Hosted YAML** | Your YAML must be accessible at a public URL (IPFS recommended) |
-| **Fee address** | An EVM wallet address to receive MACHINA payouts |
+| **Fee address** | An EVM wallet address to receive USDC payouts |
 | **Operational API** | Your endpoint must be live and responding when the protocol routes requests |
 
 ## Current Active Miners (Testnet)

@@ -131,11 +131,11 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Maximum MACHINA supply | 21,000,000 |
 | Genesis daily emission | 7,200 MACHINA |
 | Halving interval | 4 years (1,461 days) |
-| Validator emission share | 25% |
-| Evaluator emission share | 50% (of each intent's share: 30% to its adapter, 70% to its evaluation material) |
-| Treasury emission share | 25% |
-| Protocol fee | 2% (200 basis points) |
-| Miner-pay swaps | In batches on the MACHINA/USDC pool. Live settings from `twapSettlerConfig()`: batch count, interval, price limit, averaging window, minimum batch, maximum wait |
+| Revenue split (paid USDC) | 40% miners, 40% evaluators, 20% validator. Owner-set protocol parameters, readable with `protocolParams()` |
+| Evaluator share per intent | 15% of the total to its adapter, the other 25% to its evaluation material |
+| Validator share | Owed to the Treasury (`protocolFeesOwed()`) |
+| Protocol fee | None on a paid request. 2% of one call is kept only when a job fails as an invalid request |
+| Miner pay | USDC, claimed with `claimMinerEntitlement`. No swap |
 | Minimum signal floor price | 0.01 USDC (10,000 in 6-decimal) |
 
 ### Validator & Consensus
@@ -147,7 +147,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Reduced consensus threshold (τ_reduced) | 33 / 64 (activates after 3 failed rounds) |
 | Minimum Validator stake | Set in USD, paid in MACHINA at the pool price (`protocolParams()`) |
 | Unbonding period | 21 days |
-| Epoch duration | 24 hours on mainnet; 1 hour on the testnet |
+| Epoch duration | 3 hours on the testnet. The mainnet value will be announced |
 | Commit phase timeout | 45 seconds |
 | Reveal phase timeout | 45 seconds |
 | Leader failover timeout | 90 seconds |
@@ -206,9 +206,9 @@ For **x402 pay-per-call inference**, the charged price is `min_price_usdc × mul
 | Parameter | Value |
 |---|---|
 | Job base price | 1 USDC (`getJobBasePrice()`), times the demand multiplier |
-| Protocol fee | 2% of the job price |
-| Callback gas | 1,000,000 gas for your callback contract |
-| Cancel | After 1 hour, if no answer arrived (`cancelJob`); the price minus the fee is refunded |
+| Protocol fee | None on a resolved job: the whole price joins the epoch's revenue split |
+| Callback gas | 300,000 gas for your callback contract. An owner-set protocol parameter: `jobCallbackGas`, the 4th value of `protocolParams()` |
+| Cancel | After 1 hour, if no answer arrived (`cancelJob`); everything the job took is refunded to your escrow |
 
 ### Gas & Escrow
 
