@@ -85,8 +85,32 @@ The endpoint is gated: your first request returns a `402 Payment Required` chall
 | `signal_hash` | The hash the **raw** miner answer was recorded under. Look it up at `GET /engine/v1/signal/{hash}`. Omitted when the ask failed. |
 | `warnings` | Advisory notes, for example your body is larger than the miner declared it accepts. The request still ran. Omitted when empty. |
 | `fulfillment` | Whether the answer fulfils the whole request, who answered what, and what you were billed. See [Multi-miner asks](#multi-miner-asks-max_budget_usdc). Present on routed asks when the node runs its fulfillment check. |
+| `delivery` | Who produced the answer on a routed ask: `specialist` (a miner serving the Intent), `ranked_fallback` (a ranked miner other than the router's first pick) or `last_resort` (no miner answered, so a general model did). See [When no miner answers](#when-no-miner-answers). |
 
 > **Changed in V2.** Before V2, `result` was always the miner's raw output and a separate `parsed` object held any extracted fields. `parsed` is gone; the same information is now `result`. If your code reads the miner's own JSON out of `result`, read the Intent's fields instead, or branch on `result_shape == "raw"`.
+
+### When no miner answers
+
+If no miner can answer a routed ask, the node may still reply `200` with an answer written by a general model instead of returning an error. That reply has the same structure as a miner's, so check `delivery` before you use `result` as evidence:
+
+```json
+{
+  "miner_id": "openai",
+  "miner_name": "openai",
+  "delivery": "last_resort",
+  "result": { "retailer": null, "return_window_days": 30, "conditions": ["30-day return policy for unused items"], "verified": null, "sources": null },
+  "field_status": { "retailer": "rejected", "return_window_days": "ok", "conditions": "ok", "verified": "rejected", "sources": "missing" },
+  "warnings": ["no miner could answer this, so it was answered by a general model"],
+  "cost_usd": 0,
+  "signal_hash": "0x<raw-answer-hash>"
+}
+```
+
+(Excerpt of a real `RETURN_POLICY_VERIFY_GENERAL` reply, 2026-11-27. The store's own policy gives 7 working days, not 30.)
+
+- No miner is paid: `cost_usd` is `0` and there is no payment receipt.
+- `field_status` can still mark fields `ok`. It says the field has the Intent's type, not that a Provider checked it.
+- Treat the answer as a guess. Show it as unverified, retry later, or ask a specific miner with [`POST /engine/v1/ask/{minerId}`](#direct-ask), which has no fallback.
 
 ### Errors before payment
 
