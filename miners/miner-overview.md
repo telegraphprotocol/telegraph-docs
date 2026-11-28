@@ -56,26 +56,17 @@ A miner charging $0.01 floor handling an Intent with 5,000 daily requests charge
 
 ## How Routing Works
 
-Not all miners receive equal traffic. Routing is probabilistic and weighted by leaderboard score:
+Not all miners receive equal traffic. The node uses the eligible published ranking, availability and fallback routing for each intent. A published rank is not a promise of a fixed percentage of requests.
 
-- **Top-ranked miner** receives 70% of routed requests.
-- **Second-ranked** receives 20%.
-- **Third-ranked** receives 10%.
-
-(These weights are governance-adjustable. At genesis they are 70/20/10.)
-
-A miner's leaderboard position is determined by their Canonical Score — the stake-weighted median of all Validator Local Scores from the most recent epoch tournament and ongoing spot checks.
+The node publishes an eligible ranking for each intent from the current evaluation results. Consult the published ranking and routing status for current participation.
 
 **To earn more, perform better.** There is no cap on the number of miners per Intent. The market determines which ones succeed.
 
-## The Grace Period
+## New miners and host updates
 
-For the first 7 days after registration, a miner is in the **grace period**. During this time:
-- The miner doesn't appear on the leaderboard (no score yet).
-- All grace-period miners collectively share 5% of routed requests, distributed equally.
-- This gives every new miner a baseline of traffic to build a track record.
+Registration and updates do not guarantee a grace allocation or reserved traffic share. Activation, scoring eligibility and current routing determine participation.
 
-After 7 days, the miner's score from the grace period is used to rank them on the leaderboard, and they begin competing for the weighted 70/20/10 distribution.
+Updating a miner changes its registration data. On-chain, the old registration is replaced and a new registration ID may be issued; registration age does not provide a ranking advantage or guaranteed traffic.
 
 ## Spot Checks and Revocation
 

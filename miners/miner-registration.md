@@ -272,13 +272,9 @@ Two terminal rejections concern identity rather than schema:
 
 Re-registering your own slug is never a clash. A rejected registration stops holding its slug, so fix and re-submit promptly.
 
-## Step 7: The grace period
+## Step 7: Scoring and routing
 
-For your first 7 days after activation you are in the grace period:
-- You receive a flat share of 5% of all routed traffic for your declared intents, shared equally with other grace-period miners.
-- This builds a quality track record before you compete on the leaderboard.
-
-After 7 days, your grace-period score sets your starting leaderboard position.
+After activation, participation depends on scoring eligibility and current routing. Registration does not guarantee a grace allocation or reserved traffic share.
 
 ## Updating your miner
 
@@ -295,7 +291,7 @@ cast send "$DIAMOND" \
 `updateMinerFor(miner, oldRegistrationId, ..., deadline, signature)` is the relayed twin, signed by `miner`, so a relayer can send it and pay the gas.
 
 What happens:
-- The old registration ends and a new one is created, so you get a **new `registrationId`**.
+- The update changes your miner registration data. On-chain, the old registration is replaced and a new `registrationId` is issued; this does not grant ranking seniority or a guaranteed traffic share.
 - The bond moves with it. More intents take only the difference in test USDC, and fewer release the extra. If your bond holds less than your intents now cost (for example, you registered before the bond existed), the update takes the shortfall. Approve the Diamond for it first. See [What the bond costs](#what-the-bond-costs).
 - The same intent rule applies. If any intent in the new list is not canonical, or is a prefix, the whole update reverts and your original registration is untouched.
 - Only the address that registered a miner can update or deregister it. There is no admin override.
@@ -383,6 +379,6 @@ cast send "$DIAMOND" "withdrawMinerBond()" --rpc-url "$RPC" --private-key "$MINE
 | "Schema validation failed" | Missing required fields in YAML | Check against [YAML Configuration](yaml-config.md) |
 | Not in `/api/miners` | Registration rejected, or the node hasn't seen the event yet (it trails the chain by about 10 to 15 minutes) | `curl -s <node>/api/miners/<registrationId>`. `miner registration not found` means the node has not seen it yet; a `rejected` status means the YAML failed |
 | `MinerRegistryFacet: below min floor` | `minPriceUsdc` is below `10000` ($0.01) | Use `10000` or more |
-| Getting zero traffic after grace period | Low leaderboard score | Improve response quality and consistency |
+| Active but receiving no traffic | Check scoring eligibility, current ranking and routing status | Inspect the intent ranking, failures and latency; activation does not guarantee traffic |
 | Upstream returns 401, or requests fail naming a credential | No API key installed for the slug | See [API keys](#installing-or-rotating-your-api-key). Register first |
 | Registration rejected over slug or `id` | Another wallet holds that identity | See [Identity rejections](#identity-rejections) |

@@ -20,9 +20,9 @@ Miners are compute providers. They expose one or more AI capabilities through a 
 
 A miner may also declare an `intent_mapping`, which tells the node exactly how to build its request for each intent and where each field of the intent's answer sits in its response. Numbers are then computed in code rather than guessed by a model.
 
-Miners are selected for requests based on their **leaderboard score**, a reputation built from how well their past responses scored during validation. Higher-scoring miners receive a proportionally larger share of routed traffic.
+Miners are selected using the eligible published ranking for each intent. Eligibility and routing are determined by the node from the current epoch's evaluation results and availability.
 
-A newly registered miner enters a **7-day grace period** during which it receives 5% of total routed requests, shared equally with all other grace-period miners.
+Registration or update does not guarantee a traffic share. Activation, scoring eligibility and current routing determine participation.
 
 ## From a Request to an Answer
 

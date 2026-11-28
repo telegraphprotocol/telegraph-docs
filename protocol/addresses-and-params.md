@@ -180,9 +180,8 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Parameter | Value |
 |---|---|
 | Registration bond | $1 for the first intent, $0.10 for each further intent up to 9, then $0.07 each, across all of a miner's registrations. Paid in test USDC at face value (`minerBondParams()`, `quoteMinerBond(n)`) |
-| Grace period duration | 7 days |
-| Grace period routing share | 5% flat (shared among all grace-period miners) |
-| Miner routing (genesis) | 70% top / 20% second / 10% third |
+| New-miner grace allocation | No guaranteed grace period or reserved traffic share; activation, eligibility and current routing determine participation |
+| Miner routing | Determined per intent by the eligible ranking, availability and fallback routing; no fixed public percentage is guaranteed |
 | Deregistration | Immediate; the bond is released and can be withdrawn after 2 days (`withdrawMinerBond()`) |
 | Evaluator adapter registration bond | $5 in test USDC (`entityBonds()`); returned in full on deregistration, never slashed |
 | Intent proposal bond | $1 in test USDC (`intentProposalParams()`); returned when the proposal is approved or rejected |
