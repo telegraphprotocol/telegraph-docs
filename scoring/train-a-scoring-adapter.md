@@ -1,65 +1,92 @@
 ---
-description: Train and export a MiniCheck LoRA delta for the pinned shared scoring foundation.
+description: Train, export, validate and serve a 512-token MiniCheck evaluator adapter.
 ---
 
 # Train an Evaluator Adapter
 
-A judgment or hybrid evaluator is a **safetensors LoRA delta package** for the shared MiniCheck-DeBERTa-v3-Large foundation. Submit the trained attention deltas and two-class head. The node supplies the immutable base weights and WASM engine; you do not bake them into your artifact.
+Build one `lora-v2` safetensors delta for the shared MiniCheck foundation. [Supported Scoring Model](current-models.md) lists the released artifacts and compatibility requirements. Use the [participant kit](https://github.com/telegraphprotocol/telegraph-wasm-baseline) for every step below.
 
-See [Current Scoring Models](current-models.md) for the verified deployment and pinned hashes. Beta3 currently accepts inputs up to **512 tokens**. The old ModernBERT training, ONNX merge and `adapterbuild` full-model WASM recipe does not produce a compatible artifact.
+## Prerequisites
+
+Use Linux x86_64 with Python 3.10+, Go 1.25.7+, a C compiler and Git. GPU training is recommended; export and WASM scoring can run on CPU. Allow sufficient RAM for the 435M-parameter foundation, runtime and training state; benchmark your executor before registration. The shared runtime uses CGO and pinned Wasmtime v51, linked by its Go module; a separately installed Wasmtime CLI is not required.
+
+```bash
+git clone https://github.com/telegraphprotocol/telegraph-wasm-baseline.git
+cd telegraph-wasm-baseline
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+go build -o adapterbuild ./cmd/adapterbuild
+go build -o adapterexec ./cmd/adapterexec
+bash scripts/download-foundation.sh
+```
+
+For GPU training, install the appropriate CUDA-enabled PyTorch build for your system. The download script fetches and checks the released manifest, graph, external weights, engine and tokenizer into `foundation/`. Keep those files together.
 
 ## 1. Prepare preference pairs
 
-Collect the task, a better answer and a worse answer for the target intent. Keep evaluation data separate from training data. For a family, include representative children and report held-out results for each child. Use the node's judgment rendering (`### Task:\n{prompt}\n\n### Answer:\n{answer}`) and its pinned MiniCheck tokenizer, including special tokens and truncation behavior. Keep the closing separator when truncating.
+Write `pairs.jsonl`, one object per line:
 
-Do not invent training metrics or infer hidden qualification material. A successful export is a packaging check, not evidence that an adapter improves ranking.
+```json
+{"prompt":"Review this function for correctness: ...", "chosen":"A precise review identifying the actual defect ...", "rejected":"An incorrect or incomplete review ..."}
+```
 
-## 2. Train a compatible checkpoint
+Use representative examples for the target intent or family and separate held-out data. The trainer checks dataset quality, then checks held-out ordering accuracy. Use enough examples to pass those checks; the line above illustrates the format only.
 
-Use `lytang/MiniCheck-DeBERTa-v3-Large` at revision `2f2d01a54fa022a7ffadb76260e1ea8bc88c82bb`. Train plain PEFT LoRA with rank **1–16**, one rank and alpha, on a non-empty subset of:
+## 2. Train
 
-| PEFT target | Package target |
-|---|---|
-| `query_proj` | `attn.query` |
-| `key_proj` | `attn.key` |
-| `value_proj` | `attn.value` |
-| `attention.output.dense` | `attn.out` |
+```bash
+python -m float_runtime.train_adapter \
+  --intent CODE_REVIEW --data pairs.jsonl --out runs/CODE_REVIEW
+```
 
-Save the fully trained two-class `classifier` using `modules_to_save=["classifier"]`. The foundation has 24 layers and hidden size 1024. DoRA, rsLoRA, rank/alpha patterns and other fully trained modules cannot be represented by this exporter and are refused. Do not relabel a ModernBERT checkpoint.
+The base is pinned to `lytang/MiniCheck-DeBERTa-v3-Large` revision `2f2d01a54fa022a7ffadb76260e1ea8bc88c82bb`. Defaults train query/value LoRA at rank 8, alpha 16, and save the two-class `classifier`. Pairwise reward is `logit[1] - logit[0]`. The pinned tokenizer and judgment template match the node. Input length must be 1–512; rank must be 1–16. `--help` lists optimization and data options.
 
-Validate that better answers receive higher `logit[1] - logit[0]` scores on held-out pairs. Record the exact base revision, data versions, training parameters, tokenizer hash and context length. This page does not prescribe an unverified trainer command or promise that the previous public kit has migrated to MiniCheck.
+Training saves the PEFT checkpoint under `runs/CODE_REVIEW/adapter/` and a result record. A local training PASS does not qualify the adapter for network use.
 
-## 3. Export the delta
-
-The node source contains the current exporter at `tools/minicheck/export_adapter.py`. Run it in an environment with PEFT checkpoint files, NumPy, safetensors, and the exact approved `foundation.json`:
+## 3. Export
 
 ```bash
 python tools/minicheck/export_adapter.py \
   --peft runs/CODE_REVIEW/adapter \
-  --manifest artifacts/foundation.json \
-  --class judgment \
-  --intent CODE_REVIEW \
-  --version minicheck-deberta-v3-large \
-  --max-tokens 512 \
-  --out artifacts/CODE_REVIEW.safetensors
+  --manifest foundation/foundation.json \
+  --class judgment --intent CODE_REVIEW --max-tokens 512 \
+  --out runs/CODE_REVIEW/CODE_REVIEW.safetensors
 ```
 
-Use `--class hybrid` only for a hybrid intent. The manifest must match the validator's approved foundation byte for byte. The command writes the LoRA matrices, scoring head and compatibility metadata into one safetensors file. It does not merge the delta into the base model, produce executable WASM, or register the artifact.
+Use the intent's actual class (`judgment` or `hybrid`) and registered family prefix. The exporter accepts plain LoRA attention targets and a saved classifier; unsupported trained weights, DoRA, rsLoRA and rank/alpha patterns are refused. It never merges or includes the base weights.
 
-The exporter is in the node repository. Contributors without access need a maintainer-provided compatible exporter, manifest and runner before this workflow is reproducible; do not fall back to the retired full-model kit instructions.
+## 4. Validate and smoke-score the actual package
 
-## 4. Inspect and test the package
+```bash
+./adapterbuild lora \
+  --intent CODE_REVIEW \
+  --package runs/CODE_REVIEW/CODE_REVIEW.safetensors \
+  --foundation foundation/foundation.json \
+  --score \
+  --engine foundation/foundation_engine.wasm \
+  --engine-hash 7927d9c857e575ac21b3f2a7b6d5b2fa0d1af8f2c8dd68ef75078ff56ef9a5e8
+```
 
-The safetensors `__metadata__` string map contains `format_version="2"`, `abi="lora-v2"`, `class`, `intent`, `foundation_hash`, `foundation_version`, `tokenizer_hash`, `rank`, `alpha`, `target_modules`, and `max_tokens`. Optional `training` carries a self-reported training record.
+Without `--score`, the tool checks structure only. With `--score` and the released engine, the tool loads the real released model and scores twice, requiring identical bits. It prints one JSON object containing the artifact's Ethereum **Keccak-256**, SHA-256 and validation manifest. Register the Keccak-256 of the final safetensors bytes; NIST SHA3-256 is different.
 
-All tensors are F32. For each trained target and layer, A is `[in,rank]` and B is `[rank,out]`; `head.weight` is `[1024,2]` and `head.bias` is `[2]`. The exporter transposes PEFT tensors into this layout. The default package download limit is 64 MiB. The deployed rank-8 query/value GENERIC package is about 3.16 MB; size depends on rank and trained targets.
+## 5. Serve the runnable endpoint
 
-Test the actual exported delta on the exact pinned engine, foundation and tokenizer. Compare its pair ordering and score bits with your training implementation, and benchmark the complete runnable validation batch. Raising `max_tokens` alone does not qualify an adapter or foundation for a longer context.
+```bash
+export FOUNDATION_MODEL_PATH="$PWD/foundation/foundation.json"
+export FOUNDATION_MODEL_HASH=675c4647469e021e184631ad5bf2b68ca518fcdc192100eee439a420a757300c
+export FOUNDATION_MODEL_VERSION=minicheck-deberta-v3-large
+export FOUNDATION_ENGINE_WASM_PATH="$PWD/foundation/foundation_engine.wasm"
+export FOUNDATION_ENGINE_WASM_HASH=7927d9c857e575ac21b3f2a7b6d5b2fa0d1af8f2c8dd68ef75078ff56ef9a5e8
+./adapterexec --package runs/CODE_REVIEW/CODE_REVIEW.safetensors --listen 127.0.0.1:8080
+```
 
-## 5. Host, register and qualify
+The service accepts `POST /runnable` with `{"batch":[{"tokens":[1,100,200,2]}]}` and returns one `score` per item as raw F32 bits. It also reports the actual foundation, adapter and tokenizer identity when requested, and computes the batch input root. Validators supply token IDs; the executor must score those IDs exactly.
 
-Host the immutable `.safetensors` bytes and a compatible batch runnable endpoint. Compute Ethereum **Keccak-256** of the artifact, then use the existing `registerWasm` flow described in [Build an Evaluator Adapter](build-a-scoring-module.md). The URL and hash refer to the safetensors artifact; historical API field names still say WASM.
+Put it behind a public HTTPS reverse proxy and keep it available throughout validation. Test a complete batch on your real hardware. Validators compare its results with their own execution of the downloaded artifact.
 
-The runnable endpoint must use the same foundation, engine, tokenizer and delta, preserve the batch score-bit contract and echo the requested score identity. A legacy `ADAPTER_WASM` runner cannot establish compatibility. Do not register until the runner supports `lora-v2` and has passed a real batch smoke check.
+## 6. Host and register
 
-The node validates the artifact and compares it with the incumbent on hidden evaluation pairs. Passing local training checks, building a file, or registering on-chain does not make it canonical. See [competition on the hidden evaluation pool](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).
+Host the immutable `.safetensors` file at an HTTPS or IPFS URL. Use its Keccak-256, the intent's registered prefix, your fee address and runnable URL in `registerWasm`. Follow the current [registration guide](https://docs.telegraphprotocol.com/docs/scoring/build-a-scoring-module#registering-directly) for network addresses, bond and transaction examples. Deterministic intents take no new model adapter.
+
+Registration is followed by compatibility checks and hidden competition against the incumbent. A successful local build or an on-chain registration does not make an adapter Active.

@@ -430,7 +430,7 @@ hides any other mistake, such as a name that is not a prefix.
 
 An Evaluator adapter (6.8 MB at rank 8) is too large to pass as a shell
 argument, so the `xxd` one-liner above does not work for it. Take the `keccak256`
-that the kit's `adapterbuild lora` prints, or let `cast` read the file from
+that the current [MiniCheck kit](https://github.com/telegraphprotocol/telegraph-wasm-baseline)'s `adapterbuild lora` prints, or let `cast` read the file from
 standard input, which hashes its raw bytes:
 
 ```bash
@@ -459,7 +459,7 @@ the registration after three attempts. For an Evaluator adapter that means your 
 running on the **same Foundation Model file and engine module the validators run**: the
 node later re-scores the same texts itself and rejects any score that differs by a single
 bit, so a different runtime (for example native ONNX Runtime, or a full-model `.wasm`)
-does not pass. Use a runner verified to support the MiniCheck `lora-v2` package and exact engine/foundation pair. Previous adapter-kit runner and ModernBERT RAM measurements do not establish compatibility or capacity. Benchmark the real batch on your executor hardware before registering.
+does not pass. Use the current [MiniCheck kit](https://github.com/telegraphprotocol/telegraph-wasm-baseline) `cmd/adapterexec` with the [512-token release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/minicheck-deberta-v3-large-512-v1). The [training guide](train-a-scoring-adapter.md) includes the complete build, export, validation and executor commands. Benchmark a real batch on your executor hardware before registering.
 
 Run behind a public HTTPS reverse proxy. The node does not follow redirects and refuses blocked internal addresses. Keep the endpoint up until registration leaves `pending`.
 
