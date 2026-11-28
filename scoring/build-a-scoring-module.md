@@ -92,19 +92,16 @@ cases.
 
 An Evaluator adapter is a reward model: it reads a question and a miner's answer and
 returns a score, and a better answer should get a higher score. Every validator runs **one
-shared Foundation Model** (ModernBERT-base with a reward head, loaded once per validator),
+shared Foundation Model** (MiniCheck-DeBERTa-v3-Large with a two-class head, loaded once per validator),
 and your adapter is only what you trained on top of it: a **safetensors delta package**
-holding the LoRA deltas and the reward head, a few MB (6.8 MB at rank 8, 13.5 MB at rank 16). The validator
+holding the LoRA deltas and the reward head, a few MB (about 3.16 MB for the deployed rank-8 query/value delta). The validator
 applies it to the Foundation Model at score time; the base weights never travel with your
 adapter. The hash you register is the package's keccak256.
 
-Answers reach your model as tokens from the network's pinned ModernBERT tokenizer, so
+Answers reach your model as tokens from the network's pinned MiniCheck tokenizer, so
 train on that vocabulary.
 
-The tools to train, export and check one are in the adapter kit,
-[telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
-[Train an Evaluator Adapter](train-a-scoring-adapter.md) walks through them step by step
-and lists the exact package format. Nothing is baked into a `.wasm` any more.
+[Train an Evaluator Adapter](train-a-scoring-adapter.md) describes the current MiniCheck exporter, required checkpoint layout and tooling availability. [Current Scoring Models](current-models.md) lists the pinned identities. A ModernBERT `lora-v1` checkpoint or legacy runner cannot be converted by changing metadata.
 
 > **Earlier formats are rejected.** A full-model float `.wasm` (the model baked into a
 > WASI command, about 600 MB) is rejected with `legacy_full_model: full-model float
@@ -118,10 +115,10 @@ and lists the exact package format. Nothing is baked into a `.wasm` any more.
 
 | Requirement | Detail |
 |---|---|
-| Format | A safetensors file whose `__metadata__` declares `abi` `lora-v1` and `format_version` `1`. |
-| Foundation and tokenizer | `foundation_hash` is the sha256 of the validator's Foundation Model, and `tokenizer_hash` the pinned ModernBERT tokenizer. A validator that runs no Foundation Model rejects every package (`no_foundation`). |
+| Format | A safetensors file whose `__metadata__` declares `abi` `lora-v2` and `format_version` `2`. |
+| Foundation and tokenizer | `foundation_hash` is the sha256 of the validator's Foundation Model, and `tokenizer_hash` the pinned MiniCheck tokenizer. A validator that runs no Foundation Model rejects every package (`no_foundation`). |
 | Class | `class` is `judgment` or `hybrid`, the class of the intent you register for. A package registered for a deterministic intent is refused. |
-| LoRA | `rank` 1 to 16, `target_modules` among `Wqkv`, `Wo`, `Wi`, a positive `alpha`. |
+| LoRA | `rank` 1 to 16, `target_modules` among `attn.query`, `attn.key`, `attn.value`, `attn.out`, a positive `alpha`. |
 | Tensors | Exactly the LoRA A/B tensors of every layer and the reward head, `F32`, each the exact shape for the Foundation Model, tiling the data with nothing left over, every value finite. |
 | Tokens | `max_tokens` 1 to 512. |
 | Size | At most 64 MiB by default (a node setting), downloaded within 120 seconds. |
@@ -462,18 +459,9 @@ the registration after three attempts. For an Evaluator adapter that means your 
 running on the **same Foundation Model file and engine module the validators run**: the
 node later re-scores the same texts itself and rejects any score that differs by a single
 bit, so a different runtime (for example native ONNX Runtime, or a full-model `.wasm`)
-does not pass. The adapter kit's [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec) is the reference
-executor: it runs the Foundation Model and your package with the node's own runtime. The
-examples repository's
-[`evaluator-adapter`](https://github.com/telegraphprotocol/telegraph-examples/tree/master/evaluator-adapter)
-folder has a script that sends your endpoint the request a validator sends and checks the
-reply.
+does not pass. Use a runner verified to support the MiniCheck `lora-v2` package and exact engine/foundation pair. Previous adapter-kit runner and ModernBERT RAM measurements do not establish compatibility or capacity. Benchmark the real batch on your executor hardware before registering.
 
-Run it behind your own public HTTPS reverse proxy: the node does not follow redirects, and
-it refuses loopback, private and link-local addresses (`refusing to connect to blocked
-address`). Give the executor at least 5 GB of RAM: with the Foundation Model loaded it uses
-about 4.2 GB, and it is killed while loading under a 4 GB limit. Keep the endpoint up until
-your registration leaves `pending`.
+Run behind a public HTTPS reverse proxy. The node does not follow redirects and refuses blocked internal addresses. Keep the endpoint up until registration leaves `pending`.
 
 The endpoint must implement the **batch request**:
 
@@ -756,7 +744,7 @@ remote-check reasons start with `remote executor check failed before download: â
 | `Comparator modules are no longer accepted. â€¦` | The file is a comparator module (it exports `imw_score_deterministic`). The node refuses these for every intent kind. | Do not register a comparator. A deterministic intent takes no adapter. For a judgment or hybrid family, build an Evaluator adapter. |
 | `legacy_full_model` | The file is a full-model float `.wasm` (the model baked into a WASI command), the format before the shared Foundation Model. Its download is stopped at the first MiB. | Export the delta from the adapter's training run with the kit's `export_adapter.py` and register the `.safetensors`. See [Upgrading](upgrade-shared-foundation.md). |
 | `foundation_mismatch` | The package's `foundation_hash` is not the validator's Foundation Model. | Export again with the current `foundation.json`. A package built for another foundation is never served on this one. |
-| `tokenizer_mismatch` | `tokenizer_hash` is not the pinned ModernBERT tokenizer. | Train and export with ModernBERT-base's `tokenizer.json`. |
+| `tokenizer_mismatch` | `tokenizer_hash` is not the pinned MiniCheck tokenizer. | Train and export with the pinned MiniCheck `tokenizer.json`. |
 | `no_foundation` | The validator runs no Foundation Model, so it scores no Evaluator adapter. | Nothing on your side: that validator must be configured. All validators of the network run one. |
 | `class_mismatch` | `class` is not the intent's (a judgment package for a hybrid intent, or the reverse). | `export_adapter --class` with the intent's class. |
 | `rank_too_large` | `rank` is above 16. | Train with `--lora-rank` 16 or less. |

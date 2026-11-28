@@ -1,388 +1,65 @@
 ---
-description: Train an Evaluator adapter for a judgment or hybrid intent, export it as a safetensors delta for the shared Foundation Model, check it, host it, register it, and know what the node checks.
+description: Train and export a MiniCheck LoRA delta for the pinned shared scoring foundation.
 ---
 
 # Train an Evaluator Adapter
 
-An **Evaluator adapter** is the scoring module for a judgment or hybrid intent: a small
-AI model that reads a question and a miner's answer and scores how good the answer is.
+A judgment or hybrid evaluator is a **safetensors LoRA delta package** for the shared MiniCheck-DeBERTa-v3-Large foundation. Submit the trained attention deltas and two-class head. The node supplies the immutable base weights and WASM engine; you do not bake them into your artifact.
 
-Every validator runs **one shared Foundation Model** (ModernBERT-base with a reward head,
-loaded once). Your adapter is only what you trained on top of it: the **LoRA deltas and
-the reward head, in a safetensors file of a few MB**. The validator applies them to the
-Foundation Model at score time. This page takes you from example data to a registered
-adapter:
+See [Current Scoring Models](current-models.md) for the verified deployment and pinned hashes. Beta3 currently accepts inputs up to **512 tokens**. The old ModernBERT training, ONNX merge and `adapterbuild` full-model WASM recipe does not produce a compatible artifact.
 
-| Step | What you do | What you get |
-|---|---|---|
-| 1. Prepare data | Collect questions, each with a better and a worse answer | `pairs.jsonl` |
-| 2. Train | Fine-tune a LoRA on your pairs | a PEFT adapter folder and `reward_head.pt` |
-| 3. Export the delta | Write the LoRA deltas and reward head for the Foundation Model, never merged | `<INTENT>.safetensors` |
-| 4. Check and package | Check it the way a node will and get its hash | the keccak256 to register |
-| 5. Host and run the executor | Upload the file; serve it at your runnable URL | `wasmUrl`, `wasmRunnableUrl` |
-| 6. Register and compete | Call `registerWasm`, then the node checks and competes it | Active, or a rejection reason |
+## 1. Prepare preference pairs
 
-> **Full-model `.wasm` adapters are no longer accepted.** The earlier format, one ~600 MB
-> `.wasm` with the model and its engine baked in, is rejected with `legacy_full_model`.
-> If you have one, export the delta from its training run (step 3) and register again; see
-> [Upgrading to the Shared Foundation Model](upgrade-shared-foundation.md).
+Collect the task, a better answer and a worse answer for the target intent. Keep evaluation data separate from training data. For a family, include representative children and report held-out results for each child. Use the node's judgment rendering (`### Task:\n{prompt}\n\n### Answer:\n{answer}`) and its pinned MiniCheck tokenizer, including special tokens and truncation behavior. Keep the closing separator when truncating.
 
-If your intent is deterministic (a price, a rate, a yes/no fact), you don't need any of
-this: deterministic intents take no adapter. The node scores them with its built-in
-checker, and it refuses comparator modules. See
-[Deterministic intents take no adapter](build-a-scoring-module.md#deterministic-intents-take-no-adapter).
-Check an intent's class with `GET /engine/v1/intents/<intent>`, and register on the
-parent family (the prefix).
+Do not invent training metrics or infer hidden qualification material. A successful export is a packaging check, not evidence that an adapter improves ranking.
 
-## What you need
+## 2. Train a compatible checkpoint
 
-- The **adapter kit**,
-  [telegraph-wasm-baseline](https://github.com/telegraphprotocol/telegraph-wasm-baseline).
-  Every tool used below is in it.
+Use `lytang/MiniCheck-DeBERTa-v3-Large` at revision `2f2d01a54fa022a7ffadb76260e1ea8bc88c82bb`. Train plain PEFT LoRA with rank **1–16**, one rank and alpha, on a non-empty subset of:
 
-  ```bash
-  git clone https://github.com/telegraphprotocol/telegraph-wasm-baseline.git
-  cd telegraph-wasm-baseline
-  python -m pip install -r requirements.txt
-  ```
-- **Python 3.10+**, for training and export. `requirements.txt` installs `torch`,
-  `transformers`, `peft` and the rest. For GPU training, install a CUDA build of `torch`
-  first (see [pytorch.org](https://pytorch.org/get-started/locally/)).
-- **Go 1.25+**, for the check.
-- **A GPU** for training. Training works on a CPU, but it is very slow. Export and the
-  check run in seconds on a CPU.
-- **`foundation.json`** for the Foundation Model validators run: a small file with its
-  hash, version, tokenizer hash and LoRA layout. The Foundation Model file itself
-  (`foundation_lora_fp32.onnx`, ~599 MB) is only needed to score your package locally and
-  to run your executor. Download both, with the engine, the pinned `tokenizer.json` and
-  `SHA256SUMS`, from the [`modernbert-base-lora16-v1` release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1) of
-  [telegraph-foundation](https://github.com/telegraphprotocol/telegraph-foundation), and
-  check the hashes:
-
-  ```bash
-  mkdir -p foundation && cd foundation
-  curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/foundation.json
-  curl -fLO https://github.com/telegraphprotocol/telegraph-foundation/releases/download/modernbert-base-lora16-v1/SHA256SUMS
-  sha256sum -c --ignore-missing SHA256SUMS
-  cd ..
-  ```
-
-  You should see `foundation.json: OK`.
-
-  Use the released files, not a foundation you export yourself with `export_foundation.py`:
-  a local export is not guaranteed to have the same hash, and a package built against a
-  different hash is rejected (`foundation_mismatch`).
-- **A public `https://` server with at least 5 GB of RAM** for your runnable-URL
-  executor ([Step 5](#step-5-host-the-file-and-run-the-executor)). It must stay up
-  until your registration is decided. A laptop behind a home router is not enough on
-  its own: the node refuses private and loopback addresses.
-- **5 test USDC** for the $5 adapter bond, and a little Sepolia ETH. See
-  [Getting test tokens](../protocol/addresses-and-params.md#getting-test-tokens).
-- **Evaluation material from at least 5 contributors** for your intent, or your
-  registration waits. Check `GET /api/evalpool/status?intent_id=<INTENT>`
-  (`eligible_submitters`); see [Contribute Evaluation Data](contribute-evaluation-data.md).
-- **Time.** Plan for up to about three and a half hours from your transaction to a
-  decision (see [Step 6](#step-6-register-and-compete)).
-
-Run every command from the root of the kit.
-
-## Public build inputs
-
-The public inputs to this workflow are the adapter kit, the public
-`answerdotai/ModernBERT-base` base model and its tokenizer, the published Foundation
-Model, and training data you are entitled to use. The node supplies canonical tokens when
-it scores the finished adapter; it accepts up to 512 tokens.
-
-You do not need the current canonical evaluator's fine-tuned checkpoint or unpublished
-evaluation cases. They are intentionally outside the public build interface and are not
-needed to build, submit or compete with an adapter.
-
-If an AI assistant helps with this workflow, keep it within that boundary: it should use
-the public kit and public base model, then train on your data. It should not request,
-infer, scrape or rely on unpublished evaluator weights or evaluation material. The node
-performs the competition after submission.
-
-## Step 1: Prepare your data
-
-The adapter learns from **preference pairs**: a question, a better answer and a worse
-answer. Put one pair per line in a JSONL file:
-
-```json
-{"prompt": "Review this function: def add(a, b): return a - b", "chosen": "Bug: the function subtracts instead of adding. It should return a + b.", "rejected": "Looks good to me."}
-```
-
-| Field | Required | Meaning |
-|---|---|---|
-| `prompt` | Yes | The question or task, as a user would ask it |
-| `chosen` | Yes | The better answer |
-| `rejected` | Yes | The worse answer to the same question |
-| `margin` | No | How much better `chosen` is, as a number (default `0`) |
-| `label_kind` | No | If present, it must be `preference_pair`; other rows are skipped |
-
-This is the same row format the [evaluation pool](contribute-evaluation-data.md) accepts,
-so the same file can be used for both.
-
-**For a hybrid intent,** `prompt` is the question the miner was asked, and `chosen` and
-`rejected` are whole miner responses, because that is what the node gives the adapter to
-score.
-
-**For an intent family** (one adapter serving `WEATHER_FORECAST`,
-`WEATHER_FORECAST_LAHORE` and so on), train on pairs from the children too. The
-competition tests the adapter on every child's material. See
-[Families](build-a-scoring-module.md#families-one-module-for-many-intents).
-
-### What makes good data
-
-The training script refuses data that a shortcut can solve, because a model trained on it
-passes its own test and then scores real answers at random. Your data must pass these
-checks:
-
-| Check | Limit | What it catches |
-|---|---|---|
-| Unique worse answers | At least 80% of `rejected` answers are different | Reusing a few stock bad answers ("Looks good to me."), which the model just memorises |
-| Most-repeated worse answer | No single `rejected` answer in more than 2% of pairs | The same thing, for one answer |
-| Same answer twice | No more than 1% of pairs where `chosen` equals `rejected` | Pairs that teach nothing |
-| Length | "Pick the longer answer" (or the shorter one) is right at most 65% of the time | A model that learns "longer is better" |
-| Leakage | At most 10% of held-out worse answers also appear in training | A test that measures memory instead of judgement |
-| Surface style | A simple word-count model, **without seeing the question**, tells better from worse at most 65% of the time | Bad answers that all share a style (short, vague, templated) the model can spot without understanding the task |
-
-In practice: write worse answers that are **plausible but wrong**, different from each
-other, and about as long as the better answers.
-
-## Step 2: Train
-
-```bash
-python -m float_runtime.train_adapter \
-  --intent CODE_REVIEW --data pairs.jsonl --out runs/CODE_REVIEW
-```
-
-To check your data without training (fast, no GPU needed), add `--check-data`. It
-needs only `numpy`, so you can run it before you install `torch`:
-
-```bash
-python -m pip install numpy
-python -m float_runtime.train_adapter --intent CODE_REVIEW --data pairs.jsonl \
-  --out runs/CODE_REVIEW --check-data
-```
-
-It prints `dataset gate: PASS` or `dataset gate: FAIL`, each check from the table
-above with its value, and a line starting `x` for every check that failed, with
-what to change.
-
-The script:
-
-1. checks your data against the table above and stops if it fails;
-2. holds out 15% of the pairs for testing (or uses `--val-data` if you give one);
-3. fine-tunes [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) with a
-   LoRA adapter and a one-number reward head, keeping the best epoch;
-4. tests the result on the held-out pairs.
-
-The test passes when the model prefers the better answer in at least **65%** of held-out
-pairs **and** beats "pick the longer answer" by at least **10 points**.
-
-| Exit code | Meaning |
+| PEFT target | Package target |
 |---|---|
-| `0` | Passed. The adapter is in `runs/<INTENT>/adapter` with `reward_head.pt`, and the next commands are printed. |
-| `1` | The data check or the test failed. The reason is printed. |
-| `2` | An error, such as a missing file or the GPU running out of memory. |
+| `query_proj` | `attn.query` |
+| `key_proj` | `attn.key` |
+| `value_proj` | `attn.value` |
+| `attention.output.dense` | `attn.out` |
 
-Results are also written to `runs/<INTENT>/result.json`, with the base model's and the
-tokenizer's sha256.
+Save the fully trained two-class `classifier` using `modules_to_save=["classifier"]`. The foundation has 24 layers and hidden size 1024. DoRA, rsLoRA, rank/alpha patterns and other fully trained modules cannot be represented by this exporter and are refused. Do not relabel a ModernBERT checkpoint.
 
-Passing here doesn't mean your adapter will be accepted. It is a minimum. The node decides
-with its own hidden test, and your adapter has to beat the current one there (see
-[Step 6](#step-6-register-and-compete)).
+Validate that better answers receive higher `logit[1] - logit[0]` scores on held-out pairs. Record the exact base revision, data versions, training parameters, tokenizer hash and context length. This page does not prescribe an unverified trainer command or promise that the previous public kit has migrated to MiniCheck.
 
-### Options you may want
+## 3. Export the delta
 
-| Option | Default | Notes |
-|---|---|---|
-| `--val-data`, `--test-data` | none | Your own validation and final-test files, instead of a random 15% |
-| `--hf-dataset` | none | Train from a Hugging Face dataset with prompt/chosen/rejected columns instead of `--data` |
-| `--epochs` | `3` | Training stops early when it stops improving |
-| `--lr` | `0.0001` | Learning rate |
-| `--grad-accum` | `16` | Lower it on a small dataset; raise it if you run out of GPU memory |
-| `--lora-rank`, `--lora-alpha` | `8`, `32` | The rank must be at most **16** |
-| `--max-length` | `512` | Tokens per question and answer. The node scores up to 512. If you train shorter, export with the same number as `--max-tokens`. |
-| `--config` | none | A YAML or JSON file with any of the settings |
-
-Run with `--help` for the full list. If you train with your own code instead, the LoRA must
-be plain PEFT LoRA on ModernBERT-base: rank at most 16, `target_modules` among `Wqkv`,
-`Wo` and `Wi`, one `lora_alpha` (no `rank_pattern`, `alpha_pattern`, rsLoRA or DoRA).
-
-## Step 3: Export the delta
-
-This step writes your LoRA deltas and reward head as one **safetensors** file for the
-Foundation Model. It never merges them into the base weights:
+The node source contains the current exporter at `tools/minicheck/export_adapter.py`. Run it in an environment with PEFT checkpoint files, NumPy, safetensors, and the exact approved `foundation.json`:
 
 ```bash
-python -m float_runtime.export_adapter \
-  --run runs/CODE_REVIEW --intent CODE_REVIEW --class judgment \
-  --foundation foundation/foundation.json
-```
-
-- `--intent` is the **prefix** (family) the adapter serves, the same one you will
-  register on.
-- `--class` is the intent's class: `judgment` or `hybrid`.
-- `--max-tokens N` if you trained shorter than 512 tokens.
-- `--adapter <dir>` instead of `--run`, for a PEFT adapter trained elsewhere.
-
-It writes `runs/CODE_REVIEW/CODE_REVIEW.safetensors` (6.8 MB at rank 8, 13.5 MB at rank
-16) in seconds on a CPU. It refuses a run trained on another base model or tokenizer.
-
-## Step 4: Check and package
-
-```bash
-go run ./cmd/adapterbuild lora \
+python tools/minicheck/export_adapter.py \
+  --peft runs/CODE_REVIEW/adapter \
+  --manifest artifacts/foundation.json \
+  --class judgment \
   --intent CODE_REVIEW \
-  --package runs/CODE_REVIEW/CODE_REVIEW.safetensors \
-  --foundation foundation/foundation.json
+  --version minicheck-deberta-v3-large \
+  --max-tokens 512 \
+  --out artifacts/CODE_REVIEW.safetensors
 ```
 
-`adapterbuild lora`:
+Use `--class hybrid` only for a hybrid intent. The manifest must match the validator's approved foundation byte for byte. The command writes the LoRA matrices, scoring head and compatibility metadata into one safetensors file. It does not merge the delta into the base model, produce executable WASM, or register the artifact.
 
-- looks up whether the intent is judgment or hybrid, and refuses deterministic intents;
-- runs the node's own Stage 1 parser on the package against `foundation.json`: the
-  foundation and tokenizer hashes, the class, the rank, the target modules, every tensor's
-  shape, the offsets, the size and that every value is finite;
-- with `--foundation-onnx foundation_lora_fp32.onnx --engine foundation_engine.wasm`,
-  loads the package on the Foundation Model through the node's runtime and scores an input
-  twice, requiring the same bits both times;
-- writes a manifest next to the package and prints one JSON line:
+The exporter is in the node repository. Contributors without access need a maintainer-provided compatible exporter, manifest and runner before this workflow is reproducible; do not fall back to the retired full-model kit instructions.
 
-```json
-{"intent":"CODE_REVIEW","class":"judgment","keccak256":"0x…","sha256":"…","bytes":6776908,"package_path":"runs/CODE_REVIEW/CODE_REVIEW.safetensors","manifest_path":"runs/CODE_REVIEW/CODE_REVIEW.safetensors.manifest.json",…}
-```
+## 4. Inspect and test the package
 
-The `keccak256` value is the hash you register. Nothing is rewritten: it is the hash of the
-file `export_adapter` wrote. A local pass is not acceptance: the node's checks and the
-competition still decide.
+The safetensors `__metadata__` string map contains `format_version="2"`, `abi="lora-v2"`, `class`, `intent`, `foundation_hash`, `foundation_version`, `tokenizer_hash`, `rank`, `alpha`, `target_modules`, and `max_tokens`. Optional `training` carries a self-reported training record.
 
-## Step 5: Host the file and run the executor
+All tensors are F32. For each trained target and layer, A is `[in,rank]` and B is `[rank,out]`; `head.weight` is `[1024,2]` and `head.bias` is `[2]`. The exporter transposes PEFT tensors into this layout. The default package download limit is 64 MiB. The deployed rank-8 query/value GENERIC package is about 3.16 MB; size depends on rank and trained targets.
 
-1. Upload the `.safetensors` file unchanged to an `https://` or `ipfs://` URL. Nodes
-   download it within 120 seconds and check its keccak256; a host that re-encodes the file
-   breaks the match.
-2. Run your **runnable-URL executor**: an endpoint that runs your package on the same
-   Foundation Model and engine the validators run, and answers the node's batch request,
-   echoing the score identity. The contract is in
-   [The runnable endpoint](build-a-scoring-module.md#the-runnable-endpoint). Its scores must
-   be the exact bits the validators compute, so run the same foundation, engine and package.
-   The kit's [`cmd/adapterexec`](https://github.com/telegraphprotocol/telegraph-wasm-baseline/tree/main/cmd/adapterexec) is the reference executor.
-   Serve it at a public `https://` URL and give it at least 5 GB of RAM.
+Test the actual exported delta on the exact pinned engine, foundation and tokenizer. Compare its pair ordering and score bits with your training implementation, and benchmark the complete runnable validation batch. Raising `max_tokens` alone does not qualify an adapter or foundation for a longer context.
 
-## Step 6: Register and compete
+## 5. Host, register and qualify
 
-1. Register with `registerWasm(keccak256, url, prefix, feeAddress, runnableUrl)` and the
-   $5 adapter bond in test USDC. See
-   [Registering directly](build-a-scoring-module.md#registering-directly).
-2. The node checks it, in this order:
-   1. **Remote check.** After the next confirmed epoch, and once the intent has public
-      evaluation material, the node sends your runnable URL 15 public pairs (up to 30
-      texts) in one request. Your executor must echo the identity and order at least 70% of
-      the pairs correctly.
-   2. **Download and Stage 1.** The node downloads the package, checks its hash and runs the
-      rules in [What the node checks](#what-the-node-checks).
-   3. **Confirmation.** It scores the same 30 texts itself; every score must equal your
-      executor's, bit for bit.
-   4. **Competition** on the intent's hidden evaluation pool. Your adapter replaces the
-      current one only if it wins by at least 2 points and scores at least 70%. See
-      [Stage 2 for model adapters](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).
-3. **Expect up to about three and a half hours on the testnet.** The node sees your transaction about 10 to
-   15 minutes after it is mined, then waits for the next confirmed epoch (3 hours on the
-   testnet). On a laptop CPU one 512-token text takes about 13-14 seconds on the
-   Foundation Model: the remote check is several minutes on your executor, the
-   confirmation the same again on the validator, and the hidden round (60 texts) about
-   twice as long. On the testnet the checks after the epoch usually take about 5 to 15 minutes;
-   most of the wait is the epoch.
+Host the immutable `.safetensors` bytes and a compatible batch runnable endpoint. Compute Ethereum **Keccak-256** of the artifact, then use the existing `registerWasm` flow described in [Build an Evaluator Adapter](build-a-scoring-module.md). The URL and hash refer to the safetensors artifact; historical API field names still say WASM.
 
-Follow it with
-[Checking your module's status](build-a-scoring-module.md#checking-your-modules-status);
-every rejection and its fix is in
-[Rejection reasons for Evaluator adapters](build-a-scoring-module.md#rejection-reasons-for-evaluator-adapters).
+The runnable endpoint must use the same foundation, engine, tokenizer and delta, preserve the batch score-bit contract and echo the requested score identity. A legacy `ADAPTER_WASM` runner cannot establish compatibility. Do not register until the runner supports `lora-v2` and has passed a real batch smoke check.
 
-## What the node expects
-
-Use the tools above to produce the package. If you build your own tooling, it must match
-the contract below exactly.
-
-### The model and its input
-
-| Rule | Value |
-|---|---|
-| Foundation Model | ModernBERT-base (22 layers, hidden size 768) as one ONNX graph whose LoRA branches and reward head are graph inputs, identified by its sha256 |
-| Tokenizer | ModernBERT's `tokenizer.json`, sha256 `67bc76f8b9386efba1a761c1c8e5ad439fd0eaf1c2826e9dd1a205c7af4dc456`: `[CLS]` (id `50281`) and `[SEP]` (id `50282`) added |
-| Input text | `### Task:\n` + question + `\n\n### Answer:\n` + answer. For a hybrid intent the question is the request sent to the miner and the answer is the miner's whole response |
-| Input length | Up to 512 tokens, or the adapter's `max_tokens` if lower; the closing `[SEP]` is always kept. Every text is scored at its own length, with no padding |
-| Output | One number, the reward logit. A better answer should get a higher number |
-
-### The package
-
-A standard safetensors file (`u64` little-endian header length, a JSON header, the raw
-tensor bytes). The header's `__metadata__` map holds the package fields, every value a
-string:
-
-| Key | Rule |
-|---|---|
-| `format_version` | `"1"` |
-| `abi` | `"lora-v1"` |
-| `class` | `"judgment"` or `"hybrid"`, the class of the intent you register for |
-| `intent` | the prefix the adapter serves |
-| `foundation_hash`, `foundation_version` | the Foundation Model validators run |
-| `tokenizer_hash` | the tokenizer above |
-| `rank` | 1 to 16 (`R_MAX`) |
-| `alpha` | a positive number; the LoRA scale is `alpha / rank` |
-| `target_modules` | a JSON array of `Wqkv`, `Wo` and `Wi`, each at most once |
-| `max_tokens` | 1 to 512 |
-| `training` | optional: a self-reported training record as a JSON string; shape-checked, never used for a decision |
-| `x-*` | optional extension keys, ignored. Any other key is refused |
-
-The tensors, all `F32`, tiling the data exactly in order with nothing left over (178 for
-ModernBERT-base):
-
-| Tensor | Shape |
-|---|---|
-| `lora.<l>.attn.Wqkv.A`, `.B` | `[768, r]`, `[r, 2304]` |
-| `lora.<l>.attn.Wo.A`, `.B` | `[768, r]`, `[r, 768]` |
-| `lora.<l>.mlp.Wi.A`, `.B` | `[768, r]`, `[r, 2304]` |
-| `lora.<l>.mlp.Wo.A`, `.B` | `[1152, r]`, `[r, 768]` |
-| `head.weight` | `[768, 1]` |
-| `head.bias` | `[1]` |
-
-`l` is the layer, 0 to 21, and `r` the rank. `B` is stored pre-transposed. Every value must
-be a finite number. A package may be at most **64 MiB** (a node setting); a rank-8 package
-is 6.8 MB.
-
-### What the node checks
-
-At Stage 1 and again when it loads the package, with no fallback, the node checks every
-rule above against **its own** Foundation Model and tokenizer. Each failure is a rejection
-with a reason name: `foundation_mismatch`, `tokenizer_mismatch`, `class_mismatch`,
-`rank_too_large`, `bad_target_module`, `bad_shape`, `bad_dtype`, `bad_offsets`,
-`trailing_bytes`, `truncated`, `non_finite`, `too_large`, `bad_max_tokens`,
-`training_record`, `bad_header`, `bad_abi`, `bad_version`, `bad_container`,
-`missing_metadata`, and `no_foundation` on a validator that runs no Foundation Model. Each
-one and its fix is in
-[Rejection reasons for Evaluator adapters](build-a-scoring-module.md#rejection-reasons-for-evaluator-adapters).
-
-### Determinism
-
-Every validator runs the same Foundation Model file, the same engine module (WebAssembly,
-32-bit floats, no fused multiply-add, the graph's own operation order, one thread) and the
-same package, in a fixed sandbox: no files, an empty environment, a frozen clock, a fixed
-random stream and no network. A score is identified by the foundation hash, your package's
-keccak256, the tokenizer hash and the input. The same package and tokens give the same bits
-on repeat and next to other adapters; bit identity across different CPUs is not claimed
-here.
-
-### How the output becomes a score
-
-The node never does arithmetic on the float itself. It keeps the 32 bits and:
-
-- **ranks** answers by comparing them in exact numeric order;
-- turns them into a **score from `0` to `10000`** (100.00%) with a sigmoid computed in
-  whole-number arithmetic, for display and for the hybrid combination.
-
-For a hybrid intent, the node combines that score with the built-in checker's score itself; the
-adapter only judges the answer. Your model should simply give a higher number to a better
-answer.
+The node validates the artifact and compares it with the incumbent on hidden evaluation pairs. Passing local training checks, building a file, or registering on-chain does not make it canonical. See [competition on the hidden evaluation pool](build-a-scoring-module.md#stage-2-for-model-adapters-competition-on-the-hidden-evaluation-pool).

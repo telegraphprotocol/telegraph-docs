@@ -13,6 +13,8 @@ An evaluator bounty asks for a scoring artifact or supporting evaluation work. T
 
 Use only public inputs you are entitled to use. Do not request or attempt to infer hidden qualification cases, private evaluator files, private model assets, source credentials, or current ranking diagnostics.
 
+The current evaluator format is a MiniCheck `lora-v2` safetensors delta, not embedded full-model WASM. Check [Current Scoring Models](../scoring/current-models.md) before choosing a backbone or toolchain.
+
 ## What to submit
 
 Claim the bounty, build against its acceptance criteria, and submit a reproducible link with the evidence it requests. An evaluator artifact is not live merely because it builds, is hosted, or is mentioned in a GitHub comment. It must pass the relevant verification and promotion process.

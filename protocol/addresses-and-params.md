@@ -161,7 +161,7 @@ These parameters define the protocol's behaviour at launch. Governance-adjustabl
 | Scoring module minimum win rate | 70% overall; 60% on each family child with ≥ 10 scored pairs |
 | Minimum scored pairs per competition | 10 |
 | Competition sample size | 30 hidden pairs per round |
-| Shared Foundation Model | `modernbert-base-lora16-v1`, sha256 `0a49b325304bb4cf292e683929689d0457966be264f60bfc94d0072b614bf8e6` ([release](https://github.com/telegraphprotocol/telegraph-foundation/releases/tag/modernbert-base-lora16-v1)) |
+| Shared Foundation Model | `minicheck-deberta-v3-large`, manifest SHA-256 `675c4647469e021e184631ad5bf2b68ca518fcdc192100eee439a420a757300c`, 512 tokens; [current model inventory](../scoring/current-models.md) |
 | Evaluator adapter package | A safetensors LoRA delta, LoRA rank at most 16, at most 64 MiB (6.8 MB at rank 8) |
 | Adapter remote check | 15 public pairs (up to 30 texts) at your runnable URL, at least 70% in the right order, within 30 minutes |
 | Evaluation Pool minimum contributors | 5 per Intent |
